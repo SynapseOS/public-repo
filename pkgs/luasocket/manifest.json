@@ -1,0 +1,100 @@
+{
+  "format": 1,
+  "name": "luasocket",
+  "version": "3.1.0-r3",
+  "description": "Lua TCP, UDP, DNS and HTTP modules",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "lua >= 0.0.0-r516",
+    "musl-runtime"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/lib/lua/5.5/mime/core.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/lua/5.5/socket/core.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/luasocket.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/luasocket/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/ltn12.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/mime.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/socket/ftp.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/socket/headers.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/socket/http.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/socket/mbox.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/socket/smtp.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/socket/tp.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/socket/url.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/lua/5.5/socket.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
