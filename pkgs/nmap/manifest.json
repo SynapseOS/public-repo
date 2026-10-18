@@ -1,0 +1,102 @@
+{
+  "format": 1,
+  "name": "nmap",
+  "version": "7.991.0-r1",
+  "description": "Nmap network scanner with native Synapse packet backend and full NSE data",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.567-r1",
+    "nmap-nse-a >= 7.991.0-r1",
+    "nmap-nse-b >= 7.991.0-r1",
+    "nmap-nselib >= 7.991.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/nmap",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/nmap.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nmap/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nmap/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/man/man1/nmap.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nmap-mac-prefixes",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nmap-os-db",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nmap-protocols",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nmap-rpc",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nmap-service-probes",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nmap-services",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nmap.dtd",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nmap.xsl",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/nmap/nse_main.lua",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

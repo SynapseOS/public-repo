@@ -1,0 +1,11 @@
+{
+  "name": "nmap",
+  "version": "7.991.0-r1",
+  "source": "https://nmap.org/dist/nmap-7.991.tar.bz2",
+  "sha256": "a5d507f29437bef3bedd4771ff9aaa8fc1c2a109ddba1f5b1cf12027456929be",
+  "source_directory": "nmap-7.991",
+  "patches": [],
+  "description": "Nmap network scanner with native Synapse packet backend and full NSE data",
+  "native_overlay": "patches/dnet-synapse.c",
+  "build_system": "recipe"
+}
