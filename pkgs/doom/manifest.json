@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "name": "doom",
+  "version": "0.1.0-r1",
+  "description": "PureDOOM for SynapseOS with framebuffer/input support and bundled local IWADs",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "assets"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/doom",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/doom/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/doom.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

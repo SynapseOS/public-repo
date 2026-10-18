@@ -1,0 +1,518 @@
+--- /dev/null
++++ b/synapse.c
+@@ -0,0 +1,451 @@
++#define _GNU_SOURCE
++#include <stdio.h>
++#include <stdlib.h>
++#include <stdint.h>
++#include <stdbool.h>
++#include <string.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <sys/ioctl.h>
++#include <sys/mman.h>
++#include <sys/stat.h>
++#include <time.h>
++#include <errno.h>
++#include <dev/hid.h>
++#include <dev/mouse.h>
++#include "framebuffer.h"
++#define DOOM_IMPLEMENTATION
++#define DOOM_IMPLEMENT_PRINT
++#define DOOM_IMPLEMENT_MALLOC
++#define DOOM_IMPLEMENT_FILE_IO
++#define DOOM_IMPLEMENT_GETENV
++#include "PureDOOM.h"
++#define FB_GET_VAR 0x4600
++#define FB_GET_FIX 0x4602
++#define FB_DIRTY 0x4621
++#define FB_FLUSH 0x4622
++#define FB_CLAIM 0x4626
++#define FB_RELEASE 0x4627
++static int port_fb = -1, mouse = -1;
++static uint8_t *pixels = MAP_FAILED;
++static size_t pixels_size;
++static bool claimed;
++static const char *selected_wad, *selected_name;
++
++static void port_trace(const char *stage) {
++	if (getenv("DOOM_DEBUG"))
++		dprintf(2, "doom: %s\n", stage);
++}
++
++static uint32_t wad_u32(const unsigned char *p) {
++	return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
++}
++
++static int select_iwad(const char *path) {
++	port_trace("reading IWAD directory");
++	FILE *file = fopen(path, "rb");
++	unsigned char header[12], entry[16];
++	struct stat st;
++
++	if (!file)
++		return -1;
++
++	if (fstat(fileno(file), &st) || fread(header, 1, 12, file) != 12 || memcmp(header, "IWAD", 4)) {
++		fclose(file);
++		errno = EINVAL;
++		return -1;
++	}
++
++	uint32_t count = wad_u32(header + 4), offset = wad_u32(header + 8);
++
++	if (count > 65536 || (uint64_t)offset + 16ull * count > (uint64_t)st.st_size ||
++	    fseek(file, offset, SEEK_SET)) {
++		fclose(file);
++		errno = EINVAL;
++		return -1;
++	}
++
++	port_trace("scanning IWAD maps");
++	int mode = 0;
++
++	for (uint32_t i = 0; i < count; i++) {
++		if (fread(entry, 1, 16, file) != 16) {
++			fclose(file);
++			errno = EIO;
++			return -1;
++		}
++
++		if (!memcmp(entry + 8, "MAP01\0", 6))
++			mode = 4;
++		else if (mode < 3 && !memcmp(entry + 8, "E4M1\0", 5))
++			mode = 3;
++		else if (mode < 2 && !memcmp(entry + 8, "E2M1\0", 5))
++			mode = 2;
++		else if (mode < 1 && !memcmp(entry + 8, "E1M1\0", 5))
++			mode = 1;
++	}
++
++	port_trace("IWAD directory complete");
++	fclose(file);
++
++	if (!mode) {
++		errno = EINVAL;
++		return -1;
++	}
++
++	selected_wad = path;
++	selected_name = mode == 4   ? "doom2.wad"
++	                : mode == 3 ? "doomu.wad"
++	                : mode == 2 ? "doom.wad"
++	                            : "doom1.wad";
++	return 0;
++}
++
++static void *port_open(const char *path, const char *mode) {
++	const char prefix[] = "/.lumine-iwad/";
++
++	if (!strncmp(path, prefix, sizeof(prefix) - 1)) {
++		if (!selected_name || strcmp(path + sizeof(prefix) - 1, selected_name))
++			return NULL;
++		path = selected_wad;
++	}
++
++	return fopen(path, mode);
++}
++
++static char *port_getenv(const char *name) {
++	if (!strcmp(name, "DOOMWADDIR") && selected_wad)
++		return "/.lumine-iwad";
++	char *value = getenv(name);
++	return value ? value : !strcmp(name, "HOME") ? "/root" : NULL;
++}
++
++static void cleanup(void) {
++	if (claimed && port_fb >= 0)
++		ioctl(port_fb, FB_RELEASE, 0);
++	claimed = false;
++
++	if (pixels != MAP_FAILED)
++		munmap(pixels, pixels_size);
++	pixels = MAP_FAILED;
++
++	if (mouse >= 0)
++		close(mouse);
++
++	if (port_fb >= 0)
++		close(port_fb);
++	mouse = port_fb = -1;
++}
++
++static void port_print(const char *text) {
++	fputs(text, stdout);
++	fflush(stdout);
++}
++
++static void port_exit(int code) {
++	cleanup( );
++	exit(code);
++}
++
++static uint64_t now_us(void) {
++	struct timespec ts;
++	clock_gettime(CLOCK_MONOTONIC, &ts);
++	return (uint64_t)ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
++}
++
++static void port_time(int *seconds, int *microseconds) {
++	struct timespec ts;
++	clock_gettime(CLOCK_MONOTONIC, &ts);
++	*seconds = (int)ts.tv_sec;
++	*microseconds = ts.tv_nsec / 1000;
++}
++
++static doom_key_t translate_key(uint16_t key) {
++	if (key >= 'A' && key <= 'Z')
++		return (doom_key_t)(key - 'A' + 'a');
++
++	if (key >= '0' && key <= 127)
++		return (doom_key_t)key;
++
++	switch (key) {
++		case VK_ESCAPE:
++			return DOOM_KEY_ESCAPE;
++		case VK_TAB:
++			return DOOM_KEY_TAB;
++		case VK_SPACE:
++			return DOOM_KEY_SPACE;
++		case VK_ENTER:
++			return DOOM_KEY_ENTER;
++		case VK_BACKSPACE:
++			return DOOM_KEY_BACKSPACE;
++		case VK_LSHIFT:
++		case VK_RSHIFT:
++			return DOOM_KEY_SHIFT;
++		case VK_LCTRL:
++		case VK_RCTRL:
++			return DOOM_KEY_CTRL;
++		case VK_LALT:
++		case VK_RALT:
++			return DOOM_KEY_ALT;
++		case VK_LEFT:
++			return DOOM_KEY_LEFT_ARROW;
++		case VK_RIGHT:
++			return DOOM_KEY_RIGHT_ARROW;
++		case VK_UP:
++			return DOOM_KEY_UP_ARROW;
++		case VK_DOWN:
++			return DOOM_KEY_DOWN_ARROW;
++		case VK_F1:
++			return DOOM_KEY_F1;
++		case VK_F2:
++			return DOOM_KEY_F2;
++		case VK_F3:
++			return DOOM_KEY_F3;
++		case VK_F4:
++			return DOOM_KEY_F4;
++		case VK_F6:
++			return DOOM_KEY_F6;
++		case VK_F7:
++			return DOOM_KEY_F7;
++		case VK_F8:
++			return DOOM_KEY_F8;
++		case VK_F9:
++			return DOOM_KEY_F9;
++		case VK_F10:
++			return DOOM_KEY_F10;
++		case VK_F11:
++			return DOOM_KEY_F11;
++		default:
++			if (key == ' ' || key == '-' || key == ',' || key == '.' || key == '/' || key == '\'')
++				return (doom_key_t)key;
++	}
++
++	return (doom_key_t)0;
++}
++
++int main(int argc, char **argv) {
++	if (argc == 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h"))) {
++		puts(
++		    "usage: doom [WAD path | -iwad WAD ...]\nDefault: /assets/doom1.wad or doom2.wad\nWASD, E use, Ctrl/left mouse fire; Ctrl+C exits.\nF5 restarts network; F12 reboots. Sound is not implemented.");
++		return 0;
++	}
++
++	char *defaults[] = { "doom", "-iwad", NULL, NULL };
++
++	if (argc == 1) {
++		struct stat st;
++		defaults[2] = "/assets/doom1.wad";
++
++		if (stat(defaults[2], &st))
++			defaults[2] = "/assets/doom2.wad";
++
++		if (stat(defaults[2], &st)) {
++			fputs("doom: supply an IWAD with doom /path/to/doom1.wad\n", stderr);
++			return 1;
++		}
++
++		argc = 3;
++		argv = defaults;
++	} else if (argc == 2 && argv[1][0] != '-') {
++		defaults[2] = argv[1];
++		argc = 3;
++		argv = defaults;
++	}
++
++	const char *iwad = NULL;
++
++	for (int i = 1; i < argc; i++)
++		if (!strcmp(argv[i], "-iwad")) {
++			if (i + 1 >= argc) {
++				fputs("doom: -iwad requires a path\n", stderr);
++				return 1;
++			}
++
++			iwad = argv[++i];
++		}
++
++	if (iwad && select_iwad(iwad)) {
++		perror("doom: IWAD");
++		return 1;
++	}
++
++	doom_set_file_io(port_open, doom_close_impl, doom_read_impl, doom_write_impl, doom_seek_impl,
++	                 doom_tell_impl, doom_eof_impl);
++	doom_set_getenv(port_getenv);
++	port_trace("opening framebuffer");
++	struct fb_var_screeninfo info;
++	struct fb_fix_screeninfo fix;
++	port_fb = open("/dev/fb0", O_RDWR);
++	port_trace("framebuffer opened");
++
++	if (port_fb < 0 || ioctl(port_fb, FB_GET_VAR, &info) < 0 ||
++	    ioctl(port_fb, FB_GET_FIX, &fix) < 0) {
++		perror("doom: framebuffer");
++		cleanup( );
++		return 1;
++	}
++
++	port_trace("framebuffer information read");
++
++	if (info.bits_per_pixel != 32 || info.xres < 320 || info.yres < 200 || info.red.length != 8 ||
++	    info.green.length != 8 || info.blue.length != 8) {
++		fputs("doom: a 32-bit RGB framebuffer of at least 320x200 is required\n", stderr);
++		cleanup( );
++		return 1;
++	}
++
++	pixels_size = (size_t)fix.line_length * info.yres;
++	pixels = mmap(NULL, pixels_size, PROT_READ | PROT_WRITE, MAP_SHARED, port_fb, 0);
++	port_trace("framebuffer mapped");
++
++	if (pixels == MAP_FAILED || ioctl(port_fb, FB_CLAIM, 0) < 0) {
++		perror("doom: framebuffer claim");
++		cleanup( );
++		return 1;
++	}
++
++	port_trace("framebuffer claimed");
++	claimed = true;
++	atexit(cleanup);
++	memset(pixels, 0, pixels_size);
++	port_trace("framebuffer cleared");
++	mouse = open("/dev/mouse", O_RDONLY | O_NONBLOCK);
++	/* Drain events used to type the launch command. */
++	kbd_event_t event;
++	while (syscall(102000, &event) == KBD_OK) {
++	}
++
++	port_trace("keyboard drained");
++	doom_set_print(port_print);
++	doom_set_gettime(port_time);
++	doom_set_exit(port_exit);
++	doom_set_default_int("key_up", DOOM_KEY_W);
++	doom_set_default_int("key_down", DOOM_KEY_S);
++	doom_set_default_int("key_strafeleft", DOOM_KEY_A);
++	doom_set_default_int("key_straferight", DOOM_KEY_D);
++	doom_set_default_int("key_use", DOOM_KEY_E);
++	doom_set_default_int("mouse_move", 0);
++	port_trace("initializing engine");
++	doom_init(argc, argv, DOOM_FLAG_HIDE_SOUND_OPTIONS | DOOM_FLAG_HIDE_MUSIC_OPTIONS);
++	port_trace("drawing frames");
++	unsigned scale = info.xres / 320;
++
++	if (scale > info.yres / 200)
++		scale = info.yres / 200;
++	unsigned x0 = (info.xres - 320 * scale) / 2, y0 = (info.yres - 200 * scale) / 2;
++	uint32_t buttons = 0;
++
++	struct {
++		uint32_t x, y, w, h;
++	} dirty = { 0, 0, info.xres, info.yres };
++
++	/* Clear the borders once; subsequent flushes cover only the game rectangle. */
++	ioctl(port_fb, FB_DIRTY, &dirty);
++	ioctl(port_fb, FB_FLUSH, 0);
++	dirty.x = x0;
++	dirty.y = y0;
++	dirty.w = 320 * scale;
++	dirty.h = 200 * scale;
++	uint64_t deadline = now_us( ), started = deadline, work_us = 0, render_us = 0;
++	unsigned frames = 0, bench = getenv("DOOM_BENCH_FRAMES")
++	                                 ? strtoul(getenv("DOOM_BENCH_FRAMES"), NULL, 10)
++	                                 : 0;
++	bool legacy = bench && getenv("DOOM_BENCH_LEGACY") != NULL;
++
++	for (;;) {
++		uint64_t frame_start = now_us( );
++		while (syscall(102000, &event) == KBD_OK) {
++			if (event.is_pressed && event.keycode == 'C' &&
++			    (event.modifiers & (KBD_MOD_LCTRL | KBD_MOD_RCTRL)))
++				port_exit(0);
++			doom_key_t key = translate_key(event.keycode);
++
++			if (key) {
++				if (event.is_pressed)
++					doom_key_down(key);
++				else
++					doom_key_up(key);
++			}
++		}
++
++		mouse_event_t motion;
++		while (mouse >= 0 && read(mouse, &motion, sizeof(motion)) == (ssize_t)sizeof(motion)) {
++			doom_mouse_move(motion.dx, motion.dy);
++
++			for (unsigned i = 0; i < 3; i++)
++				if ((motion.buttons ^ buttons) & (1u << i)) {
++					if (motion.buttons & (1u << i))
++						doom_button_down((doom_button_t)i);
++					else
++						doom_button_up((doom_button_t)i);
++				}
++
++			buttons = motion.buttons;
++		}
++
++		doom_update( );
++		const uint8_t *rgba = doom_get_framebuffer(4);
++		uint64_t render_start = now_us( );
++
++		if (legacy) {
++			for (unsigned y = 0; y < 200 * scale; y++) {
++				uint32_t *row = (uint32_t *)(pixels + (y0 + y) * fix.line_length) + x0;
++
++				for (unsigned x = 0; x < 320 * scale; x++) {
++					const uint8_t *p = rgba + 4 * ((y / scale) * 320 + x / scale);
++					row[x] = ((uint32_t)p[0] << info.red.offset) |
++					         ((uint32_t)p[1] << info.green.offset) |
++					         ((uint32_t)p[2] << info.blue.offset);
++				}
++			}
++		} else {
++			for (unsigned y = 0; y < 200; y++) {
++				uint32_t *row = (uint32_t *)(pixels + (y0 + y * scale) * fix.line_length) + x0;
++				const uint8_t *p = rgba + y * 320 * 4;
++
++				for (unsigned x = 0; x < 320; x++, p += 4) {
++					uint32_t color = ((uint32_t)p[0] << info.red.offset) |
++					                 ((uint32_t)p[1] << info.green.offset) |
++					                 ((uint32_t)p[2] << info.blue.offset);
++
++					for (unsigned dx = 0; dx < scale; dx++)
++						row[x * scale + dx] = color;
++				}
++
++				for (unsigned dy = 1; dy < scale; dy++)
++					memcpy((uint8_t *)row + dy * fix.line_length, row, 320 * scale * 4);
++			}
++		}
++
++		struct {
++			uint32_t x, y, w, h;
++		} full = { 0, 0, info.xres, info.yres };
++
++		ioctl(port_fb, FB_DIRTY, legacy ? (void *)&full : (void *)&dirty);
++		ioctl(port_fb, FB_FLUSH, 0);
++		uint64_t finished = now_us( );
++		render_us += finished - render_start;
++		work_us += finished - frame_start;
++
++		if (legacy)
++			usleep(1000000 / 35);
++		else {
++			deadline += 1000000 / 35;
++
++			if (finished < deadline)
++				usleep(deadline - finished);
++			else
++				deadline = finished; /* Drop missed deadlines; never spin to catch up. */
++		}
++
++		if (bench && ++frames >= bench) {
++			uint64_t elapsed = now_us( ) - started;
++			printf(
++			    "DOOM_BENCH mode=%s frames=%u elapsed_us=%llu fps=%.2f work_ms=%.2f render_ms=%.2f\n",
++			    legacy ? "legacy" : "optimized", frames, (unsigned long long)elapsed,
++			    frames * 1000000.0 / elapsed, work_us / (frames * 1000.0),
++			    render_us / (frames * 1000.0));
++			return 0;
++		}
++	}
++}
+--- /dev/null
++++ b/framebuffer.h
+@@ -0,0 +1,61 @@
++#ifndef DOOM_FRAMEBUFFER_H
++#define DOOM_FRAMEBUFFER_H
++#include <stdint.h>
++
++struct fb_fix_screeninfo {
++	char id[16];
++	unsigned long smem_start;
++	uint32_t smem_len;
++	uint32_t type;
++	uint32_t type_aux;
++	uint32_t visual;
++	uint32_t xpanstep;
++	uint32_t ypanstep;
++	uint32_t ywrapstep;
++	uint32_t line_length;
++	unsigned long mmio_start;
++	uint32_t mmio_len;
++	uint32_t accel;
++	uint16_t capabilities;
++	uint16_t reserved[2];
++} __attribute__((packed));
++
++struct fb_bitfield {
++	uint32_t offset;
++	uint32_t length;
++	uint32_t msb_right;
++} __attribute__((packed));
++
++struct fb_var_screeninfo {
++	uint32_t xres;
++	uint32_t yres;
++	uint32_t xres_virtual;
++	uint32_t yres_virtual;
++	uint32_t xoffset;
++	uint32_t yoffset;
++	uint32_t bits_per_pixel;
++	uint32_t grayscale;
++	struct fb_bitfield red;
++	struct fb_bitfield green;
++	struct fb_bitfield blue;
++	struct fb_bitfield transp;
++	uint32_t nonstd;
++	uint32_t activate;
++	uint32_t height;
++	uint32_t width;
++	uint32_t accel_flags;
++	uint32_t pixclock;
++	uint32_t left_margin;
++	uint32_t right_margin;
++	uint32_t upper_margin;
++	uint32_t lower_margin;
++	uint32_t hsync_len;
++	uint32_t vsync_len;
++	uint32_t sync;
++	uint32_t vmode;
++	uint32_t rotate;
++	uint32_t colorspace;
++	uint32_t reserved[4];
++} __attribute__((packed));
++
++#endif
