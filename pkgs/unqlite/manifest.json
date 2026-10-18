@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "name": "unqlite",
+  "version": "1.2.1-r2",
+  "description": "Embedded key/value and document database with CLI and static C library",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.554-r1",
+    "setup >= 0.1.512-r4"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/unqlite",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/include/unqlite.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libunqlite.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/unqlite.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/unqlite/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

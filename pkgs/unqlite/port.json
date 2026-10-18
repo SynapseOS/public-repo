@@ -1,0 +1,17 @@
+{
+  "name": "unqlite",
+  "version": "1.2.1-r2",
+  "source": "https://codeload.github.com/symisc/unqlite/tar.gz/72ef0c681fe44c1c1b98a965f390e4336b180189",
+  "sha256": "8e43c90c1937b5051b30122d425b53f10c88106ee6d108e23bd4c52b773a6a78",
+  "source_directory": "unqlite-72ef0c681fe44c1c1b98a965f390e4336b180189",
+  "patches": [
+    "patches/0001-synapse-directory-locks.patch"
+  ],
+  "build_system": "recipe",
+  "build_script": "build.py",
+  "license": "BSD-2-Clause",
+  "depends": [
+    "kernel >= 0.1.554-r1",
+    "setup >= 0.1.512-r4"
+  ]
+}
