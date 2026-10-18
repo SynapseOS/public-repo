@@ -1,0 +1,300 @@
+--- a/clients/terminal.c
++++ b/clients/terminal.c
+@@ -2485,6 +2485,13 @@
+ 	case XKB_KEY_Super_R:
+ 	case XKB_KEY_Hyper_L:
+ 	case XKB_KEY_Hyper_R:
++    case XKB_KEY_ISO_Next_Group:
++    case XKB_KEY_ISO_Prev_Group:
++    case XKB_KEY_ISO_First_Group:
++    case XKB_KEY_ISO_Last_Group:
++    case XKB_KEY_Mode_switch:
++    case XKB_KEY_ISO_Level3_Shift:
++    case XKB_KEY_ISO_Level5_Shift:
+ 		break;
+ 
+ 	case XKB_KEY_Insert:
+@@ -2571,8 +2578,10 @@
+ 				fprintf(stderr,
+ 					"Warning: buffer too small to encode "
+ 					"UTF8 character\n");
+-			else
+-				len += ret;
++            else if (ret > 0) {
++                // xkb_keysym_to_utf8 включает завершающий нулевой байт
++                len += ret - 1;
++            }
+ 		}
+ 
+ 		break;
+--- a/clients/window.c
++++ b/clients/window.c
+@@ -1198,14 +1198,14 @@
+ 	weston_config_section_get_int(s, "cursor-size", &size, size);
+ 	weston_config_destroy(config);
+ 
++    display->cursors = xcalloc(ARRAY_LENGTH(cursors), sizeof display->cursors[0]);
+ 	display->cursor_theme = wl_cursor_theme_load(theme, size, display->shm);
+ 	if (!display->cursor_theme) {
+ 		fprintf(stderr, "could not load theme '%s'\n", theme);
+ 		return;
+ 	}
+ 	free(theme);
+-	display->cursors =
+-		xmalloc(ARRAY_LENGTH(cursors) * sizeof display->cursors[0]);
++
+ 
+ 	for (i = 0; i < ARRAY_LENGTH(cursors); i++) {
+ 		cursor = NULL;
+@@ -6971,6 +6971,8 @@
+ 	return 1 << index;
+ }
+ 
++#include "client-timers.inc"
++
+ static void
+ toytimer_fire(struct task *tsk, uint32_t events)
+ {
+@@ -6995,6 +6997,10 @@
+ 		return;
+ 	}
+ 
++    if (tt->synapse_interval.tv_sec != 0 || tt->synapse_interval.tv_nsec != 0) {
++        struct itimerspec next = {.it_value = tt->synapse_interval, .it_interval = tt->synapse_interval};
++        synapse_toy_arm(tt, &next);
++    }
+ 	tt->callback(tt);
+ }
+ 
+@@ -7004,7 +7010,13 @@
+ {
+ 	memset(tt, 0, sizeof *tt);
+ 
+-	tt->fd = timerfd_create(clock, TFD_CLOEXEC | TFD_NONBLOCK);
++    (void)clock;
++    tt->synapse = calloc(1, sizeof(*tt->synapse));
++    if (tt->synapse == NULL) {
++        abort();
++    }
++    tt->synapse->synapse_timer = synapse_timer_create();
++    tt->fd = tt->synapse->synapse_timer != NULL ? tt->synapse->synapse_timer->pipe[0] : -1;
+ 	if (tt->fd == -1) {
+ 		fprintf(stderr, "creating timer failed: %s\n",
+ 			strerror(errno));
+@@ -7021,7 +7033,9 @@
+ toytimer_fini(struct toytimer *tt)
+ {
+ 	display_unwatch_fd(tt->display, tt->fd);
+-	close(tt->fd);
++	synapse_timer_destroy(tt->synapse);
++    free(tt->synapse);
++    tt->synapse = NULL;
+ 	tt->fd = -1;
+ }
+ 
+@@ -7030,7 +7044,8 @@
+ {
+ 	int ret;
+ 
+-	ret = timerfd_settime(tt->fd, 0, its, NULL);
++	synapse_toy_arm(tt, its);
++    ret = 0;
+ 	if (ret < 0) {
+ 		fprintf(stderr, "timer setup failed: %s\n", strerror(errno));
+ 		abort();
+--- a/clients/window.h
++++ b/clients/window.h
+@@ -796,7 +796,10 @@
+ struct toytimer;
+ typedef void (*toytimer_cb)(struct toytimer *);
+ 
++struct synapse_toy_heap;
+ struct toytimer {
++    struct synapse_toy_heap *synapse;
++    struct timespec synapse_interval;
+ 	struct display *display;
+ 	struct task tsk;
+ 	int fd;
+--- a/compositor/config-helpers.c
++++ b/compositor/config-helpers.c
+@@ -39,7 +39,8 @@
+ 	enum weston_compositor_backend backend;
+ } backend_name_map[] = {
+ 	{ "drm", "drm-backend.so", WESTON_BACKEND_DRM },
+-	{ "headless", "headless-backend.so", WESTON_BACKEND_HEADLESS },
++	{ "synapse", "synapse-backend.so", WESTON_BACKEND_HEADLESS },
++	{ "headless", "synapse-backend.so", WESTON_BACKEND_HEADLESS },
+ 	{ "pipewire", "pipewire-backend.so", WESTON_BACKEND_PIPEWIRE },
+ 	{ "rdp", "rdp-backend.so", WESTON_BACKEND_RDP },
+ 	{ "vnc", "vnc-backend.so", WESTON_BACKEND_VNC },
+--- a/compositor/main.c
++++ b/compositor/main.c
+@@ -3183,7 +3183,7 @@
+ 			return -1;
+ 		}
+ 
+-		if (api->create_head(wb->backend, "headless") < 0)
++		if (api->create_head(wb->backend, "Synapse-0") < 0)
+ 			return -1;
+ 	}
+ 
+--- a/libweston/backend-headless/headless.c
++++ b/libweston/backend-headless/headless.c
+@@ -57,6 +57,14 @@
+ 	struct weston_compositor *compositor;
+ 
+ 	struct weston_seat fake_seat;
++    int fb_fd, pointer_fd;
++    uint8_t *screen;
++    size_t screen_bytes;
++    uint32_t width, height, stride, buttons;
++    uint32_t device_buttons[16];
++    double mouse_x, mouse_y;
++    bool claimed, seat_ready;
++    struct wl_event_source *input_timer;
+ 
+ 	bool decorate;
+ 	struct theme *theme;
+@@ -83,6 +91,8 @@
+ 	} gl;
+ };
+ 
++#include "synapse-backend.inc"
++
+ static const uint32_t headless_formats[] = {
+ 	DRM_FORMAT_XRGB8888, /* default for pixman-renderer */
+ 	DRM_FORMAT_ARGB8888,
+@@ -171,6 +181,7 @@
+ 	ec->renderer->repaint_output(&output->base, &damage,
+ 				     output->renderbuffer);
+ 
++	synapse_present(output, &damage);
+ 	pixman_region32_fini(&damage);
+ 
+ 	wl_event_source_timer_update(output->finish_frame_timer, 16);
+@@ -395,6 +406,9 @@
+ 	if (!output)
+ 		return -1;
+ 
++    width = output->backend->width;
++    height = output->backend->height;
++
+ 	/* We can only be called once. */
+ 	assert(!output->base.current_mode);
+ 
+@@ -402,7 +416,7 @@
+ 	assert(output->base.scale);
+ 
+ 	wl_list_for_each(head, &output->base.head_list, output_link) {
+-		weston_head_set_monitor_strings(head, "weston", "headless",
++		weston_head_set_monitor_strings(head, "SynapseOS", "Framebuffer",
+ 						NULL);
+ 
+ 		/* XXX: Calculate proper size. */
+@@ -509,6 +523,7 @@
+ 	struct weston_compositor *ec = b->compositor;
+ 	struct weston_head *base, *next;
+ 
++	synapse_close(b);
+ 	wl_list_remove(&b->base.link);
+ 
+ 	wl_list_for_each_safe(base, next, &ec->head_list, compositor_link) {
+@@ -544,7 +559,10 @@
+ 	if (b == NULL)
+ 		return NULL;
+ 
+-	b->compositor = compositor;
++	b->fb_fd = -1;
++    b->pointer_fd = -1;
++    config->renderer = WESTON_RENDERER_PIXMAN;
++    b->compositor = compositor;
+ 	wl_list_insert(&compositor->backend_list, &b->base.link);
+ 
+ 	b->base.supported_presentation_clocks =
+@@ -617,6 +635,10 @@
+ 			goto err_input;
+ 	}
+ 
++    if (synapse_open(b) < 0) {
++        goto err_input;
++    }
++
+ 	ret = weston_plugin_api_register(compositor, WESTON_WINDOWED_OUTPUT_API_NAME,
+ 					 &api, sizeof(api));
+ 
+@@ -628,9 +650,11 @@
+ 	return b;
+ 
+ err_input:
++    synapse_close(b);
+ 	if (b->theme)
+ 		theme_destroy(b->theme);
+ err_free:
++	synapse_close(b);
+ 	wl_list_remove(&b->base.link);
+ 	free(b);
+ 	return NULL;
+--- a/libweston/backend-headless/meson.build
++++ b/libweston/backend-headless/meson.build
+@@ -9,7 +9,7 @@
+ 	presentation_time_server_protocol_h,
+ ]
+ plugin_headless = shared_library(
+-	'headless-backend',
++	'synapse-backend',
+ 	srcs_headless,
+ 	include_directories: common_inc,
+ 	dependencies: [
+--- a/libweston/compositor.c
++++ b/libweston/compositor.c
+@@ -9647,7 +9647,7 @@
+ 
+ static const char * const backend_map[] = {
+ 	[WESTON_BACKEND_DRM] =		"drm-backend.so",
+-	[WESTON_BACKEND_HEADLESS] =	"headless-backend.so",
++	[WESTON_BACKEND_HEADLESS] =	"synapse-backend.so",
+ 	[WESTON_BACKEND_PIPEWIRE] =	"pipewire-backend.so",
+ 	[WESTON_BACKEND_RDP] =		"rdp-backend.so",
+ 	[WESTON_BACKEND_VNC] =		"vnc-backend.so",
+--- a/libweston/input.c
++++ b/libweston/input.c
+@@ -1913,7 +1913,7 @@
+ 	uint32_t serial;
+ 	struct wl_list *focus_resource_list;
+ 	int refocus = 0;
+-	wl_fixed_t sx, sy;
++	wl_fixed_t sx = 0, sy = 0;
+ 
+ 	if (view) {
+ 		struct weston_coord_surface surf_pos;
+--- a/meson.build
++++ b/meson.build
+@@ -76,8 +76,8 @@
+ endif
+ 
+ optional_libc_funcs = [
+-	'mkostemp', 'strchrnul', 'initgroups', 'posix_fallocate',
+-	'memfd_create', 'unreachable',
++	'mkostemp', 'strchrnul', 'initgroups', 
++	 'unreachable',
+ ]
+ foreach func : optional_libc_funcs
+ 	if cc.has_function(func)
+@@ -128,6 +128,8 @@
+ 	error('Backend @0@ was chosen as native but is not being built.'.format(backend_default))
+ endif
+ 
++config_h.set('HAVE_LIBDISPLAY_INFO', 0)
++
+ dep_xkbcommon = dependency('xkbcommon', version: '>= 0.3.0')
+ if dep_xkbcommon.version().version_compare('>= 0.5.0')
+ 	config_h.set('HAVE_XKBCOMMON_COMPOSE', '1')
+@@ -171,7 +173,7 @@
+ subdir('pipewire')
+ subdir('clients')
+ subdir('wcap')
+-subdir('tests')
++# Tests run separately in the SynapseOS guest
+ subdir('data')
+ subdir('man')
+ subdir('pam')

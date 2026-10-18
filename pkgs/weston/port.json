@@ -1,0 +1,9 @@
+{
+  "name": "weston",
+  "version": "13.0.3-r1",
+  "source": "https://gitlab.freedesktop.org/wayland/weston/-/releases/13.0.3/downloads/weston-13.0.3.tar.xz",
+  "sha256": "27f68d96e3b97d98daadef13a202356524924fa381418fa6716b9136ef099093",
+  "wayland_source": "https://gitlab.freedesktop.org/wayland/wayland/-/releases/1.23.1/downloads/wayland-1.23.1.tar.xz",
+  "wayland_sha256": "864fb2a8399e2d0ec39d56e9d9b753c093775beadc6022ce81f441929a81e5ed",
+  "build_system": "recipe"
+}

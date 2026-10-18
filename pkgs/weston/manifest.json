@@ -1,0 +1,3017 @@
+{
+  "format": 1,
+  "name": "weston",
+  "version": "13.0.3-r1",
+  "description": "Weston compositor with SynapseOS framebuffer and input backend",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "musl-runtime",
+    "kernel >= 0.1.907",
+    "xkeyboard-config >= 2.43.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/weston",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/weston-simple-shm",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/weston-terminal",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/fonts/conf.avail/20-unhint-small-dejavu-lgc-sans-mono.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/20-unhint-small-dejavu-lgc-sans.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/20-unhint-small-dejavu-lgc-serif.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/20-unhint-small-dejavu-sans-mono.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/20-unhint-small-dejavu-sans.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/20-unhint-small-dejavu-serif.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/45-dejavu.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/57-dejavu-sans-mono.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/57-dejavu-sans.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/57-dejavu-serif.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/58-dejavu-lgc-sans-mono.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/58-dejavu-lgc-sans.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/58-dejavu-lgc-serif.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.avail/90-tt-dejavu.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/10-hinting-slight.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/10-scale-bitmap-fonts.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/10-sub-pixel-none.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/10-yes-antialias.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/11-lcdfilter-default.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/20-unhint-small-vera.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/30-metric-aliases.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/40-nonlatin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/45-dejavu.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/45-generic.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/45-latin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/48-spacing.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/49-sansserif.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/50-user.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/51-local.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/60-generic.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/60-latin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/65-fonts-persian.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/65-nonlatin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/69-unifont.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/80-delicious.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/90-synthetic.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/90-tt-dejavu.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/conf.d/README",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/fonts/fonts.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/xdg/weston/weston.ini",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "usr/lib/libweston-13/synapse-backend.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libweston-13.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libweston-13.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libweston-13.so.0.0.3",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/pkgconfig/libweston-13.pc",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/pkgconfig/weston.pc",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/desktop-shell.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/kiosk-shell.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/libexec_weston.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/libexec_weston.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/libexec_weston.so.0.0.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libX11.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libXau.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libXdmcp.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libXext.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libXrender.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libblkid.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libbrotlicommon.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libbrotlidec.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libbsd.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libbz2.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libcairo.so.2",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libdrm.so.2",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libeconf.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libevdev.so.2",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libexpat.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libffi.so.8",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libfontconfig.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libfreetype.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libfribidi.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libgio-2.0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libglib-2.0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libgmodule-2.0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libgobject-2.0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libgraphite2.so.3",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libharfbuzz.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libinput.so.10",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libintl.so.8",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libmd.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libmount.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libmtdev.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libpango-1.0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libpangocairo-1.0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libpangoft2-1.0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libpcre2-8.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libpixman-1.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libpng16.so.16",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libudev.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libwayland-client.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libwayland-cursor.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libwayland-server.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libxcb-render.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libxcb-shm.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libxcb.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libxkbcommon.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/weston/runtime/libz.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/weston/weston",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/weston/weston-screenshooter",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/weston/weston-simple-shm",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/weston/weston-terminal",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/weston-desktop-shell",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/weston-keyboard",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/C/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/C/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/C/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/am_ET.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/am_ET.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/am_ET.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/armscii-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/armscii-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/armscii-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/compose.dir",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/cs_CZ.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/cs_CZ.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/cs_CZ.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/el_GR.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/el_GR.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/el_GR.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/en_US.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/en_US.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/en_US.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/fi_FI.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/fi_FI.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/fi_FI.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/georgian-academy/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/georgian-academy/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/georgian-academy/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/georgian-ps/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/georgian-ps/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/georgian-ps/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ibm-cp1133/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ibm-cp1133/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ibm-cp1133/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iscii-dev/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iscii-dev/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iscii-dev/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/isiri-3342/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/isiri-3342/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/isiri-3342/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-1/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-1/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-1/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-10/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-10/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-10/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-11/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-11/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-11/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-13/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-13/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-13/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-14/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-14/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-14/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-15/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-15/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-15/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-2/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-2/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-2/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-3/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-3/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-3/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-4/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-4/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-4/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-5/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-5/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-5/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-6/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-6/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-6/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-7/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-7/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-7/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-9/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-9/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-9/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-9e/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-9e/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/iso8859-9e/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja.JIS/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja.JIS/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja.JIS/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja.SJIS/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja.SJIS/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja.SJIS/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja_JP.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja_JP.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ja_JP.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/km_KH.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/km_KH.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/km_KH.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ko/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ko/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ko/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ko_KR.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ko_KR.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ko_KR.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-c/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-c/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-c/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-r/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-r/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-r/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-u/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-u/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/koi8-u/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/locale.alias",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/locale.dir",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1251/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1251/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1251/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1255/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1255/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1255/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1256/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1256/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/microsoft-cp1256/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/mulelao-1/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/mulelao-1/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/mulelao-1/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/nokhchi-1/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/nokhchi-1/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/nokhchi-1/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/pt_BR.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/pt_BR.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/pt_BR.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/pt_PT.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/pt_PT.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/pt_PT.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ru_RU.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ru_RU.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/ru_RU.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/sr_RS.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/sr_RS.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/sr_RS.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/tatar-cyr/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/tatar-cyr/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/tatar-cyr/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/th_TH/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/th_TH/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/th_TH/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/th_TH.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/th_TH.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/th_TH.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/tscii-0/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/tscii-0/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/tscii-0/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/vi_VN.tcvn/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/vi_VN.tcvn/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/vi_VN.tcvn/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/vi_VN.viscii/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/vi_VN.viscii/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/vi_VN.viscii/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.gb18030/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.gb18030/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.gb18030/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.gbk/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.gbk/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_CN.gbk/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.big5/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.big5/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.big5/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.big5hkscs/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.big5hkscs/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_HK.big5hkscs/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW.UTF-8/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW.UTF-8/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW.UTF-8/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW.big5/Compose",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW.big5/XI18N_OBJS",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/X11/locale/zh_TW.big5/XLC_LOCALE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/doc/weston/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/09-autohint-if-no-hinting.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-autohint.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-hinting-full.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-hinting-medium.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-hinting-none.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-hinting-slight.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-no-antialias.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-scale-bitmap-fonts.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-sub-pixel-bgr.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-sub-pixel-none.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-sub-pixel-rgb.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-sub-pixel-vbgr.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-sub-pixel-vrgb.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-unhinted.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/10-yes-antialias.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/11-lcdfilter-legacy.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/11-lcdfilter-light.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/11-lcdfilter-none.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/20-unhint-small-vera.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/25-unhint-nonlatin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/30-metric-aliases.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/35-lang-normalize.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/40-nonlatin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/45-generic.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/45-latin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/48-spacing.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/49-sansserif.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/50-user.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/51-local.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/60-generic.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/60-latin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/65-fonts-persian.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/65-khmer.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/65-nonlatin.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/69-unifont.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/70-no-bitmaps.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/70-yes-bitmaps.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/80-delicious.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fontconfig/conf.avail/90-synthetic.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuMathTeXGyre.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSans-BoldOblique.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSans-ExtraLight.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSans-Oblique.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSans.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSansCondensed-Bold.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSansCondensed-BoldOblique.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSansCondensed-Oblique.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSansCondensed.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSansMono-Bold.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSansMono-BoldOblique.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSansMono-Oblique.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSansMono.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSerif-Bold.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSerif-BoldItalic.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSerif-Italic.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSerif.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSerifCondensed-Bold.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSerifCondensed-BoldItalic.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSerifCondensed-Italic.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/fonts/dejavu/DejaVuSerifCondensed.ttf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/00000000000000020006000e7e9ffc3f",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/00008160000006810000408080010102",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/03b6e0fcb3499374a867c041f52298f0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/08e8e1c95fe2fc01f976f1e063a24ccd",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/1081e37283d90000800003c07f3ef6bf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/3085a0e285430894940527032f8b26df",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/3ecb610c1bf2410f44200f48c40d3599",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/4498f0e0c1937ffe01fd06f973665830",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/5c6cd98b3f3ebcb1f9c7f1c204630408",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/6407b0e94181790501fd1e167b474872",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/640fb0e74195791501fd1ed57b41487f",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/9081237383d90e509aa00f00170e968f",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/9d800788f1b08800ae810202380a0822",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/a2a266d0498c3104214a47bd64ab0fc8",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/alias",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/all-scroll",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/b66166c04f8c3109214a4fbd64a50fc8",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/bottom_left_corner",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/bottom_right_corner",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/bottom_side",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/cell",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/center_ptr",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/circle",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/closedhand",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/col-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/color-picker",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/context-menu",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/copy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/cross",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/crossed_circle",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/crosshair",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/d9ce0ab605698f320427677b458ad60b",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/default",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/dnd-copy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/dnd-move",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/dnd-no-drop",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/dnd-none",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/down-arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/draft",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/e-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/e29285e634086352946a0e7090d73106",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/ew-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/fcf21c00b30f7e3f83fe0dfd12e71cff",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/fleur",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/forbidden",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/grab",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/grabbing",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/h_double_arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/half-busy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/hand1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/hand2",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/help",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/ibeam",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/left-arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/left_ptr",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/left_ptr_help",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/left_ptr_watch",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/left_side",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/link",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/move",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/n-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/ne-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/nesw-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/no-drop",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/not-allowed",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/ns-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/nw-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/nwse-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/openhand",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/pencil",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/pirate",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/plus",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/pointer",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/pointing_hand",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/progress",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/question_arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/right-arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/right_ptr",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/right_side",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/row-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/s-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/sb_h_double_arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/sb_v_double_arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/se-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size-bdiag",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size-fdiag",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size-hor",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size-ver",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size_all",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size_bdiag",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size_fdiag",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size_hor",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/size_ver",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/split_h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/split_v",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/sw-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/tcross",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/text",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/top_left_arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/top_left_corner",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/top_right_corner",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/top_side",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/up-arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/v_double_arrow",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/vertical-text",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/w-resize",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/wait",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/watch",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/wayland-cursor",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/whats_this",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/x-cursor",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/xterm",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/zoom-in",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/cursors/zoom-out",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/icons/breeze_cursors/index.theme",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/docbook-xsl/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/weston/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/background.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/border.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/fullscreen.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/home.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_editor.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_flower.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_ivi_clickdot.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_ivi_flower.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_ivi_simple-egl.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_ivi_simple-shm.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_ivi_smoke.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_terminal.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/icon_window.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/panel.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/pattern.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/random.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/sidebyside.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/sign_close.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/sign_maximize.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/sign_minimize.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/terminal.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/tiling.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/wayland.png",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/weston/wayland.svg",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

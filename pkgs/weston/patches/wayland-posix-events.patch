@@ -1,0 +1,194 @@
+--- a/meson.build
++++ b/meson.build
+@@ -41,9 +41,9 @@
+ have_funcs = [
+ 	'accept4',
+ 	'mkostemp',
+-	'posix_fallocate',
++	
+ 	'prctl',
+-	'memfd_create',
++	
+ 	'mremap',
+ 	'strndup',
+ ]
+--- a/src/event-loop.c
++++ b/src/event-loop.c
+@@ -23,6 +23,7 @@
+  * SOFTWARE.
+  */
+ 
++#define _GNU_SOURCE
+ #include <assert.h>
+ #include <stddef.h>
+ #include <stdio.h>
+@@ -61,8 +62,11 @@
+ 	int fd;
+ };
+ 
++struct synapse_timer;
++
+ struct wl_timer_heap {
+ 	struct wl_event_source base;
++    struct synapse_timer *synapse_timer;
+ 	/* pointers to the user-visible event sources */
+ 	struct wl_event_source_timer **data;
+ 	int space, active, count;
+@@ -257,26 +261,20 @@
+ 	return ta.tv_nsec < tb.tv_nsec;
+ }
+ 
++#include "wayland-timers.inc"
++
++// Обновить абсолютный срок обслуживающего потока
+ static int
+-set_timer(int timerfd, struct timespec deadline) {
+-	struct itimerspec its;
+-
+-	its.it_interval.tv_sec = 0;
+-	its.it_interval.tv_nsec = 0;
+-	its.it_value = deadline;
+-	return timerfd_settime(timerfd, TFD_TIMER_ABSTIME, &its, NULL);
+-}
+-
++set_timer(struct wl_timer_heap *timers, struct timespec deadline)
++{
++    return synapse_timer_update(timers, deadline);
++}
++
++// Отменить ожидающее уведомление таймера
+ static int
+-clear_timer(int timerfd)
+-{
+-	struct itimerspec its;
+-
+-	its.it_interval.tv_sec = 0;
+-	its.it_interval.tv_nsec = 0;
+-	its.it_value.tv_sec = 0;
+-	its.it_value.tv_nsec = 0;
+-	return timerfd_settime(timerfd, 0, &its, NULL);
++clear_timer(struct wl_timer_heap *timers)
++{
++    return synapse_timer_update(timers, (struct timespec){0, 0});
+ }
+ 
+ static void
+@@ -298,7 +296,7 @@
+ wl_timer_heap_release(struct wl_timer_heap *timers)
+ {
+ 	if (timers->base.fd != -1) {
+-		close(timers->base.fd);
++		synapse_timer_destroy(timers);
+ 	}
+ 	free(timers->data);
+ }
+@@ -316,14 +314,14 @@
+ 	ep.events = EPOLLIN;
+ 	ep.data.ptr = timers;
+ 
+-	timer_fd = timerfd_create(CLOCK_MONOTONIC,
+-				  TFD_CLOEXEC | TFD_NONBLOCK);
++	timers->synapse_timer = synapse_timer_create();
++	timer_fd = timers->synapse_timer != NULL ? timers->synapse_timer->pipe[0] : -1;
+ 	if (timer_fd < 0)
+ 		return -1;
+ 
+ 	if (epoll_ctl(timers->base.loop->epoll_fd,
+ 		      EPOLL_CTL_ADD, timer_fd, &ep) < 0) {
+-		close(timer_fd);
++		synapse_timer_destroy(timers);
+ 		return -1;
+ 	}
+ 
+@@ -512,10 +510,10 @@
+ 		list_tail->next_due = NULL;
+ 
+ 	if (timers->active > 0) {
+-		if (set_timer(timers->base.fd, timers->data[0]->deadline) < 0)
++		if (set_timer(timers, timers->data[0]->deadline) < 0)
+ 			return -1;
+ 	} else {
+-		if (clear_timer(timers->base.fd) < 0)
++		if (clear_timer(timers) < 0)
+ 			return -1;
+ 	}
+ 
+@@ -640,7 +638,7 @@
+ 		if (tsource->heap_idx == 0) {
+ 			/* Only update the timerfd if the new deadline is
+ 			 * the earliest */
+-			if (set_timer(timers->base.fd, deadline) < 0)
++			if (set_timer(timers, deadline) < 0)
+ 				return -1;
+ 		}
+ 	} else {
+@@ -651,7 +649,7 @@
+ 		if (timers->active == 0) {
+ 			/* Only update the timerfd if this was the last
+ 			 * active timer */
+-			if (clear_timer(timers->base.fd) < 0)
++			if (clear_timer(timers) < 0)
+ 				return -1;
+ 		}
+ 	}
+@@ -664,10 +662,14 @@
+ struct wl_event_source_signal {
+ 	struct wl_event_source base;
+ 	int signal_number;
++    int write_fd;
++    unsigned synapse_slot;
+ 	wl_event_loop_signal_func_t func;
+ };
+ 
+ /** \endcond */
++
++#include "wayland-signals.inc"
+ 
+ static int
+ wl_event_source_signal_dispatch(struct wl_event_source *source,
+@@ -728,12 +730,19 @@
+ 
+ 	sigemptyset(&mask);
+ 	sigaddset(&mask, signal_number);
+-	source->base.fd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
+-	sigprocmask(SIG_BLOCK, &mask, NULL);
++	if (synapse_signal_create(source) != 0) {
++        free(source);
++        return NULL;
++    }
+ 
+ 	source->func = func;
+ 
+-	return add_source(loop, &source->base, WL_EVENT_READABLE, data);
++	struct wl_event_source_signal saved = *source;
++    struct wl_event_source *result = add_source(loop, &source->base, WL_EVENT_READABLE, data);
++    if (result == NULL) {
++        synapse_signal_release(&saved);
++    }
++    return result;
+ }
+ 
+ /** \cond INTERNAL */
+@@ -830,6 +839,9 @@
+ wl_event_source_remove(struct wl_event_source *source)
+ {
+ 	struct wl_event_loop *loop = source->loop;
++    if (source->interface == &signal_source_interface) {
++        synapse_signal_release((struct wl_event_source_signal *)source);
++    }
+ 
+ 	/* We need to explicitly remove the fd, since closing the fd
+ 	 * isn't enough in case we've dup'ed the fd. */
+--- a/src/wayland-shm.c
++++ b/src/wayland-shm.c
+@@ -306,8 +306,10 @@
+ 		uint32_t id, int fd, int32_t size)
+ {
+ 	struct wl_shm_pool *pool;
++#ifdef HAVE_MEMFD_CREATE
+ 	struct stat statbuf;
+ 	int seals;
++#endif
+ 	int prot;
+ 	int flags;
+ 	uint32_t version;
