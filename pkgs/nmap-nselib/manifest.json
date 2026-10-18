@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "nmap-nselib",
-  "version": "7.991.0-r1",
+  "version": "7.991.0-r2",
   "description": "Official Nmap NSE data: nmap-nselib",
   "kind": "application",
   "arch": "x86_64",
