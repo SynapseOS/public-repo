@@ -1,0 +1,273 @@
+{
+  "format": 2,
+  "packages": [
+    {
+      "name": "bash",
+      "upstream_license": "GPL-3.0-or-later"
+    },
+    {
+      "name": "binutils",
+      "upstream_license": null
+    },
+    {
+      "name": "curl",
+      "upstream_license": null
+    },
+    {
+      "name": "darkhttpd",
+      "upstream_license": "ISC"
+    },
+    {
+      "name": "diffutils",
+      "upstream_license": "GPL-3.0-or-later"
+    },
+    {
+      "name": "doom",
+      "upstream_license": "GPL-2.0"
+    },
+    {
+      "name": "dropbear",
+      "upstream_license": null
+    },
+    {
+      "name": "firewall",
+      "upstream_license": null
+    },
+    {
+      "name": "gawk",
+      "upstream_license": "GPL-3.0-or-later"
+    },
+    {
+      "name": "gcc",
+      "upstream_license": null
+    },
+    {
+      "name": "git",
+      "upstream_license": null
+    },
+    {
+      "name": "glib",
+      "upstream_license": null
+    },
+    {
+      "name": "gzip",
+      "upstream_license": null
+    },
+    {
+      "name": "lan",
+      "upstream_license": null
+    },
+    {
+      "name": "less",
+      "upstream_license": "GPL-3.0-or-later OR BSD-2-Clause"
+    },
+    {
+      "name": "libpcap",
+      "upstream_license": null
+    },
+    {
+      "name": "libstdcxx",
+      "upstream_license": null
+    },
+    {
+      "name": "links",
+      "upstream_license": "GPL-2.0-or-later"
+    },
+    {
+      "name": "luasocket",
+      "upstream_license": null
+    },
+    {
+      "name": "m4",
+      "upstream_license": "GPL-3.0-or-later"
+    },
+    {
+      "name": "make",
+      "upstream_license": "GPL-3.0-or-later"
+    },
+    {
+      "name": "mc",
+      "upstream_license": null
+    },
+    {
+      "name": "mesa",
+      "upstream_license": null
+    },
+    {
+      "name": "mindustry",
+      "upstream_license": "GPL-3.0"
+    },
+    {
+      "name": "mindustry-desktop",
+      "upstream_license": null
+    },
+    {
+      "name": "netcat",
+      "upstream_license": "Public-Domain"
+    },
+    {
+      "name": "netsurf",
+      "upstream_license": null
+    },
+    {
+      "name": "nmap",
+      "upstream_license": null
+    },
+    {
+      "name": "nmap-nse-a",
+      "upstream_license": null
+    },
+    {
+      "name": "nmap-nse-b",
+      "upstream_license": null
+    },
+    {
+      "name": "nmap-nselib",
+      "upstream_license": null
+    },
+    {
+      "name": "nxterm",
+      "upstream_license": "MPL-1.1 OR GPL-2.0-or-later"
+    },
+    {
+      "name": "open-posix-testsuite",
+      "upstream_license": null
+    },
+    {
+      "name": "open-posix-testsuite-data-1",
+      "upstream_license": null
+    },
+    {
+      "name": "open-posix-testsuite-data-2",
+      "upstream_license": null
+    },
+    {
+      "name": "open-posix-testsuite-data-3",
+      "upstream_license": null
+    },
+    {
+      "name": "open-posix-testsuite-data-4",
+      "upstream_license": null
+    },
+    {
+      "name": "opengl",
+      "upstream_license": null
+    },
+    {
+      "name": "openjdk",
+      "upstream_license": null
+    },
+    {
+      "name": "openjdk-current",
+      "upstream_license": null
+    },
+    {
+      "name": "openssl",
+      "upstream_license": null
+    },
+    {
+      "name": "patch",
+      "upstream_license": "GPL-3.0-or-later"
+    },
+    {
+      "name": "pcre2",
+      "upstream_license": null
+    },
+    {
+      "name": "posix-bench",
+      "upstream_license": null
+    },
+    {
+      "name": "python",
+      "upstream_license": null
+    },
+    {
+      "name": "rsync",
+      "upstream_license": null
+    },
+    {
+      "name": "screen",
+      "upstream_license": null
+    },
+    {
+      "name": "sdl2",
+      "upstream_license": null
+    },
+    {
+      "name": "settings",
+      "upstream_license": null
+    },
+    {
+      "name": "setup",
+      "upstream_license": null
+    },
+    {
+      "name": "sqlite",
+      "upstream_license": "Public Domain"
+    },
+    {
+      "name": "synbench",
+      "upstream_license": null
+    },
+    {
+      "name": "synlibc",
+      "upstream_license": null
+    },
+    {
+      "name": "synreplay",
+      "upstream_license": null
+    },
+    {
+      "name": "tcpdump",
+      "upstream_license": null
+    },
+    {
+      "name": "unqlite",
+      "upstream_license": "BSD-2-Clause"
+    },
+    {
+      "name": "unzip",
+      "upstream_license": null
+    },
+    {
+      "name": "wayland-client",
+      "upstream_license": null
+    },
+    {
+      "name": "webpanel",
+      "upstream_license": null
+    },
+    {
+      "name": "weston",
+      "upstream_license": null
+    },
+    {
+      "name": "wget",
+      "upstream_license": null
+    },
+    {
+      "name": "wireguard",
+      "upstream_license": null
+    },
+    {
+      "name": "xkeyboard-config",
+      "upstream_license": null
+    },
+    {
+      "name": "xz",
+      "upstream_license": null
+    },
+    {
+      "name": "zlib",
+      "upstream_license": null
+    }
+  ],
+  "excluded_packages": [
+    "amd-gpu",
+    "audio-hda",
+    "intel-gpu",
+    "usb-rndis",
+    "vbox-guest-agent"
+  ],
+  "description": "Public package catalog, build recipes use Make and shell"
+}
