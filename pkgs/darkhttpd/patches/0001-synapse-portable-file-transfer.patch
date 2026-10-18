@@ -1,0 +1,40 @@
+--- a/darkhttpd.c
++++ b/darkhttpd.c
+@@ -2633,13 +2633,14 @@
+     else
+         return size;
+ #else
+-#if defined(__linux) || defined(__sun__)
++#if (defined(__linux) || defined(__sun__)) && !defined(__synapse__)
+     /* Limit truly ridiculous (LARGEFILE) requests. */
+     if (size > 1<<20)
+         size = 1<<20;
+     return sendfile(s, fd, &ofs, size);
+ #else
+-    /* Fake sendfile() with read(). */
++    /* SynapseOS has no Linux sendfile syscall. Keep upstream sources intact
++     * and use the portable path; offsets survive partial nonblocking sends. */
+ # ifndef min
+ #  define min(a,b) ( ((a)<(b)) ? (a) : (b) )
+ # endif
+@@ -2647,9 +2648,7 @@
+     size_t amount = min(sizeof(buf), size);
+     ssize_t numread;
+ 
+-    if (lseek(fd, ofs, SEEK_SET) == -1)
+-        err(1, "fseek(%d)", (int)ofs);
+-    numread = read(fd, buf, amount);
++    numread = pread(fd, buf, amount, ofs);
+     if (numread == 0) {
+         fprintf(stderr, "premature eof on fd %d\n", fd);
+         return -1;
+@@ -2676,7 +2675,8 @@
+     /* off_t can be wider than size_t, avoid overflow in send_len */
+     const size_t max_size_t = ~((size_t)0);
+     off_t send_len = conn->reply_length - conn->reply_sent;
+-    if (send_len > max_size_t) send_len = max_size_t;
++    if ((uintmax_t)send_len > (uintmax_t)max_size_t)
++        send_len = (off_t)max_size_t;
+ 
+     assert(conn->state == SEND_REPLY);
+     assert(!conn->header_only);

@@ -1,0 +1,45 @@
+--- a/darkhttpd.c
++++ b/darkhttpd.c
+@@ -2509,7 +2509,7 @@
+     ssize_t recvd;
+ 
+     assert(conn->state == RECV_REQUEST);
+-    recvd = recv(conn->socket, buf, sizeof(buf), 0);
++    recvd = read(conn->socket, buf, sizeof(buf));
+     if (debug)
+         printf("poll_recv_request(%d) got %d bytes\n",
+                conn->socket, (int)recvd);
+@@ -2566,10 +2566,9 @@
+     assert(conn->state == SEND_HEADER);
+     assert(conn->header_length == strlen(conn->header));
+ 
+-    sent = send(conn->socket,
++    sent = write(conn->socket,
+                 conn->header + conn->header_sent,
+-                conn->header_length - conn->header_sent,
+-                0);
++                conn->header_length - conn->header_sent);
+     conn->last_active = now;
+     if (debug)
+         printf("poll_send_header(%d) sent %d bytes\n",
+@@ -2663,7 +2662,7 @@
+         return -1;
+     }
+     else
+-        return send(s, buf, amount, 0);
++        return write(s, buf, amount);
+ #endif
+ #endif
+ }
+@@ -2682,9 +2681,9 @@
+     assert(!conn->header_only);
+     if (conn->reply_type == REPLY_GENERATED) {
+         assert(conn->reply_length >= conn->reply_sent);
+-        sent = send(conn->socket,
++        sent = write(conn->socket,
+             conn->reply + conn->reply_start + conn->reply_sent,
+-            (size_t)send_len, 0);
++            (size_t)send_len);
+     }
+     else {
+         errno = 0;

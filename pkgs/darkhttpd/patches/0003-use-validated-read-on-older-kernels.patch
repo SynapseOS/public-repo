@@ -1,0 +1,15 @@
+--- a/darkhttpd.c
++++ b/darkhttpd.c
+@@ -2648,7 +2648,11 @@
+     size_t amount = min(sizeof(buf), size);
+     ssize_t numread;
+ 
+-    numread = pread(fd, buf, amount, ofs);
++    /* Older SynapseOS pread does not resolve forked COW buffers. The
++     * validated read syscall does; reset the offset on every send retry. */
++    if (lseek(fd, ofs, SEEK_SET) == -1)
++        err(1, "lseek(%d)", fd);
++    numread = read(fd, buf, amount);
+     if (numread == 0) {
+         fprintf(stderr, "premature eof on fd %d\n", fd);
+         return -1;

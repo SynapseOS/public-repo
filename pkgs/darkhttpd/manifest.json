@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "name": "darkhttpd",
+  "version": "1.17.0-r3",
+  "description": "Small static HTTP server for SynapseOS; upstream 1.17, ISC license",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/darkhttpd",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/darkhttpd/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
