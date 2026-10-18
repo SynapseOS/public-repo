@@ -1,0 +1,429 @@
+--- a/nxterm.c
++++ b/nxterm.c
+@@ -118,6 +118,7 @@
+ int semicolonflag = 0;
+ int nobracket = 0;
+ int roundbracket = 0;
++static int g0_graphics, g1_graphics, active_charset;
+ int savex;
+ int savey;
+ char *startprogram;
+@@ -182,9 +183,75 @@
+ 	}
+ }
+ 
++/* Render DEC box characters as cell geometry, independent of font encoding. */
++static int draw_acs(char c) {
++	unsigned edges = 0; /* left, right, up, down */
++	switch (c) {
++		case 'q':
++			edges = 3;
++			break;
++		case 'x':
++			edges = 12;
++			break;
++		case 'l':
++			edges = 10;
++			break;
++		case 'k':
++			edges = 9;
++			break;
++		case 'm':
++			edges = 6;
++			break;
++		case 'j':
++			edges = 5;
++			break;
++		case 't':
++			edges = 14;
++			break;
++		case 'u':
++			edges = 13;
++			break;
++		case 'w':
++			edges = 11;
++			break;
++		case 'v':
++			edges = 7;
++			break;
++		case 'n':
++			edges = 15;
++			break;
++		default:
++			return 0;
++	}
++
++	sflush( );
++	GR_GC_INFO info;
++	GrGetGCInfo(gc1, &info);
++	int x = curx * fonw, y = cury * fonh, cx = x + fonw / 2, cy = y + fonh / 2;
++	GrSetGCForeground(gc1, info.background);
++	GrFillRect(w1, gc1, x, y, fonw, fonh);
++	GrSetGCForeground(gc1, info.foreground);
++
++	if (edges & 1)
++		GrLine(w1, gc1, x, cy, cx, cy);
++
++	if (edges & 2)
++		GrLine(w1, gc1, cx, cy, x + fonw - 1, cy);
++
++	if (edges & 4)
++		GrLine(w1, gc1, cx, y, cx, cy);
++
++	if (edges & 8)
++		GrLine(w1, gc1, cx, cy, cx, y + fonh - 1);
++	return 1;
++}
++
+ void sadd(char c)
+ {
+-    if (sbufcnt == LINEBUF)
++	if ((active_charset ? g1_graphics : g0_graphics) && draw_acs(c))
++		return;
++
++	if (sbufcnt == LINEBUF)
+ 		sflush ();
+ 
+     if (!sbufcnt) { 
+@@ -294,20 +361,22 @@
+           escstate = 10;  
+           return; 
+     }
+-    if (c=='('){
+-          escstate = 10;  
+-	  roundbracket=1;
+-          return; 
+-    }
+-    if (termtype == ANSI){
+-	//no bracket code - just ESC+letter
+-	//so read no further char just do esc100 and terminate
+-	//ESC state to read new sequence or unescaped chars.
+-	  nobracket = 1;
+-	  esc100(c);
+-          escstate = 0;  
+-          return; 
+-    }
++
++	if (c == '(' || c == ')') {
++		escstate = 10;
++		roundbracket = c == '(' ? 1 : 2;
++		return;
++	}
++
++	if (termtype == ANSI) {
++		//no bracket code - just ESC+letter
++		//so read no further char just do esc100 and terminate
++		//ESC state to read new sequence or unescaped chars.
++		nobracket = 1;
++		esc100(c);
++		escstate = 0;
++		return;
++	}
+ 
+ //now vt52 codes
+     switch(c) {
+@@ -625,21 +694,18 @@
+ 
+ if (nobracket==1){
+ 	//fall through
+-}else if (roundbracket == 1) { //just remove ESC(B for set US ASCII
+-    	//fall through
+-}
+-else if ( (c > 0x2F) && (c<':') ) // is it a number?
+-{
+-
++} else if (roundbracket) { // DEC/ASCII character set designation
++	//fall through
++} else if ((c > 0x2F) && (c < ':')) // is it a number?
++{
+ 	if (valuebuffer[0] != '\0' )
+ 		{ valuebuffer[1]=c; 
+ 	} else {
+ 		valuebuffer[0]=c;
+ 	}
+-	return; 
+-}
+-else if (c == ';')
+-{
++
++	return;
++} else if (c == ';') {
+ 	if (semicolonflag==0) {
+ 		escvalue1=atoi(valuebuffer);
+ 		semicolonflag++;
+@@ -653,8 +719,7 @@
+ 		valuebuffer[1]='\0';
+ 		return; 
+ 	}
+-}
+-else if (((c > '@')&&(c<'[')) || ((c>0x60)&&(c<'{'))) //is it a letter?
++} else if (((c > '@') && (c < '[')) || ((c > 0x60) && (c < '{'))) //is it a letter?
+ {
+ 	if (semicolonflag==0) {
+ 		escvalue1=atoi(valuebuffer);
+@@ -729,114 +794,127 @@
+ 	} //c==8
+     } //nobracket
+     nobracket=0; //always reset
+-    
+-    if (roundbracket==1){ //remove ESC(B for set to US ASCII
+-      c=0;
+-      roundbracket=0;
+-    }
+-
+-    switch(c) {
+-    case 'A':/* cursor up */
+-		if (escvalue1==0) escvalue1=1;
+-		hide_cursor();
+-		if ((cury -= escvalue1) < 0)
+-    		//cury = 0;
+-    		cury = scrolltop-1; //cury zero based
+-		break;
+-
+-    case 'B':/* cursor down */
+-		if (escvalue1==0) escvalue1=1;
+-		hide_cursor();
+-		if ((cury += escvalue1) >= row)
+-	    	//cury = row - 1;
+-	    	cury = scrollbottom-1; //cury zero based 
+-		break;
+-
+-    case 'C':/* cursor right */
+-		if (escvalue1==0) escvalue1=1;
+-		hide_cursor();
+-		if ((curx += escvalue1) >= col)
+-	    	curx = col - 1;
+-		break;
+-
+-    case 'D':/* cursor left */
+-		if (escvalue1==0) escvalue1=1;
+-		hide_cursor();
+-		if ((curx -= escvalue1) < 0)
+-	    	curx = 0;
+-		break;
+-
+-    case 'J':
+-    	if (escvalue1==0) { //erase from current cursor to end of page/scrollbottom
+- 		if (cury < scrollbottom-1) { //erase area below current line
+-	    	GrSetGCForeground(gc1,gi.background);
+-	    	GrFillRect(w1,gc1, 0,(cury+1)*fonh, winw, (scrollbottom-1-cury)*fonh);
+-	    	GrSetGCForeground(gc1,gi.foreground);
+-		} //erase from cursor to end of line
+-		GrSetGCForeground(gc1,gi.background);
+- 		GrFillRect(w1, gc1, curx*fonw, cury*fonh, (col-curx)*fonw, fonh);
+-		GrSetGCForeground(gc1,gi.foreground);
+-		break;
+-    	} else if (escvalue1==1) { //erase from home/scrolltop to cursor
+- 		if (cury < scrollbottom-1) { //erase area from top to line above current line
+-	    	GrSetGCForeground(gc1,gi.background);
+-	    	GrFillRect(w1,gc1, 0, scrolltop, winw, (cury+1)*fonh); 
+-	    	GrSetGCForeground(gc1,gi.foreground);
+-		} //erase from beginning of line to cursor position
+-		GrSetGCForeground(gc1,gi.background);
+- 		GrFillRect(w1, gc1, 0, cury*fonh, curx*fonw, fonh); 
+-		GrSetGCForeground(gc1,gi.foreground);
+-		break;
+-   	} else if (escvalue1==2) { //erase entire page - leave cursor untouched
+-		//GrClearWindow(w1, 0);
+-		//erase just the scrolling area
+-		GrSetGCForeground(gc1,gi.background);
+-	    	GrFillRect(w1,gc1, 0, scrolltop, winw, (scrollbottom)*fonh); 
+-	    	GrSetGCForeground(gc1,gi.foreground);
+-		break;
+-    	}
+-
+-    case 'K':/* erase to end of line */
+-    	if (escvalue1==0) { //erase from current cursor to end of line
+-		GrSetGCForeground(gc1,gi.background);
+-		GrFillRect(w1, gc1, curx*fonw, cury*fonh, (col-curx)*fonw, fonh);
+-		GrSetGCForeground(gc1,gi.foreground);
+-		break;
+-    	} else if (escvalue1==1) { //erase from beginning of line to cursor
+-		GrSetGCForeground(gc1,gi.background);
+-		GrFillRect(w1, gc1, 0, cury*fonh, curx*fonw, fonh);
+-		GrSetGCForeground(gc1,gi.foreground);
+-		break;
+-   	} else if (escvalue1==2) { //erase entire line - leave cursor untouched
+-		GrSetGCForeground(gc1,gi.background);
+-		GrFillRect(w1, gc1, 0, cury*fonh, winw, fonh);
+-		GrSetGCForeground(gc1,gi.foreground);
+-		break;
+-	}
+-
+-    case 'P':/* erase number of characters after and including the cursor and move remaining to this position */
+-		if (escvalue1==0) escvalue1=1;
+-		GrSetGCForeground(gc1,gi.background);
+-		//copy remaining chars on line to cursor position
+-		GrCopyArea(w1,gc1, curx*fonw, cury*fonh, (col-curx-escvalue1)*fonw, fonh, w1, (curx+escvalue1)*fonw, cury*fonh, MWROP_COPY);
+-		//clear space at end of line
+-		GrFillRect(w1, gc1, (col-escvalue1)*fonw, cury*fonh, (escvalue1)*fonw, fonh);
+-		GrSetGCForeground(gc1,gi.foreground);
+-		break;
+-
+-
+-    case 'L':/* insert lines */
+-        if (escvalue1==0) escvalue1=1;
+-        y = cury;
+-        yy = stdrow - 1;
+-        //XXX
+-        hide_cursor();
+-        //copy from cursor the number of lines down
+-        while (--yy >= y) {
+-            GrCopyArea(w1,gc1,
+-                0, (yy+escvalue1)*fonh,
+-                winw-0, fonh,
+-                w1, 0, yy*fonh, MWROP_COPY);
++
++	if (roundbracket) {
++		if (roundbracket == 1)
++			g0_graphics = c == '0';
++		else
++			g1_graphics = c == '0';
++		c = 0;
++		roundbracket = 0;
++	}
++
++	switch (c) {
++		case 'A': /* cursor up */
++			if (escvalue1 == 0)
++				escvalue1 = 1;
++			hide_cursor( );
++
++			if ((cury -= escvalue1) < 0)
++				//cury = 0;
++				cury = scrolltop - 1; //cury zero based
++			break;
++
++		case 'B': /* cursor down */
++			if (escvalue1 == 0)
++				escvalue1 = 1;
++			hide_cursor( );
++
++			if ((cury += escvalue1) >= row)
++				//cury = row - 1;
++				cury = scrollbottom - 1; //cury zero based
++			break;
++
++		case 'C': /* cursor right */
++			if (escvalue1 == 0)
++				escvalue1 = 1;
++			hide_cursor( );
++
++			if ((curx += escvalue1) >= col)
++				curx = col - 1;
++			break;
++
++		case 'D': /* cursor left */
++			if (escvalue1 == 0)
++				escvalue1 = 1;
++			hide_cursor( );
++
++			if ((curx -= escvalue1) < 0)
++				curx = 0;
++			break;
++
++		case 'J':
++			if (escvalue1 == 0) { //erase from current cursor to end of page/scrollbottom
++				if (cury < scrollbottom - 1) { //erase area below current line
++					GrSetGCForeground(gc1, gi.background);
++					GrFillRect(w1, gc1, 0, (cury + 1) * fonh, winw,
++					           (scrollbottom - 1 - cury) * fonh);
++					GrSetGCForeground(gc1, gi.foreground);
++				} //erase from cursor to end of line
++				GrSetGCForeground(gc1, gi.background);
++				GrFillRect(w1, gc1, curx * fonw, cury * fonh, (col - curx) * fonw, fonh);
++				GrSetGCForeground(gc1, gi.foreground);
++				break;
++			} else if (escvalue1 == 1) { //erase from home/scrolltop to cursor
++				if (cury < scrollbottom - 1) { //erase area from top to line above current line
++					GrSetGCForeground(gc1, gi.background);
++					GrFillRect(w1, gc1, 0, scrolltop, winw, (cury + 1) * fonh);
++					GrSetGCForeground(gc1, gi.foreground);
++				} //erase from beginning of line to cursor position
++				GrSetGCForeground(gc1, gi.background);
++				GrFillRect(w1, gc1, 0, cury * fonh, curx * fonw, fonh);
++				GrSetGCForeground(gc1, gi.foreground);
++				break;
++			} else if (escvalue1 == 2) { //erase entire page - leave cursor untouched
++				//GrClearWindow(w1, 0);
++				//erase just the scrolling area
++				GrSetGCForeground(gc1, gi.background);
++				GrFillRect(w1, gc1, 0, scrolltop, winw, (scrollbottom)*fonh);
++				GrSetGCForeground(gc1, gi.foreground);
++				break;
++			}
++
++		case 'K': /* erase to end of line */
++			if (escvalue1 == 0) { //erase from current cursor to end of line
++				GrSetGCForeground(gc1, gi.background);
++				GrFillRect(w1, gc1, curx * fonw, cury * fonh, (col - curx) * fonw, fonh);
++				GrSetGCForeground(gc1, gi.foreground);
++				break;
++			} else if (escvalue1 == 1) { //erase from beginning of line to cursor
++				GrSetGCForeground(gc1, gi.background);
++				GrFillRect(w1, gc1, 0, cury * fonh, curx * fonw, fonh);
++				GrSetGCForeground(gc1, gi.foreground);
++				break;
++			} else if (escvalue1 == 2) { //erase entire line - leave cursor untouched
++				GrSetGCForeground(gc1, gi.background);
++				GrFillRect(w1, gc1, 0, cury * fonh, winw, fonh);
++				GrSetGCForeground(gc1, gi.foreground);
++				break;
++			}
++
++		case 'P': /* erase number of characters after and including the cursor and move remaining to this position */
++			if (escvalue1 == 0)
++				escvalue1 = 1;
++			GrSetGCForeground(gc1, gi.background);
++			//copy remaining chars on line to cursor position
++			GrCopyArea(w1, gc1, curx * fonw, cury * fonh, (col - curx - escvalue1) * fonw, fonh, w1,
++			           (curx + escvalue1) * fonw, cury * fonh, MWROP_COPY);
++			//clear space at end of line
++			GrFillRect(w1, gc1, (col - escvalue1) * fonw, cury * fonh, (escvalue1)*fonw, fonh);
++			GrSetGCForeground(gc1, gi.foreground);
++			break;
++
++		case 'L': /* insert lines */
++			if (escvalue1 == 0)
++				escvalue1 = 1;
++			y = cury;
++			yy = stdrow - 1;
++			//XXX
++			hide_cursor( );
++			//copy from cursor the number of lines down
++			while (--yy >= y) {
++				GrCopyArea(w1, gc1, 0, (yy + escvalue1) * fonh, winw - 0, fonh, w1, 0, yy * fonh,
++				           MWROP_COPY);
+             }
+         //clear number of lines starting at cursor position
+         GrSetGCForeground(gc1,gi.background);
+@@ -965,8 +1043,9 @@
+ 		break;
+     default: /* unknown escape sequence */
+ 		break;
+-    }
+-    //GrError("end-C:%c,val1:%d,val2:%d,val3:%d,scflag:%d,curx:%d,cury:%d\n",c,escvalue1,escvalue2,escvalue3,semicolonflag,curx,cury);
++	}
++
++	//GrError("end-C:%c,val1:%d,val2:%d,val3:%d,scflag:%d,curx:%d,cury:%d\n",c,escvalue1,escvalue2,escvalue3,semicolonflag,curx,cury);
+ }
+ 
+ 
+@@ -1039,7 +1118,16 @@
+ 		pos_yaxis(cury);
+ 		break;
+ 
+-    case 13: /* carriage return */
++	case 14: /* SO: select G1 */
++		sflush( );
++		active_charset = 1;
++		break;
++	case 15: /* SI: select G0 */
++		sflush( );
++		active_charset = 0;
++		break;
++
++	case 13: /* carriage return */
+ 		sflush();
+ 		curx = 0;
+ 		pos_xaxis(curx);

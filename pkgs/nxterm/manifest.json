@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "name": "nxterm",
+  "version": "0.1.0-r4",
+  "description": "NanoX graphical terminal with Unix98 PTY and shell/Links support",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/nxterm",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nxterm/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/nxterm.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

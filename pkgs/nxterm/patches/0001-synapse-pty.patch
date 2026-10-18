@@ -1,0 +1,267 @@
+--- a/nxterm.c
++++ b/nxterm.c
+@@ -65,6 +65,7 @@
+ #include <sys/ioctl.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
++#include <sys/wait.h>
+ #include <termios.h>
+ #endif
+ 
+@@ -102,6 +103,7 @@
+ GR_GC_INFO  gi;
+ GR_BOOL		havefocus = GR_FALSE;
+ pid_t 		pid;
++static volatile sig_atomic_t closing;
+ short 		winw, winh;
+ int 		termfd;
+ int 		visualbell;
+@@ -1137,22 +1139,27 @@
+ 	GR_EVENT 	wevent;
+ 	unsigned char 	buf[KBDBUF];
+ 
+-	if (startprogram) {
++	if (startprogram && !getenv("SYNAPSE_NXTERM_DIRECT")) {
+ 		usleep(1000);
+ 		write(termfd, startprogram, strlen(startprogram));
+ 		write(termfd, "\r", 1);
+ 	}
+ 
+-	while (42) {
++	while (!closing) {
+ 		if (havefocus)
+ 			draw_cursor();
+ 
+-		GrGetNextEvent(&wevent);
++		/* Bound idle wait so a dead child is noticed without unsafe GUI work in signals. */
++		if (pid > 0 && waitpid(pid, NULL, WNOHANG) == pid) {
++			pid = 0;
++			return;
++		}
++
++		GrGetNextEventTimeout(&wevent, 100);
+ 
+ 		switch(wevent.type) {
+ 		case GR_EVENT_TYPE_CLOSE_REQ:
+-			GrClose();
+-			exit(0);
++			return;
+ 			break;
+ 
+ 		case GR_EVENT_TYPE_KEY_DOWN:
+@@ -1166,6 +1173,13 @@
+ 				}
+ 			else {
+ 				*buf = kp->ch & 0xff;
++
++				if (kp->modifiers & MWKMOD_CTRL) {
++					if (*buf >= '@' && *buf <= '_')
++						*buf &= 31;
++					else if (*buf >= 'a' && *buf <= 'z')
++						*buf &= 31;
++				}
+ 				bufflen = 1;
+ 			}
+ 			if( bufflen > 0)
+@@ -1590,24 +1604,33 @@
+ }
+ #endif
+ 
+-static void sigpipe(int sig)
+-{
+-	GrClose();
+-	kill(-pid, SIGHUP);
+-	_exit(sig);
+-}
+-
+-static void sigchild(int sig)
+-{
+-	GrClose();
+-	_exit(sig);
+-}
+-
+-static void sigquit(int sig)
+-{
+-	signal(sig, SIG_IGN);
+-	GrClose();
+-	kill(-pid, SIGHUP);
++static void sigpipe(int sig) {
++	(void)sig;
++	closing = 1;
++}
++
++static void sigchild(int sig) {
++	(void)sig;
++}
++
++static void sigquit(int sig) {
++	(void)sig;
++	closing = 1;
++}
++
++static void cleanup(void) {
++	if (pid > 0) {
++		kill(pid, SIGTERM);
++		waitpid(pid, NULL, WNOHANG);
++		pid = 0;
++	}
++
++	if (termfd >= 0) {
++		close(termfd);
++		termfd = -1;
++	}
++
++	GrClose( );
+ }
+ 
+ int main(int argc, char **argv)
+@@ -1663,11 +1686,14 @@
+     }
+ #endif
+ 
+-    if (GrOpen() < 0) {
++	setenv("SYNAPSE_NXTERM_KEYS", "1", 1);
++
++	if (GrOpen( ) < 0) {
+ 		GrError("cannot open graphics\n");
+ 		exit(1);
+-    }
+-    GrGetScreenInfo(&si);
++	}
++
++	GrGetScreenInfo(&si);
+ 
+     col = stdcol;
+     row = stdrow;
+@@ -1678,8 +1704,21 @@
+     /*regFont = GrCreateFontEx(GR_FONT_OEM_FIXED, 0, 0, NULL);*/
+     /*boldFont = GrCreateFontEx(GR_FONT_SYSTEM_FIXED, 0, 0, NULL);*/
+     GrGetFontInfo(regFont, &fi);
+-    winw = col*fi.maxwidth;
+-    winh = row*fi.height;
++
++	if (fi.maxwidth > 0 && (si.cols - 32) / fi.maxwidth < col)
++		col = (si.cols - 32) / fi.maxwidth;
++
++	if (fi.height > 0 && (si.rows - 64) / fi.height < row)
++		row = (si.rows - 64) / fi.height;
++
++	if (col < 1)
++		col = 1;
++
++	if (row < 1)
++		row = 1;
++	scrollbottom = row;
++	winw = col * fi.maxwidth;
++	winh = row*fi.height;
+     w1 = GrNewWindowEx(GR_WM_PROPS_APPWINDOW, TITLE, GR_ROOT_WINDOW_ID, -1,-1,winw,winh,
+ 		stdbackground);
+ 
+@@ -1760,8 +1799,9 @@
+     signal(SIGTTOU, SIG_IGN);   /* just in case we're started in the background */
+ #endif
+ 
+-    init();
+-    term();
++	atexit(cleanup);
++	init( );
++	term();
+     return 0;
+ }
+ 
+@@ -1857,46 +1897,60 @@
+ 
+ #else   /* Linux / UNIX98 */
+ 
+-/* new-style /dev/ptmx, /dev/pts/0*/
++/* UNIX98 PTYs are also the SynapseOS terminal ABI. */
+ int term_init(void)
+ {
+-	int tfd;
+-	pid_t pid;
+-	char ptyname[50];
+-
+-	tfd = posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);
+-	if (tfd < 0) {
+-		GrError("Can't create pty /dev/ptmx\n");
++	int master = posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);
++
++	if (master < 0) {
++		perror("nxterm: ptmx");
+ 		return -1;
+ 	}
+-	strcpy(ptyname, ptsname(tfd));
+-
+-	signal(SIGCHLD, SIG_DFL);	/* required before grantpt()*/
+-	grantpt(tfd);
+-	unlockpt(tfd);
+-
+-	if ((pid = fork()) == -1) {
+-		GrError("No processes\n");
++
++	char *slave_name = ptsname(master), path[128];
++
++	if (!slave_name || strlen(slave_name) >= sizeof(path) || grantpt(master) || unlockpt(master)) {
++		close(master);
+ 		return -1;
+ 	}
+-	if (!pid) {
+-		close(STDIN_FILENO);
+-		close(STDOUT_FILENO);
+-		close(tfd);
+-
+-		setsid();
+-		if ((tfd = open(ptyname, O_RDWR)) < 0) {
+-			GrError("Can't open %s\n", ptyname);
+-			exit(1);
+-		}
+-
+-		close(STDERR_FILENO);
+-		dup2(tfd, STDIN_FILENO);
+-		dup2(tfd, STDOUT_FILENO);
+-		dup2(tfd, STDERR_FILENO);
+-		execv(nargv[0], nargv);
+-		exit(1);
+-	}
+-	return tfd;
++
++	strcpy(path, slave_name);
++	struct winsize size = { .ws_col = col, .ws_row = row };
++	ioctl(master, TIOCSWINSZ, &size);
++	setenv("TERM", termtype == ANSI ? "linux" : "ngterm", 1);
++	setenv("SYNAPSE_NXTERM_DIRECT", "1", 1);
++	pid = fork( );
++
++	if (pid < 0) {
++		close(master);
++		return -1;
++	}
++
++	if (pid == 0) {
++		close(master);
++		setsid( );
++		int slave = open(path, O_RDWR);
++
++		if (slave < 0)
++			_exit(127);
++		ioctl(slave, TIOCSCTTY, 0);
++		ioctl(slave, TIOCSWINSZ, &size);
++
++		for (int fd = 0; fd < 3; fd++)
++			if (fd != slave)
++				dup2(slave, fd);
++
++		for (int fd = 3; fd < 256; fd++)
++			close(fd);
++
++		if (startprogram)
++			execl("/bin/sh", "sh", "-c", startprogram, (char *)NULL);
++		else
++			execv(nargv[0], nargv);
++		perror("nxterm: exec");
++		_exit(127);
++	}
++
++	return master;
+ }
+ #endif

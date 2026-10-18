@@ -1,0 +1,22 @@
+{
+  "name": "nxterm",
+  "upstream_revision": "a53c319674dcad8a53a9a60dfbca88ecfd2cb656",
+  "sources": [
+    {
+      "name": "nxterm.c",
+      "url": "https://raw.githubusercontent.com/ghaerr/microwindows/a53c319674dcad8a53a9a60dfbca88ecfd2cb656/src/demos/nanox/nxterm.c",
+      "sha256": "e60b9be1382e88a1a49ee28df9dce3ff3db1be71a578747837b297056dc386e1"
+    },
+    {
+      "name": "nxterm.h",
+      "url": "https://raw.githubusercontent.com/ghaerr/microwindows/a53c319674dcad8a53a9a60dfbca88ecfd2cb656/src/demos/nanox/nxterm.h",
+      "sha256": "23370b3f07d7bacc569c72a189fe407b5f7bd8aa5aa4e348686179b312ac6501"
+    }
+  ],
+  "patches": [
+    "patches/0001-synapse-pty.patch",
+    "patches/0002-dec-graphics.patch"
+  ],
+  "license": "MPL-1.1 OR GPL-2.0-or-later",
+  "build_system": "recipe"
+}
