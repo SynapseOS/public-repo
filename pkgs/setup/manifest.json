@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "name": "setup",
+  "version": "0.1.512-r12",
+  "description": "SynapseOS signed binary package manager",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/setup",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/setup.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
