@@ -1,0 +1,24 @@
+{
+  "name": "ayugram",
+  "version": "7.2.9-r1",
+  "description": "AyuGram Desktop source port for SynapseOS",
+  "build_system": "recipe",
+  "status": "experimental",
+  "upstream_license": "GPL-3.0-or-later WITH OpenSSL",
+  "source": {
+    "url": "https://github.com/AyuGram/AyuGramDesktop/releases/download/v7.2.9/AyuGramDesktop-7.2.9-full.tar.gz",
+    "sha256": "ead2665a32f38277e76d3041a5b780100afa0d87b7b1440c1278c5229936a842"
+  },
+  "build_root": {
+    "url": "https://dl-cdn.alpinelinux.org/alpine/edge/releases/x86_64/alpine-minirootfs-20260805-x86_64.tar.gz",
+    "sha256": "5acac12c425a0817c1b6a79bdd5df4c73756fc8dc268eab32f8ba830872b835d"
+  },
+  "tde2e": {
+    "url": "https://codeload.github.com/tdlib/td/tar.gz/51743dfd01dff6179e2d8f7095729caa4e2222e9",
+    "sha256": "f2c6b92533ba41a024b9fdb86d346c8bfc876d5961738ad463effbd844d61405",
+    "commit": "51743dfd01dff6179e2d8f7095729caa4e2222e9"
+  },
+  "patches": [
+    "patches/0001-synapse-qt-background-pool.patch"
+  ]
+}

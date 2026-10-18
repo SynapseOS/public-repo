@@ -1,0 +1,31 @@
+--- a/Telegram/lib_crl/crl/dispatch/crl_dispatch_async.cpp
++++ b/Telegram/lib_crl/crl/dispatch/crl_dispatch_async.cpp
+@@ -9,6 +9,10 @@
+ #ifdef CRL_USE_DISPATCH
+ 
+ #include <dispatch/dispatch.h>
++
++#ifdef SYNAPSE_CRL_QT_POOL
++#include <QtCore/QThreadPool>
++#endif
+ 
+ namespace crl::details {
+ 
+@@ -27,6 +31,17 @@
+ }
+ 
+ void on_queue_async(void *queue, void (*callable)(void*), void *argument) {
++#ifdef SYNAPSE_CRL_QT_POOL
++	// Выполнить фоновую задачу через пул Qt в SynapseOS
++	if (queue == background_queue_dispatch()) {
++		if (auto *pool = QThreadPool::globalInstance()) {
++			pool->start([callable, argument] {
++				callable(argument);
++			});
++			return;
++		}
++	}
++#endif
+ 	dispatch_async_f(
+ 		static_cast<dispatch_queue_t>(queue),
+ 		argument,

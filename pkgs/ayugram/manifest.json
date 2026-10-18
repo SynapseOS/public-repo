@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "name": "ayugram",
+  "version": "7.2.9-r1",
+  "description": "AyuGram Desktop source port for SynapseOS",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "qt6-base",
+    "qt6-wayland",
+    "weston"
+  ],
+  "conflicts": [
+    "telegram-desktop"
+  ],
+  "files": []
+}
