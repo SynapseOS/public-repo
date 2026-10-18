@@ -1,0 +1,51 @@
+{
+  "name": "links",
+  "upstream_version": "2.30",
+  "source": "https://links.twibright.com/download/links-2.30.tar.gz",
+  "sha256": "7f0d54f4f7d1f094c25c9cbd657f98bc998311122563b1d757c9aeb1d3423b9e",
+  "source_directory": "links-2.30",
+  "patches": [
+    "patches/0001-synapse-mbedtls.patch",
+    "patches/0002-synapse-utf8-console.patch"
+  ],
+  "build_system": "configure",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-graphics",
+    "--without-ssl",
+    "--without-ipv6",
+    "--without-libevent",
+    "--without-gpm",
+    "--without-zlib",
+    "--without-brotli",
+    "--without-zstd",
+    "--without-bzip2",
+    "--without-lzma",
+    "--without-lzip",
+    "--without-openmp"
+  ],
+  "configure_environment": {
+    "CPPFLAGS": "-I{root}/apps/apps/common/mbedtls/upstream/include",
+    "LIBS": "{root}/apps/apps/common/mbedtls/upstream/library/libmbedtls.a {root}/apps/apps/common/mbedtls/upstream/library/libmbedx509.a {root}/apps/apps/common/mbedtls/upstream/library/libmbedcrypto.a",
+    "ac_cv_func_pthread_sigmask": "no"
+  },
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-DHAVE_SSL",
+    "-DHAVE_MBEDTLS",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "binary": "links",
+  "additional_files": {
+    "usr/share/licenses/links/mbedTLS-LICENSE": "apps/apps/common/mbedtls/upstream/LICENSE",
+    "usr/share/licenses/links/CA-SOURCE": "apps/apps/common/tls/CA-SOURCE",
+    "usr/share/links/ca-certificates.crt": "apps/apps/common/tls/ca-certificates.crt"
+  },
+  "license": "GPL-2.0-or-later",
+  "license_file": "COPYING"
+}

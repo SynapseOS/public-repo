@@ -1,0 +1,49 @@
+{
+  "format": 1,
+  "name": "links",
+  "version": "2.30.0-r2",
+  "description": "Text web browser with verified HTTPS via mbedTLS; Links 2.30",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/links",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/links/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/links/mbedTLS-LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/links/CA-SOURCE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/links/ca-certificates.crt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/links.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+--- a/language.c
++++ b/language.c
+@@ -127,9 +127,26 @@
+ 	if (i >= 0)
+ 		goto ret_i;
+ 
++#ifdef __synapse__
++	lang = cast_uchar getenv("LC_ALL");
++
++	if (!lang || !*lang)
++		lang = cast_uchar getenv("LC_CTYPE");
++#else
+ 	lang = cast_uchar getenv("LC_CTYPE");
+-	if (!lang)
++#endif
++	if (!lang || !*lang)
+ 		lang = cast_uchar getenv("LANG");
++#ifdef __synapse__
++	/* Synapse consoles use UTF-8, including before a locale is configured.
++	 * A bare language name (e.g. ru) must not select a legacy 8-bit charset.
++	 * Explicit encodings and terminal settings continue to take precedence.
++	 */
++	if (!lang || !*lang || (!strchr(cast_const_char lang, '.') && get_cp_index(lang) < 0)) {
++		i = utf8_table;
++		goto ret_i;
++	}
++#endif
+ 	if (!lang) {
+ 		i = 0;
+ 		goto ret_i;
+--- a/terminal.c
++++ b/terminal.c
+@@ -433,7 +433,11 @@
+ 	free_list(struct term_spec, term_specs);
+ }
+ 
+-#if defined(OS2) || defined(DOS)
++#if defined(__synapse__)
++static struct term_spec dumb_term = {
++	init_list_1st(NULL) "", TERM_UTF8, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0, init_list_last(NULL)
++};
++#elif defined(OS2) || defined(DOS)
+ static struct term_spec dumb_term = { init_list_1st(NULL) "", 2, 1, 1, 0, 1, 0, -1, 0, 0, 0, 0, init_list_last(NULL) };
+ #else
+ static struct term_spec dumb_term = { init_list_1st(NULL) "", 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, init_list_last(NULL) };

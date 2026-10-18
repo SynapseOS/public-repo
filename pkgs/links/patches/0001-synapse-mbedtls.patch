@@ -1,0 +1,256 @@
+--- a/links.h
++++ b/links.h
+@@ -205,6 +205,10 @@
+ #endif
+ 
+ #ifdef HAVE_SSL
++
++#ifdef HAVE_MBEDTLS
++#include "synapse_ssl.h"
++#endif
+ 
+ #ifdef HAVE_OPENSSL
+ 
+--- a/https.c
++++ b/https.c
+@@ -24,6 +24,10 @@
+ #endif
+ 
+ #ifdef HAVE_SSL
++
++#ifdef HAVE_MBEDTLS
++#include "synapse_ssl.c"
++#else
+ 
+ #ifndef LINKS_CRT_FILE
+ #define LINKS_CRT_FILE		links.crt
+@@ -893,6 +897,8 @@
+ 
+ #endif
+ 
++#endif /* HAVE_MBEDTLS */
++
+ #else
+ 
+ void https_func(struct connection *c)
+--- a/connect.c
++++ b/connect.c
+@@ -815,7 +815,10 @@
+ #endif
+ 		SSL_set_fd(c->ssl->ssl, *b->sock);
+ 		ssl_setup_downgrade(c);
+-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
++#ifdef HAVE_MBEDTLS
++		/* Set the verification name for every host, including numeric addresses. */
++		SSL_set_tlsext_host_name(c->ssl->ssl, cast_const_char h);
++#elif defined(SSL_CTRL_SET_TLSEXT_HOSTNAME)
+ 		if (h[0] == '[' || !numeric_ip_address(h, NULL)
+ #ifdef SUPPORT_IPV6
+ 		    || !numeric_ipv6_address(h, NULL, NULL)
+--- a/menu.c
++++ b/menu.c
+@@ -134,12 +134,14 @@
+ 
+ 	add_and_pad(&s, &l, term, *text_ptr++, maxlen);
+ #ifdef HAVE_SSL
+-#ifdef OPENSSL_VERSION
++#ifdef HAVE_MBEDTLS
++	add_to_str(&s, &l, cast_uchar "mbedTLS (verified TLS)");
++#elif defined(OPENSSL_VERSION)
+ 	add_to_str(&s, &l, (unsigned char *)OpenSSL_version(OPENSSL_VERSION));
+ #else
+ 	add_to_str(&s, &l, (unsigned char *)SSLeay_version(SSLEAY_VERSION));
+ #endif
+-#ifndef HAVE_SSL_CERTIFICATES
++#if !defined(HAVE_SSL_CERTIFICATES) && !defined(HAVE_MBEDTLS)
+ 	add_to_str(&s, &l, cast_uchar " (");
+ 	add_to_str(&s, &l, get_text_translation(TEXT_(T_NO_CERTIFICATE_VERIFICATION), term));
+ 	add_chr_to_str(&s, &l, ')');
+--- /dev/null
++++ b/synapse_ssl.h
+@@ -0,0 +1,35 @@
++/* SynapseOS Links TLS adapter. SPDX-License-Identifier: GPL-2.0-or-later */
++#ifndef SYNAPSE_SSL_H
++#define SYNAPSE_SSL_H
++#include <mbedtls/ssl.h>
++#include <mbedtls/entropy.h>
++#include <mbedtls/ctr_drbg.h>
++#include <mbedtls/x509_crt.h>
++#include <mbedtls/net_sockets.h>
++#include <psa/crypto.h>
++typedef mbedtls_ssl_config SSL_CTX;
++
++typedef struct synapse_ssl {
++	mbedtls_ssl_context tls;
++	mbedtls_ssl_config config;
++	mbedtls_entropy_context entropy;
++	mbedtls_ctr_drbg_context rng;
++	mbedtls_x509_crt ca;
++	mbedtls_net_context socket;
++	int hostname_result;
++} SSL;
++
++#define SSL_ERROR_NONE 0
++#define SSL_ERROR_SSL 1
++#define SSL_ERROR_WANT_READ 2
++#define SSL_ERROR_WANT_WRITE 3
++#define SSL_ERROR_SYSCALL 5
++#define ERR_get_error( ) 0UL
++#define ERR_peek_error( ) 0UL
++int SSL_set_fd(SSL *, int);
++int SSL_set_tlsext_host_name(SSL *, const char *);
++int SSL_connect(SSL *);
++int SSL_read(SSL *, void *, int);
++int SSL_write(SSL *, const void *, int);
++int SSL_get_error(SSL *, int);
++#endif
+--- /dev/null
++++ b/synapse_ssl.c
+@@ -0,0 +1,147 @@
++/* SynapseOS Links TLS adapter. SPDX-License-Identifier: GPL-2.0-or-later
++ * Keep Links' nonblocking event loop; require CA and hostname verification.
++ * Links owns the socket: cleanup must neither close it nor block on shutdown.
++ */
++int ssl_asked_for_password;
++
++static void synapse_ssl_free(SSL *s) {
++	mbedtls_ssl_free(&s->tls);
++	mbedtls_ssl_config_free(&s->config);
++	mbedtls_x509_crt_free(&s->ca);
++	mbedtls_ctr_drbg_free(&s->rng);
++	mbedtls_entropy_free(&s->entropy);
++	mem_free(s);
++}
++
++links_ssl *getSSL(void) {
++	const unsigned char personalization[] = "SynapseOS Links";
++	links_ssl *out;
++	SSL *s = mem_calloc(sizeof(*s));
++	int rc;
++	const char *ca = getenv("SSL_CERT_FILE");
++
++	if (!ca || !*ca)
++		ca = "/usr/share/links/ca-certificates.crt";
++	mbedtls_ssl_init(&s->tls);
++	mbedtls_ssl_config_init(&s->config);
++	mbedtls_entropy_init(&s->entropy);
++	mbedtls_ctr_drbg_init(&s->rng);
++	mbedtls_x509_crt_init(&s->ca);
++	mbedtls_net_init(&s->socket);
++	s->hostname_result = MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
++
++	if (psa_crypto_init( ) != PSA_SUCCESS)
++		goto fail;
++	rc = mbedtls_ctr_drbg_seed(&s->rng, mbedtls_entropy_func, &s->entropy, personalization,
++	                           sizeof(personalization) - 1);
++
++	if (rc)
++		goto fail;
++	rc = mbedtls_ssl_config_defaults(&s->config, MBEDTLS_SSL_IS_CLIENT,
++	                                 MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
++
++	if (rc)
++		goto fail;
++	/* A partly parsed CA bundle is not accepted silently. */
++	rc = mbedtls_x509_crt_parse_file(&s->ca, ca);
++
++	if (rc)
++		goto fail;
++	mbedtls_ssl_conf_ca_chain(&s->config, &s->ca, NULL);
++	mbedtls_ssl_conf_authmode(&s->config, MBEDTLS_SSL_VERIFY_REQUIRED);
++	mbedtls_ssl_conf_min_tls_version(&s->config, MBEDTLS_SSL_VERSION_TLS1_2);
++	mbedtls_ssl_conf_rng(&s->config, mbedtls_ctr_drbg_random, &s->rng);
++	rc = mbedtls_ssl_setup(&s->tls, &s->config);
++
++	if (rc)
++		goto fail;
++	out = mem_calloc(sizeof(*out));
++	out->ssl = s;
++	out->ctx = &s->config;
++	out->ca = stracpy(cast_uchar "Verified by mbedTLS");
++	return out;
++fail:
++	fprintf(stderr, "Links: cannot initialize verified TLS (CA file: %s)\n", ca);
++	synapse_ssl_free(s);
++	return NULL;
++}
++
++void freeSSL(links_ssl *out) {
++	if (!out || out == DUMMY)
++		return;
++	synapse_ssl_free(out->ssl);
++	mem_free(out->ca);
++	mem_free(out);
++}
++
++void ssl_finish(void) {
++	mbedtls_psa_crypto_free( );
++}
++
++void https_func(struct connection *c) {
++	c->ssl = DUMMY;
++	http_func(c);
++}
++
++int ssl_not_reusable(links_ssl *out) {
++	(void)out;
++	return 0;
++}
++
++unsigned char *get_cipher_string(links_ssl *out) {
++	unsigned char *text = init_str( );
++	int len = 0;
++	add_to_str(&text, &len, cast_uchar mbedtls_ssl_get_version(&out->ssl->tls));
++	add_chr_to_str(&text, &len, ' ');
++	add_to_str(&text, &len, cast_uchar mbedtls_ssl_get_ciphersuite(&out->ssl->tls));
++	return text;
++}
++
++int SSL_set_fd(SSL *s, int fd) {
++	s->socket.fd = fd;
++	mbedtls_ssl_set_bio(&s->tls, &s->socket, mbedtls_net_send, mbedtls_net_recv, NULL);
++	return 1;
++}
++
++int SSL_set_tlsext_host_name(SSL *s, const char *host) {
++	s->hostname_result = mbedtls_ssl_set_hostname(&s->tls, host);
++	return s->hostname_result == 0;
++}
++
++int SSL_connect(SSL *s) {
++	int rc;
++
++	if (s->hostname_result)
++		return s->hostname_result;
++	rc = mbedtls_ssl_handshake(&s->tls);
++
++	if (rc)
++		return rc;
++
++	if (mbedtls_ssl_get_verify_result(&s->tls))
++		return MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
++	return 1;
++}
++
++int SSL_read(SSL *s, void *data, int len) {
++	int rc = mbedtls_ssl_read(&s->tls, data, (size_t)len);
++	return rc == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY ? 0 : rc;
++}
++
++int SSL_write(SSL *s, const void *data, int len) {
++	return mbedtls_ssl_write(&s->tls, data, (size_t)len);
++}
++
++int SSL_get_error(SSL *s, int rc) {
++	(void)s;
++
++	if (rc > 0)
++		return SSL_ERROR_NONE;
++
++	if (rc == MBEDTLS_ERR_SSL_WANT_READ)
++		return SSL_ERROR_WANT_READ;
++
++	if (rc == MBEDTLS_ERR_SSL_WANT_WRITE)
++		return SSL_ERROR_WANT_WRITE;
++	return SSL_ERROR_SSL;
++}
