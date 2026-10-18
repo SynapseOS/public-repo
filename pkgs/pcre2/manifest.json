@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "pcre2",
-  "version": "10.49.0-r1",
+  "version": "10.49.0-r2",
   "description": "PCRE2 Unicode regular expressions; static libraries and pcre2grep",
   "kind": "application",
   "arch": "x86_64",
