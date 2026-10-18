@@ -1,14 +1,14 @@
 {
   "format": 1,
   "name": "weston",
-  "version": "13.0.3-r1",
+  "version": "13.0.3-r2",
   "description": "Weston compositor with SynapseOS framebuffer and input backend",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
     "musl-runtime",
-    "kernel >= 0.1.907",
+    "kernel >= 0.1.907-r1",
     "xkeyboard-config >= 2.43.0-r1"
   ],
   "conflicts": [],
