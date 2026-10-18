@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "diffutils",
-  "version": "3.12.0-r1",
+  "version": "3.12.0-r2",
   "description": "GNU diff, gcmp, diff3 and sdiff",
   "kind": "tool",
   "arch": "x86_64",
