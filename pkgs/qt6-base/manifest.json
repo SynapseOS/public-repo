@@ -1,13 +1,13 @@
 {
   "format": 1,
   "name": "qt6-base",
-  "version": "6.11.1-r1",
+  "version": "6.11.1-r2",
   "description": "Qt 6 musl runtime and SynapseOS Wayland smoke test",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
-    "kernel >= 0.1.915",
+    "kernel >= 0.1.915-r1",
     "musl-runtime",
     "wayland-client",
     "qt6-llvm-runtime"
