@@ -1,0 +1,34 @@
+{
+  "name": "gzip",
+  "upstream_version": "1.14",
+  "source": "https://ftp.gnu.org/gnu/gzip/gzip-1.14.tar.xz",
+  "sha256": "01a7b881bd220bfdf615f97b8718f80bdfd3f6add385b993dcf6efd14e8c0ac6",
+  "source_directory": "gzip-1.14",
+  "patches": [],
+  "build_system": "configure",
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections",
+    "-DGNU_STANDARD=0"
+  ],
+  "binary": "gzip",
+  "license_file": "COPYING",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-nls"
+  ],
+  "binaries": {
+    "bin/gzip": "gzip",
+    "bin/gunzip": "gzip",
+    "bin/zcat": "gzip"
+  },
+  "make_targets": [
+    "all"
+  ],
+  "additional_files": {}
+}

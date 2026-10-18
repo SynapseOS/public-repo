@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "name": "gzip",
+  "version": "1.14.0-r1",
+  "description": "GNU gzip compression and decompression",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/gzip",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/gunzip",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/zcat",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/gzip/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/gzip.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
