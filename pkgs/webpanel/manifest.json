@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "webpanel",
-  "version": "0.3.1-r1",
+  "version": "0.3.1-r2",
   "description": "SynapseOS administration panel: services, packages, processes, files and logs",
   "kind": "application",
   "arch": "x86_64",
