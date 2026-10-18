@@ -2,11 +2,11 @@
 
 Пакет содержит сервер и клиент из официального релиза v160.7.
 Файлы игры: `/usr/share/games/mindustry/server-release.jar` и
-`/usr/share/games/mindustry/Mindustry.jar`. Общий каталог игр —
+`/usr/share/games/mindustry/Mindustry.jar`. Общий каталог игр -
 `/usr/share/games`.
 
-Установка: `setup install mindustry`. Зависимость — пакет `openjdk`.
-Сервер можно запускать напрямую через `java -jar` (команда ниже), клиент — `mindustry`.
+Установка: `setup install mindustry`. Зависимость - пакет `openjdk`.
+Сервер можно запускать напрямую через `java -jar` (команда ниже), клиент - `mindustry`.
 В cloud используйте `mindustry-server` или `java -jar server-release.jar`.
 `Mindustry.jar` содержит графический клиент. С установленным `mindustry-desktop`
 его можно запускать обычной командой `java -jar Mindustry.jar`, включая копию
@@ -21,7 +21,7 @@
 обновление JAR не заменяет карты, настройки, моды и сохранения.
 Свой каталог можно задать переменной `MINDUSTRY_DATA_DIR` (родитель должен
 существовать). Для графического клиента установите `mindustry-desktop` в desktop или extended:
-он добавляет Mesa/OpenGL, SDL и звуковой модуль. Запуск — `mindustry` после
+он добавляет Mesa/OpenGL, SDL и звуковой модуль. Запуск - `mindustry` после
 закрытия рабочего стола; подробности в [инструкции OpenGL](opengl.md).
 
 ## Команды запуска текущего стенда

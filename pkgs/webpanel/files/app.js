@@ -310,7 +310,7 @@ async function run(values, target = 'task-output', resume = null, drain = true, 
 				result = data;
 				if (!success)
 					notice(`Операция завершилась с кодом ${
-						data.exit}. Подробности — в выводе команды.`);
+						data.exit}. Подробности - в выводе команды.`);
 				else if (target === 'task-output')
 					output(target, `Операция успешно завершена.\n${data.output || ''}`);
 				if (success && values.operation === 'services') {
@@ -672,7 +672,7 @@ function renderList(kind, done = true) {
 		      selected = input.value;
 		input.replaceChildren(new Option('Выберите из списка', ''), ...all.map(line => {
 			const parts = line.split(/\s+/);
-			return new Option(parts[0] + ' — ' + parts.slice(1).join(' '), parts[0]);
+			return new Option(parts[0] + ' - ' + parts.slice(1).join(' '), parts[0]);
 		}));
 		if (all.some(line => line.split(/\s+/)[0] === selected))
 			input.value = selected;
@@ -736,8 +736,8 @@ async function inspectService( ) {
 				                 signals[code - 128] ? ' (' + signals[code - 128] + ')' : ''}`
 				           : 'ошибка процесса';
 		output('service-details', [
-			`Служба: ${name} — ${state}`,
-			`PID: ${data.pid || '—'}; супервизор: ${data.supervisor || '—'}`,
+			`Служба: ${name} - ${state}`,
+			`PID: ${data.pid || '-'}; супервизор: ${data.supervisor || '-'}`,
 			`Автозапуск: ${data.autostart ? 'включён' : 'выключен'}; целевое состояние: ${
 				data.desired ? 'запущена' : 'остановлена'}`,
 			`Задержка перезапуска: ${data.retry} с`,
@@ -1076,14 +1076,14 @@ function renderProcesses( ) {
 	$('process-choice').replaceChildren(...rows.map(p => {
 		const o = document.createElement('option');
 		o.value = String(p.pid);
-		o.textContent = `${p.pid} — ${p.name}${p.protected ? ' (защищён)' : ''}`;
+		o.textContent = `${p.pid} - ${p.name}${p.protected ? ' (защищён)' : ''}`;
 		return o;
 	}));
 	$('process-choice').value = rows.some(p => String(p.pid) === selected) ? selected : '';
 	pickerRows.processes =
 	    rows.map(p => ({
 		             value : String(p.pid),
-		             label : `${p.pid} — ${p.name}`,
+		             label : `${p.pid} - ${p.name}`,
 				     summary : `CPU ${p.cpu_percent.toFixed(1)}% · ${bytesLabel(p.memory_bytes)}${
 						 p.protected ? ' · защищён' : ''}`
 				 }));
@@ -1448,7 +1448,7 @@ $('file-upload-form').onsubmit = async e => {
 	if (!file || !path)
 		return;
 	if (file.size > 1048576) {
-		notice('Максимальный размер файла — 1 МиБ.');
+		notice('Максимальный размер файла - 1 МиБ.');
 		return;
 	}
 	if (!confirm(`Загрузить ${file.name} в ${path}?`))

@@ -347,7 +347,7 @@ static void file_read(int fd, const char *path, int download) {
 
 	if (st.st_size > FILE_LIMIT) {
 		close(in);
-		message(fd, 413, "Максимальный размер файла — 1 МиБ.\n");
+		message(fd, 413, "Максимальный размер файла - 1 МиБ.\n");
 		return;
 	}
 
@@ -523,7 +523,7 @@ static void process_signal(int fd, const char *body) {
 
 	int result = kill((pid_t)pid, sig);
 	char output[512];
-	snprintf(output, sizeof output, "PID %ld (%s): сигнал %s — %s\n", pid, name, signaltext,
+	snprintf(output, sizeof output, "PID %ld (%s): сигнал %s - %s\n", pid, name, signaltext,
 	         result ? strerror(errno) : "отправлен");
 	unsigned job = audit_action("process", signaltext, pidtext, output, result ? 1 : 0);
 	char reply[64];
@@ -1150,7 +1150,7 @@ static void file_upload(int fd, const char *path, const unsigned char *body, siz
 	fsync(dir);
 	close(dir);
 	char output[512];
-	snprintf(output, sizeof output, "%s: %s — %s\n",
+	snprintf(output, sizeof output, "%s: %s - %s\n",
 	         directory ? "Создание каталога" : "Загрузка файла", path,
 	         ok ? "готово" : strerror(errno));
 	unsigned job = audit_action("file", directory ? "mkdir" : "upload", "file", output, ok ? 0 : 1);

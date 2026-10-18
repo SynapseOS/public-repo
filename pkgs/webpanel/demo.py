@@ -136,7 +136,7 @@ class Handler(BaseHTTPRequestHandler):
         with LOCK:
             if self.management_get(url,query):return
             if url.path == '/api/system':
-                return self.data(dict(csrf=TOKEN, hostname='SynapseOS — демо', release='0.1.604 (демонстрация)', uptime=7380+int(time.monotonic()-START), cpu_core_percent=round(9+4*math.sin(time.monotonic()/8),1), memory_used=384*1048576, memory_total=2048*1048576))
+                return self.data(dict(csrf=TOKEN, hostname='SynapseOS - демо', release='0.1.604 (демонстрация)', uptime=7380+int(time.monotonic()-START), cpu_core_percent=round(9+4*math.sin(time.monotonic()/8),1), memory_used=384*1048576, memory_total=2048*1048576))
             if url.path == '/api/history':
                 for job in JOBS.values(): finish(job)
                 return self.data([history_item(key,job) for key,job in sorted(JOBS.items(),key=lambda pair:int(pair[0]),reverse=True)])
@@ -266,5 +266,5 @@ if __name__ == '__main__':
         LOGS['ssh.log']='2026-10-12 14:30 [info] SSH listening on port 22\n[supervisor 110] started pid=119 detail=0 time=1791804600\n2026-10-12 14:31 [warning] Child restarted\n[supervisor 110] exited pid=119 detail=137 time=1791804660\n[supervisor 110] started pid=120 detail=0 time=1791804661\n'
         LOGS['nginx.log']='2026-10-12 14:30 [info] Server ready\n2026-10-12 14:31 [error] Upstream connection refused\n2026-10-12 14:32 [warning] Upstream retry\n2026-10-12 14:33 [info] Upstream restored\n'
     server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
-    print(f'Demo: http://127.0.0.1:{server.server_port} — root password: demo',flush=True)
+    print(f'Demo: http://127.0.0.1:{server.server_port} - root password: demo',flush=True)
     server.serve_forever()

@@ -13,7 +13,7 @@
 Для остальных программ настройки окружения и выбор библиотек не меняются.
 `java -version` и серверный JAR запускаются без этого модуля.
 
-Основа — pinned пакеты Alpine 3.22; URL и SHA-256 записаны в
+Основа - pinned пакеты Alpine 3.22; URL и SHA-256 записаны в
 `pkgs/openjdk/port.json`. Файлы лицензий OpenJDK включены в каталог `legal`.
 Загрузчик и libc предоставляет `musl-runtime` SynapseOS.
 
@@ -21,7 +21,7 @@
 можно выбрать poll selector:
 `java -Djava.nio.channels.spi.SelectorProvider=sun.nio.ch.PollSelectorProvider …`.
 SSL trust store `lib/security/cacerts` генерируется из системного PEM
-CA bundle; пароль стандартного JKS — `changeit` (хранилище содержит только
+CA bundle; пароль стандартного JKS - `changeit` (хранилище содержит только
 публичные сертификаты).
 
 Пакет занимает около 194 MiB, поэтому требуется `setup >= 0.1.512-r6`
