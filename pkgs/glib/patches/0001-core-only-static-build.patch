@@ -1,0 +1,50 @@
+--- a/meson.build
++++ b/meson.build
+@@ -2233,7 +2233,7 @@
+ ]
+ 
+ # Pick up pcre from the system, or if "--force-fallback-for libpcre2-8" was specified
+-pcre2 = dependency('libpcre2-8', version: pcre2_req, required: false, default_options: pcre2_options)
++pcre2 = cc.find_library('pcre2-8')
+ if not pcre2.found()
+   if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
+   # MSVC: Search for the PCRE2 library by the configuration, which corresponds
+@@ -2275,9 +2275,9 @@
+ gvdb_dep = dependency('gvdb')
+ 
+ libm = cc.find_library('m', required : false)
+-libffi_dep = dependency('libffi', version : '>= 3.0.0')
+-
+-libz_dep = dependency('zlib')
++libffi_dep = disabler() # Synapse core-only build does not include GObject
++
++libz_dep = disabler() # Synapse core-only build does not include GIO
+ 
+ libatomic_test_code = '''
+   int main (int argc, char ** argv) {
+@@ -2687,12 +2687,12 @@
+ 
+ subdir('tools')
+ subdir('glib')
+-subdir('gobject')
++# Synapse core-only: omit gobject
+ subdir('gthread')
+ subdir('gmodule')
+-subdir('gio')
+-subdir('girepository')
+-subdir('fuzzing')
++# Synapse core-only: omit gio
++# Synapse core-only: omit girepository
++# Synapse core-only: omit fuzzing
+ if get_option('tests')
+   subdir('tests')
+ endif
+@@ -2735,7 +2735,7 @@
+ rst2html5 = find_program('rst2html5', 'rst2html5.py', required: get_option('documentation'))
+ 
+ gnome = import('gnome')
+-subdir('docs/reference')
++# Synapse core-only: omit docs/reference
+ 
+ summary({
+   'host cpu' : host_machine.cpu_family(),
