@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "name": "m4",
+  "version": "1.4.20-r1",
+  "description": "GNU M4 macro processor",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/m4",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/m4/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/m4.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "m4",
+  "upstream_version": "1.4.20",
+  "source": "https://ftp.gnu.org/gnu/m4/m4-1.4.20.tar.xz",
+  "sha256": "e236ea3a1ccf5f6c270b1c4bb60726f371fa49459a8eaaebc90b216b328daf2b",
+  "source_directory": "m4-1.4.20",
+  "patches": [],
+  "build_system": "configure",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-nls"
+  ],
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "license": "GPL-3.0-or-later",
+  "license_file": "COPYING",
+  "binary": "m4",
+  "binary_source": "src/m4"
+}
