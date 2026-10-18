@@ -1,0 +1,12 @@
+# Replace both keys; chmod 600 /etc/wireguard.conf. No automatic boot activation.
+[Interface]
+PrivateKey = REPLACE_WITH_BASE64_PRIVATE_KEY
+Address = 10.60.0.2/24
+ListenPort = 51820
+MTU = 1420
+
+[Peer]
+PublicKey = REPLACE_WITH_BASE64_PEER_PUBLIC_KEY
+Endpoint = 192.0.2.1:51820
+AllowedIPs = 10.60.0.1/32
+PersistentKeepalive = 25

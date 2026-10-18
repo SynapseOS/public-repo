@@ -1,0 +1,11 @@
+{
+  "commit": "c54f20dbe76ac8b3411ad21e0ed7deea6f0cfd4d",
+  "source": "https://codeload.github.com/smartalock/wireguard-lwip/tar.gz/c54f20dbe76ac8b3411ad21e0ed7deea6f0cfd4d",
+  "sha256": "8be6e97394ff5d579862b9a2a3136540d6de511968235d436e83fee62cdcc9e7",
+  "name": "wireguard",
+  "version": "0.1.0-r1",
+  "source_directory": "wireguard-lwip-c54f20dbe76ac8b3411ad21e0ed7deea6f0cfd4d",
+  "patches": [],
+  "description": "Native single-peer IPv4 split-tunnel WireGuard daemon using upstream C protocol core",
+  "build_system": "recipe"
+}

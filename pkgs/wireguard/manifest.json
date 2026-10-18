@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "name": "wireguard",
+  "version": "0.1.0-r1",
+  "description": "Native single-peer IPv4 split-tunnel WireGuard daemon using upstream C protocol core",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.569-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/wireguard",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/wireguard.conf.example",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "usr/share/help/wireguard.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/wireguard/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/wireguard/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/wireguard/x25519-license.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
