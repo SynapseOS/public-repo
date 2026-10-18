@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "wireguard",
-  "version": "0.1.0-r1",
+  "version": "0.1.0-r2",
   "description": "Native single-peer IPv4 split-tunnel WireGuard daemon using upstream C protocol core",
   "kind": "application",
   "arch": "x86_64",
