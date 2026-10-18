@@ -1,0 +1,40 @@
+{
+  "name": "rsync",
+  "upstream_version": "3.4.4",
+  "source": "https://download.samba.org/pub/rsync/src/rsync-3.4.4.tar.gz",
+  "sha256": "bd88cf82fa653da32314fb229136407c5c90f80d1758d8f4b091767877d8fa96",
+  "source_directory": "rsync-3.4.4",
+  "patches": [],
+  "build_system": "configure",
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "binary": "rsync",
+  "license_file": "COPYING",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-openssl",
+    "--disable-xxhash",
+    "--disable-zstd",
+    "--disable-lz4",
+    "--disable-acl-support",
+    "--disable-xattr-support",
+    "--disable-iconv",
+    "--disable-ipv6",
+    "--disable-md2man",
+    "--disable-roll-simd",
+    "--with-included-popt",
+    "--with-included-zlib",
+    "--with-rsh=/bin/ssh"
+  ],
+  "make_targets": [
+    "rsync"
+  ],
+  "additional_files": {}
+}

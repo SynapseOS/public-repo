@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "name": "rsync",
+  "version": "3.4.4-r1",
+  "description": "rsync local and SSH synchronization; no ACL/xattr support",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/rsync",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/rsync/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/rsync.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
