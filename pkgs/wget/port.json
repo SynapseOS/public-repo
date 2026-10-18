@@ -1,0 +1,48 @@
+{
+  "name": "wget",
+  "upstream_version": "1.25.0",
+  "source": "https://ftp.gnu.org/gnu/wget/wget-1.25.0.tar.gz",
+  "sha256": "766e48423e79359ea31e41db9e5c289675947a7fcf2efdcedb726ac9d0da3784",
+  "source_directory": "wget-1.25.0",
+  "patches": [
+    "patches/lumine-select-timeout.patch"
+  ],
+  "build_system": "configure",
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "binary": "wget",
+  "license_file": "COPYING",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-nls",
+    "--disable-ipv6",
+    "--disable-iri",
+    "--disable-pcre",
+    "--disable-pcre2",
+    "--without-libpsl",
+    "--without-metalink",
+    "--with-ssl=openssl",
+    "--with-libssl-prefix={root}/pkgs/.work/openssl/payload/usr",
+    "--without-zlib"
+  ],
+  "configure_environment": {
+    "CPPFLAGS": "-I{root}/pkgs/.work/openssl/payload/usr/include",
+    "LDFLAGS": "-static -L{root}/pkgs/.work/openssl/payload/usr/lib",
+    "LIBS": "-lssl -lcrypto",
+    "ac_cv_func_getifaddrs": "no"
+  },
+  "binary_source": "src/wget",
+  "make_targets": [
+    "all"
+  ],
+  "additional_files": {
+    "usr/share/licenses/wget/OpenSSL-LICENSE.txt": "pkgs/.work/openssl/payload/usr/share/licenses/openssl/LICENSE.txt"
+  }
+}

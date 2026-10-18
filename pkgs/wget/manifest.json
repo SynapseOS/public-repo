@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "name": "wget",
+  "version": "1.25.0-r2",
+  "description": "GNU Wget download client with verified OpenSSL HTTPS",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/wget",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/wget/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/wget.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/wget/OpenSSL-LICENSE.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

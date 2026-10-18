@@ -1,0 +1,68 @@
+--- a/src/connect.c
++++ b/src/connect.c
+@@ -52,6 +52,9 @@
+ #endif /* not WINDOWS */
+ 
+ #include <errno.h>
++#ifdef __synapse__
++# include <fcntl.h>
++#endif
+ #include <string.h>
+ #include <sys/time.h>
+ 
+@@ -237,6 +240,36 @@
+ connect_with_timeout (int fd, const struct sockaddr *addr, socklen_t addrlen,
+                       double timeout)
+ {
++#ifdef __synapse__
++  /* Lumine has nonblocking sockets/select, but no SIGALRM timers yet. */
++  if (timeout <= 0)
++    return connect (fd, addr, addrlen);
++  int flags = fcntl (fd, F_GETFL, 0);
++  if (flags < 0 || fcntl (fd, F_SETFL, flags | O_NONBLOCK) < 0)
++    return -1;
++  int result = connect (fd, addr, addrlen);
++  int error = errno;
++  if (result < 0 && (error == EINPROGRESS || error == EWOULDBLOCK))
++    {
++      int ready = select_fd (fd, timeout, WAIT_FOR_READ | WAIT_FOR_WRITE);
++      if (ready > 0)
++        {
++          socklen_t length = sizeof error;
++          if (getsockopt (fd, SOL_SOCKET, SO_ERROR, &error, &length) < 0)
++            error = errno;
++          result = error ? -1 : 0;
++        }
++      else
++        {
++          error = ready == 0 ? ETIMEDOUT : errno;
++          result = -1;
++        }
++    }
++  if (fcntl (fd, F_SETFL, flags) < 0 && result == 0)
++    return -1;
++  errno = error;
++  return result;
++#else
+   struct cwt_context ctx;
+   ctx.fd = fd;
+   ctx.addr = addr;
+@@ -250,6 +283,7 @@
+   if (ctx.result == -1 && errno == EINTR)
+     errno = ETIMEDOUT;
+   return ctx.result;
++#endif
+ }
+ 
+ /* Connect via TCP to the specified address and port.
+--- a/src/utils.c
++++ b/src/utils.c
+@@ -76,7 +76,7 @@
+ # endif
+ #endif
+ 
+-#if defined HAVE_SIGSETJMP || defined HAVE_SIGBLOCK
++#if (defined HAVE_SIGSETJMP || defined HAVE_SIGBLOCK) && !defined __synapse__
+ # define USE_SIGNAL_TIMEOUT
+ #endif
+ 
