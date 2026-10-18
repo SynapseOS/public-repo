@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "name": "bash",
+  "version": "5.3.0-r1",
+  "description": "GNU Bash shell with bundled Readline and termcap",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/bash",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/bash/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/bash.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

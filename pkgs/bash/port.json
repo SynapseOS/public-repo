@@ -1,0 +1,31 @@
+{
+  "name": "bash",
+  "upstream_version": "5.3",
+  "source": "https://ftp.gnu.org/gnu/bash/bash-5.3.tar.gz",
+  "sha256": "0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba",
+  "source_directory": "bash-5.3",
+  "patches": [],
+  "build_system": "configure",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--without-bash-malloc",
+    "--disable-nls"
+  ],
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "license": "GPL-3.0-or-later",
+  "license_file": "COPYING",
+  "binary": "bash",
+  "binary_source": "bash",
+  "configure_environment": {
+    "ac_cv_func_working_mktime": "yes",
+    "bash_cv_wexitstatus_offset": "8"
+  }
+}
