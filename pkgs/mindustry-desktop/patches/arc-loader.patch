@@ -1,0 +1,31 @@
+--- a/arc-core/src/arc/util/SharedLibraryLoader.java
++++ b/arc-core/src/arc/util/SharedLibraryLoader.java
+@@ -19,6 +19,8 @@
+     private String nativesJar;
+ 
+     public SharedLibraryLoader(){
++        // Использовать библиотеки пакета для обычного java -jar
++        nativesJar = System.getProperty("synapse.mindustry.natives");
+     }
+ 
+     /**
+@@ -96,10 +98,15 @@
+ 
+         // Read from JAR.
+         try{
+-            ZipFile file = new ZipFile(nativesJar);
+-            ZipEntry entry = file.getEntry(path);
+-            if(entry == null) throw new ArcRuntimeException("Couldn't find '" + path + "' in JAR: " + nativesJar);
+-            return file.getInputStream(entry);
++            try(ZipFile file = new ZipFile(nativesJar)){
++                ZipEntry entry = file.getEntry(path);
++                if(entry == null){
++                    throw new ArcRuntimeException("Missing Synapse native: " + path);
++                }
++                try(InputStream input = file.getInputStream(entry)){
++                    return new ByteArrayInputStream(input.readAllBytes());
++                }
++            }
+         }catch(IOException ex){
+             throw new ArcRuntimeException("Error reading '" + path + "' in JAR: " + nativesJar, ex);
+         }

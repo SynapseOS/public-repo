@@ -1,0 +1,13 @@
+--- a/src/core/soloud_file.cpp
++++ b/src/core/soloud_file.cpp
+@@ -237,9 +237,7 @@
+     if(f == NULL)
+         return EOF;
+     SoLoud::File *fp = (SoLoud::File *)f;
+-    // Don't trust a pre-read eof()
+-    if(fp->pos() >= fp->length())
+-        return EOF;
++    // Synapse: determine EOF from read, preserving stdio buffering.
+     unsigned char b = 0;
+     if(fp->read(&b, 1) != 1)
+         return EOF;

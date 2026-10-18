@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "name": "mindustry-desktop",
+  "version": "160.7.0-r6",
+  "description": "Mindustry SDL/Mesa/SoLoud desktop natives for Synapse musl",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "mindustry >= 160.7.0-r7",
+    "openjdk >= 21.0.11-r6",
+    "opengl >= 24.3.4-r2",
+    "sdl2 >= 2.30.11-r5",
+    "audio-hda >= 0.1.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/share/doc/mindustry-desktop/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/doc/mindustry-desktop/source/Net.java",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/games/mindustry/synapse-natives.jar",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/java/synapse-compat.jar",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mindustry-desktop/Arc-LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mindustry-desktop/GLEW-LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mindustry-desktop/Mindustry-LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

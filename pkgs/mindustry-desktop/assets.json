@@ -1,0 +1,37 @@
+[
+  {
+    "filename": "jnigen/gdx.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/badlogicgames/gdx/gdx-jnigen/2.5.2/gdx-jnigen-2.5.2.jar",
+    "sha256": "1cc95851399693904f2da171102c5a5796616143c8351c9fe3fabc33fc7d2d22"
+  },
+  {
+    "filename": "jnigen/loader.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/badlogicgames/gdx/gdx-jnigen-loader/2.5.2/gdx-jnigen-loader-2.5.2.jar",
+    "sha256": "df81f23cfd6785c52d35e108eeaa3930f559d4d2770a6102e75ca7bfa6f9f27a"
+  },
+  {
+    "filename": "jnigen/parser.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/github/javaparser/javaparser-core/3.14.14/javaparser-core-3.14.14.jar",
+    "sha256": "6781985e2b17142bd07e1a7be59b793485cb026b37667377d16610ae98148b6e"
+  },
+  {
+    "filename": "arc.tar.gz",
+    "url": "https://codeload.github.com/Anuken/Arc/tar.gz/7445105cd2",
+    "sha256": "14d7dddd01e514924c46dd3a16aa37f58a252fb2430239e8285cd960f60fe97e"
+  },
+  {
+    "filename": "soloud.tar.gz",
+    "url": "https://codeload.github.com/Anuken/soloud/tar.gz/eb83070e62e9edd3acc46cebbe345803c842620b",
+    "sha256": "1bcde5dcadd93d1b135d0d9b6ec082fdc7ccdd4060ac548b37ae25c4ecda8e86"
+  },
+  {
+    "filename": "stb_image.h",
+    "url": "https://raw.githubusercontent.com/nothings/stb/013ac3beddff3dbffafd5177e7972067cd2b5083/stb_image.h",
+    "sha256": "594c2fe35d49488b4382dbfaec8f98366defca819d916ac95becf3e75f4200b3"
+  },
+  {
+    "filename": "freetype.tar.gz",
+    "url": "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.gz",
+    "sha256": "e61b31ab26358b946e767ed7eb7f4bb2e507da1cfefeb7a8861ace7fd5c899a1"
+  }
+]

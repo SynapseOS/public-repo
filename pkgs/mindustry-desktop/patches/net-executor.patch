@@ -1,0 +1,12 @@
+--- a/mindustry/net/Net.java
++++ b/mindustry/net/Net.java
+@@ -38,8 +38,7 @@
+     private final ObjectMap<Class<?>, Cons2<NetConnection, Object>> serverListeners = new ObjectMap<>();
+     private final IntMap<StreamBuilder> streams = new IntMap<>();
+     private final ExecutorService pingExecutor =
+-        OS.isIos ? Threads.boundedExecutor("Ping Servers", 32) : //on IOS, 256 threads can crash, so limit the amount
+-        Threads.unboundedExecutor();
++        Threads.boundedExecutor("Ping Servers", 16);
+ 
+     private final NetProvider provider;
+ 
