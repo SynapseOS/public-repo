@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "wget",
-  "version": "1.25.0-r2",
+  "version": "1.25.0-r4",
   "description": "GNU Wget download client with verified OpenSSL HTTPS",
   "kind": "application",
   "arch": "x86_64",
