@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "glib",
-  "version": "2.84.4-r1",
+  "version": "2.84.4-r2",
   "description": "GLib core static library and headers for local Midnight Commander",
   "kind": "application",
   "arch": "x86_64",
