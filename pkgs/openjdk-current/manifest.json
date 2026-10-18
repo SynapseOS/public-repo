@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "name": "openjdk-current",
+  "version": "21.0.11-r6",
+  "description": "Current supported OpenJDK 21 runtime",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "openjdk >= 21.0.11-r6"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/share/doc/openjdk-current/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
