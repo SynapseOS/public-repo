@@ -1,0 +1,38 @@
+{
+  "name": "xz",
+  "upstream_version": "5.8.3",
+  "source": "https://github.com/tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.xz",
+  "sha256": "fff1ffcf2b0da84d308a14de513a1aa23d4e9aa3464d17e64b9714bfdd0bbfb6",
+  "source_directory": "xz-5.8.3",
+  "patches": [],
+  "build_system": "configure",
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "binary": "xz",
+  "license_file": "COPYING",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-shared",
+    "--enable-static",
+    "--enable-threads=no",
+    "--disable-nls",
+    "--disable-doc"
+  ],
+  "binaries": {
+    "bin/xz": "src/xz/xz",
+    "bin/unxz": "src/xz/xz",
+    "bin/xzcat": "src/xz/xz",
+    "bin/xzdec": "src/xzdec/xzdec"
+  },
+  "make_targets": [
+    "all"
+  ],
+  "additional_files": {}
+}
