@@ -1,0 +1,2721 @@
+{
+  "format": 1,
+  "name": "open-posix-testsuite-data-2",
+  "version": "2026.10.12-r1",
+  "description": "Open POSIX conformance test binaries, part 2",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.724-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setdetachstate/pthread_attr_setdetachstate_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setdetachstate/pthread_attr_setdetachstate_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setinheritsched/pthread_attr_setinheritsched_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setinheritsched/pthread_attr_setinheritsched_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setinheritsched/pthread_attr_setinheritsched_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setinheritsched/pthread_attr_setinheritsched_2-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setinheritsched/pthread_attr_setinheritsched_2-4.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setinheritsched/pthread_attr_setinheritsched_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setinheritsched/pthread_attr_setinheritsched_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedparam/pthread_attr_setschedparam_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedparam/pthread_attr_setschedparam_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedparam/pthread_attr_setschedparam_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedparam/pthread_attr_setschedparam_1-4.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedparam/pthread_attr_setschedparam_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedparam/speculative/pthread_attr_setschedparam_speculative_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedparam/speculative/pthread_attr_setschedparam_speculative_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedpolicy/pthread_attr_setschedpolicy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedpolicy/pthread_attr_setschedpolicy_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedpolicy/pthread_attr_setschedpolicy_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedpolicy/pthread_attr_setschedpolicy_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedpolicy/pthread_attr_setschedpolicy_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedpolicy/pthread_attr_setschedpolicy_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setschedpolicy/pthread_attr_setschedpolicy_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setscope/pthread_attr_setscope_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setscope/pthread_attr_setscope_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setscope/pthread_attr_setscope_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setscope/pthread_attr_setscope_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstack/pthread_attr_setstack_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstack/pthread_attr_setstack_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstack/pthread_attr_setstack_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstack/pthread_attr_setstack_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstack/pthread_attr_setstack_5-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstack/pthread_attr_setstack_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstack/pthread_attr_setstack_7-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstacksize/pthread_attr_setstacksize_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstacksize/pthread_attr_setstacksize_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstacksize/pthread_attr_setstacksize_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_attr_setstacksize/pthread_attr_setstacksize_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_destroy/pthread_barrier_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_destroy/pthread_barrier_destroy_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_destroy/pthread_barrier_destroy_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_init/pthread_barrier_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_init/pthread_barrier_init_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_init/pthread_barrier_init_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_init/pthread_barrier_init_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_wait/pthread_barrier_wait_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_wait/pthread_barrier_wait_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_wait/pthread_barrier_wait_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_wait/pthread_barrier_wait_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_wait/pthread_barrier_wait_4-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrier_wait/pthread_barrier_wait_5-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_destroy/pthread_barrierattr_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_destroy/pthread_barrierattr_destroy_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_getpshared/pthread_barrierattr_getpshared_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_getpshared/pthread_barrierattr_getpshared_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_getpshared/pthread_barrierattr_getpshared_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_init/pthread_barrierattr_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_init/pthread_barrierattr_init_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_init/pthread_barrierattr_init_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_setpshared/pthread_barrierattr_setpshared_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_setpshared/pthread_barrierattr_setpshared_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_barrierattr_setpshared/pthread_barrierattr_setpshared_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_2-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cancel/pthread_cancel_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cleanup_pop/pthread_cleanup_pop_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cleanup_pop/pthread_cleanup_pop_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cleanup_pop/pthread_cleanup_pop_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cleanup_pop/pthread_cleanup_pop_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cleanup_push/pthread_cleanup_push_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cleanup_push/pthread_cleanup_push_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cleanup_push/pthread_cleanup_push_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cleanup_push/pthread_cleanup_push_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_broadcast/pthread_cond_broadcast_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_broadcast/pthread_cond_broadcast_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_broadcast/pthread_cond_broadcast_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_broadcast/pthread_cond_broadcast_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_broadcast/pthread_cond_broadcast_2-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_broadcast/pthread_cond_broadcast_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_broadcast/pthread_cond_broadcast_4-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_destroy/pthread_cond_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_destroy/pthread_cond_destroy_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_destroy/pthread_cond_destroy_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_destroy/speculative/pthread_cond_destroy_speculative_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_init/pthread_cond_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_init/pthread_cond_init_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_init/pthread_cond_init_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_init/pthread_cond_init_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_init/pthread_cond_init_4-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_signal/pthread_cond_signal_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_signal/pthread_cond_signal_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_signal/pthread_cond_signal_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_signal/pthread_cond_signal_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_signal/pthread_cond_signal_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_signal/pthread_cond_signal_4-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_2-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_2-4.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_2-5.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_2-6.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_2-7.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_4-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_timedwait/pthread_cond_timedwait_4-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_wait/pthread_cond_wait_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_wait/pthread_cond_wait_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_wait/pthread_cond_wait_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_wait/pthread_cond_wait_2-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_wait/pthread_cond_wait_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_cond_wait/pthread_cond_wait_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_destroy/pthread_condattr_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_destroy/pthread_condattr_destroy_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_destroy/pthread_condattr_destroy_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_destroy/pthread_condattr_destroy_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_getclock/pthread_condattr_getclock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_getclock/pthread_condattr_getclock_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_getclock/pthread_condattr_getclock_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_getpshared/pthread_condattr_getpshared_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_getpshared/pthread_condattr_getpshared_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_getpshared/pthread_condattr_getpshared_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_getpshared/pthread_condattr_getpshared_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_init/pthread_condattr_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_init/pthread_condattr_init_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_setclock/pthread_condattr_setclock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_setclock/pthread_condattr_setclock_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_setclock/pthread_condattr_setclock_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_setclock/pthread_condattr_setclock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_setpshared/pthread_condattr_setpshared_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_setpshared/pthread_condattr_setpshared_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_condattr_setpshared/pthread_condattr_setpshared_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_1-5.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_1-6.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_11-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_12-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_14-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_15-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_create/pthread_create_8-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_detach/pthread_detach_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_detach/pthread_detach_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_detach/pthread_detach_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_detach/pthread_detach_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_detach/pthread_detach_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_detach/pthread_detach_4-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_detach/pthread_detach_4-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_equal/pthread_equal_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_equal/pthread_equal_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_equal/pthread_equal_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_exit/pthread_exit_6-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_getcpuclockid/pthread_getcpuclockid_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_getcpuclockid/pthread_getcpuclockid_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_getcpuclockid/speculative/pthread_getcpuclockid_speculative_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_getschedparam/pthread_getschedparam_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_getschedparam/pthread_getschedparam_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_getschedparam/pthread_getschedparam_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_getspecific/pthread_getspecific_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_getspecific/pthread_getspecific_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/pthread_join_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/pthread_join_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/pthread_join_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/pthread_join_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/pthread_join_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/pthread_join_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/pthread_join_6-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/pthread_join_6-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_join/speculative/pthread_join_speculative_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_create/pthread_key_create_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_create/pthread_key_create_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_create/pthread_key_create_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_create/pthread_key_create_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_create/speculative/pthread_key_create_speculative_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_delete/pthread_key_delete_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_delete/pthread_key_delete_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_delete/pthread_key_delete_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_key_delete/pthread_key_delete_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_kill/pthread_kill_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_kill/pthread_kill_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_kill/pthread_kill_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_kill/pthread_kill_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_kill/pthread_kill_7-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_kill/pthread_kill_8-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_destroy/pthread_mutex_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_destroy/pthread_mutex_destroy_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_destroy/pthread_mutex_destroy_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_destroy/pthread_mutex_destroy_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_destroy/pthread_mutex_destroy_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_destroy/pthread_mutex_destroy_5-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_destroy/speculative/pthread_mutex_destroy_speculative_4-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_getprioceiling/pthread_mutex_getprioceiling_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_getprioceiling/pthread_mutex_getprioceiling_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_getprioceiling/pthread_mutex_getprioceiling_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_getprioceiling/pthread_mutex_getprioceiling_3-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_init/pthread_mutex_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_init/pthread_mutex_init_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_init/pthread_mutex_init_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_init/pthread_mutex_init_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_init/pthread_mutex_init_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_init/pthread_mutex_init_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_init/pthread_mutex_init_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_init/speculative/pthread_mutex_init_speculative_5-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_lock/pthread_mutex_lock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_lock/pthread_mutex_lock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_lock/pthread_mutex_lock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_lock/pthread_mutex_lock_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_lock/pthread_mutex_lock_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_setprioceiling/pthread_mutex_setprioceiling_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_timedlock/pthread_mutex_timedlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_timedlock/pthread_mutex_timedlock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_timedlock/pthread_mutex_timedlock_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_timedlock/pthread_mutex_timedlock_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_timedlock/pthread_mutex_timedlock_5-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_timedlock/pthread_mutex_timedlock_5-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_trylock/pthread_mutex_trylock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_trylock/pthread_mutex_trylock_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_trylock/pthread_mutex_trylock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_trylock/pthread_mutex_trylock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_trylock/pthread_mutex_trylock_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_trylock/pthread_mutex_trylock_4-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_trylock/pthread_mutex_trylock_4-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_unlock/pthread_mutex_unlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_unlock/pthread_mutex_unlock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_unlock/pthread_mutex_unlock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_unlock/pthread_mutex_unlock_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutex_unlock/pthread_mutex_unlock_5-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_destroy/pthread_mutexattr_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_destroy/pthread_mutexattr_destroy_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_destroy/pthread_mutexattr_destroy_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_destroy/pthread_mutexattr_destroy_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_getprioceiling/pthread_mutexattr_getprioceiling_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_getprotocol/pthread_mutexattr_getprotocol_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_getprotocol/pthread_mutexattr_getprotocol_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_getpshared/pthread_mutexattr_getpshared_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_getpshared/pthread_mutexattr_getpshared_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_getpshared/pthread_mutexattr_getpshared_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_getpshared/pthread_mutexattr_getpshared_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_getpshared/pthread_mutexattr_getpshared_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_gettype/pthread_mutexattr_gettype_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_gettype/pthread_mutexattr_gettype_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_gettype/pthread_mutexattr_gettype_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_gettype/pthread_mutexattr_gettype_1-4.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_gettype/pthread_mutexattr_gettype_1-5.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_gettype/speculative/pthread_mutexattr_gettype_speculative_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_init/pthread_mutexattr_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_init/pthread_mutexattr_init_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setprioceiling/pthread_mutexattr_setprioceiling_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setprotocol/pthread_mutexattr_setprotocol_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setprotocol/pthread_mutexattr_setprotocol_2-2.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setprotocol/pthread_mutexattr_setprotocol_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setprotocol/pthread_mutexattr_setprotocol_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setpshared/pthread_mutexattr_setpshared_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setpshared/pthread_mutexattr_setpshared_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setpshared/pthread_mutexattr_setpshared_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setpshared/pthread_mutexattr_setpshared_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setpshared/pthread_mutexattr_setpshared_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_setpshared/pthread_mutexattr_setpshared_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_settype/pthread_mutexattr_settype_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_settype/pthread_mutexattr_settype_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_settype/pthread_mutexattr_settype_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_settype/pthread_mutexattr_settype_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_settype/pthread_mutexattr_settype_3-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_settype/pthread_mutexattr_settype_3-4.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_settype/pthread_mutexattr_settype_6-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_mutexattr_settype/pthread_mutexattr_settype_7-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_once/pthread_once_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_once/pthread_once_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_once/pthread_once_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_once/pthread_once_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_once/pthread_once_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_once/pthread_once_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_destroy/pthread_rwlock_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_destroy/pthread_rwlock_destroy_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_destroy/pthread_rwlock_destroy_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_init/pthread_rwlock_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_init/pthread_rwlock_init_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_init/pthread_rwlock_init_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_init/pthread_rwlock_init_4-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_init/pthread_rwlock_init_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_rdlock/pthread_rwlock_rdlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_rdlock/pthread_rwlock_rdlock_2-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_rdlock/pthread_rwlock_rdlock_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_rdlock/pthread_rwlock_rdlock_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_rdlock/pthread_rwlock_rdlock_6-2.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedrdlock/pthread_rwlock_timedrdlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedrdlock/pthread_rwlock_timedrdlock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedrdlock/pthread_rwlock_timedrdlock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedrdlock/pthread_rwlock_timedrdlock_4-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedrdlock/pthread_rwlock_timedrdlock_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedrdlock/pthread_rwlock_timedrdlock_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedrdlock/pthread_rwlock_timedrdlock_6-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedrdlock/pthread_rwlock_timedrdlock_7-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedwrlock/pthread_rwlock_timedwrlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedwrlock/pthread_rwlock_timedwrlock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedwrlock/pthread_rwlock_timedwrlock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedwrlock/pthread_rwlock_timedwrlock_4-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedwrlock/pthread_rwlock_timedwrlock_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedwrlock/pthread_rwlock_timedwrlock_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedwrlock/pthread_rwlock_timedwrlock_6-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_timedwrlock/pthread_rwlock_timedwrlock_7-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_tryrdlock/pthread_rwlock_tryrdlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_tryrdlock/pthread_rwlock_tryrdlock_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_tryrdlock/pthread_rwlock_tryrdlock_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_trywrlock/pthread_rwlock_trywrlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_trywrlock/pthread_rwlock_trywrlock_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_trywrlock/speculative/pthread_rwlock_trywrlock_speculative_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_unlock/pthread_rwlock_unlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_unlock/pthread_rwlock_unlock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_unlock/pthread_rwlock_unlock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_unlock/pthread_rwlock_unlock_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_unlock/pthread_rwlock_unlock_4-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_wrlock/pthread_rwlock_wrlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_wrlock/pthread_rwlock_wrlock_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlock_wrlock/pthread_rwlock_wrlock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_destroy/pthread_rwlockattr_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_destroy/pthread_rwlockattr_destroy_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_destroy/pthread_rwlockattr_destroy_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_getpshared/pthread_rwlockattr_getpshared_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_getpshared/pthread_rwlockattr_getpshared_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_getpshared/pthread_rwlockattr_getpshared_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_getpshared/pthread_rwlockattr_getpshared_5-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_init/pthread_rwlockattr_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_init/pthread_rwlockattr_init_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_init/pthread_rwlockattr_init_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_setpshared/pthread_rwlockattr_setpshared_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_rwlockattr_setpshared/pthread_rwlockattr_setpshared_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_self/pthread_self_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setcancelstate/pthread_setcancelstate_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setcancelstate/pthread_setcancelstate_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setcancelstate/pthread_setcancelstate_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setcancelstate/pthread_setcancelstate_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setcanceltype/pthread_setcanceltype_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setcanceltype/pthread_setcanceltype_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setcanceltype/pthread_setcanceltype_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setschedparam/pthread_setschedparam_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setschedparam/pthread_setschedparam_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setschedparam/pthread_setschedparam_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setschedparam/pthread_setschedparam_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setschedprio/pthread_setschedprio_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setspecific/pthread_setspecific_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setspecific/pthread_setspecific_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_setspecific/pthread_setspecific_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_10-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_12-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_14-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_15-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_16-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_18-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_7-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_8-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_8-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_8-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_sigmask/pthread_sigmask_9-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_destroy/pthread_spin_destroy_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_destroy/pthread_spin_destroy_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_destroy/pthread_spin_destroy_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_init/pthread_spin_init_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_init/pthread_spin_init_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_init/pthread_spin_init_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_init/pthread_spin_init_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_init/pthread_spin_init_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_lock/pthread_spin_lock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_lock/pthread_spin_lock_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_lock/pthread_spin_lock_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_lock/pthread_spin_lock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_lock/pthread_spin_lock_3-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_trylock/pthread_spin_trylock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_trylock/pthread_spin_trylock_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_trylock/pthread_spin_trylock_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_trylock/pthread_spin_trylock_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_unlock/pthread_spin_unlock_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_unlock/pthread_spin_unlock_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_unlock/pthread_spin_unlock_2-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_spin_unlock/pthread_spin_unlock_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_testcancel/pthread_testcancel_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/pthread_testcancel/pthread_testcancel_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/raise/raise_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/raise/raise_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/raise/raise_10000-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/raise/raise_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/raise/raise_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/raise/raise_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/raise/raise_7-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_max/sched_get_priority_max_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_max/sched_get_priority_max_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_max/sched_get_priority_max_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_max/sched_get_priority_max_1-4.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_max/sched_get_priority_max_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_max/sched_get_priority_max_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_min/sched_get_priority_min_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_min/sched_get_priority_min_1-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_min/sched_get_priority_min_1-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_min/sched_get_priority_min_1-4.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_min/sched_get_priority_min_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_get_priority_min/sched_get_priority_min_3-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getparam/sched_getparam_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getparam/sched_getparam_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getparam/sched_getparam_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getparam/sched_getparam_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getparam/sched_getparam_5-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getparam/sched_getparam_6-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getparam/speculative/sched_getparam_speculative_7-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getscheduler/sched_getscheduler_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getscheduler/sched_getscheduler_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getscheduler/sched_getscheduler_4-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getscheduler/sched_getscheduler_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getscheduler/sched_getscheduler_6-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_getscheduler/sched_getscheduler_7-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_rr_get_interval/sched_rr_get_interval_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_rr_get_interval/sched_rr_get_interval_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_rr_get_interval/sched_rr_get_interval_3-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_rr_get_interval/sched_rr_get_interval_4-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_rr_get_interval/speculative/sched_rr_get_interval_speculative_5-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_1-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_11-1.sh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_2-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_2-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_20-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_21-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_21-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_22-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_23-1.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_23-2.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/conformance/interfaces/sched_setparam/sched_setparam_23-3.run-test",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/open-posix-testsuite-data-2/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
