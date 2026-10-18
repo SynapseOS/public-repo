@@ -1,0 +1,75 @@
+{
+  "format": 1,
+  "name": "libstdcxx",
+  "version": "14.3.0-r2",
+  "description": "Static GCC C++ runtime built against Synapse musl, with ELF unwind support",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.561-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/lib/libstdc++.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libstdc++exp.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libstdc++fs.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libsupc++.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libsynapse-cxx.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/libstdcxx.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/libstdcxx/headers.tar.gz",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/libstdcxx/COPYING.RUNTIME",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/libstdcxx/COPYING3",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/libstdcxx/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

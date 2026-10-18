@@ -1,0 +1,41 @@
+#!/bin/sh
+# Static C++ compiler driver using Synapse musl and target libstdc++.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." &&
+	pwd)
+musl="$root/apps/musl"
+sysroot="$root/pkgs/.work/libstdcxx/sysroot"
+headers=$(gcc -print-file-name=include)
+link=1
+
+for arg; do
+	case "$arg" in
+		-c | -E | -S | -M | -MM | --version | -dump* | --print*)
+			link=0
+			;;
+		-shared)
+			echo 'This Synapse C++ driver supports static executables only' >&2
+			exit 2
+			;;
+	esac
+done
+
+if [ "$link" = 0 ]; then
+	exec g++ -nostdinc -nostdinc++ -isystem "$sysroot/include/c++/14.3.0" -isystem "$sysroot/include/c++/14.3.0/x86_64-linux-musl" -isystem "$musl/obj/include" -isystem "$musl/include" \
+		-isystem "$musl/arch/x86_64" -isystem "$musl/arch/generic" -isystem "$headers" \
+		-fno-stack-protector -fno-pie -mno-red-zone "$@"
+fi
+
+if [ ! -f "$sysroot/lib/libstdc++.a" ]; then
+	echo 'Build the Synapse C++ runtime with make libstdcxx first' >&2
+	exit 2
+fi
+
+exec g++ -nostdinc -nostdinc++ -isystem "$sysroot/include/c++/14.3.0" -isystem "$sysroot/include/c++/14.3.0/x86_64-linux-musl" -isystem "$musl/obj/include" -isystem "$musl/include" \
+	-isystem "$musl/arch/x86_64" -isystem "$musl/arch/generic" -isystem "$headers" \
+	-fno-stack-protector -fno-pie -mno-red-zone -nostdlib -static -no-pie \
+	-Wl,-T,"$root/pkgs/libstdcxx/cxx.ld" -Wl,--eh-frame-hdr \
+	"$musl/lib/crti.o" "$musl/lib/crt1.o" "$(gcc -print-file-name=crtbeginT.o)" \
+	"$@" -L"$musl/lib" -Wl,--start-group "$sysroot/lib/libstdc++.a" \
+	"$sysroot/lib/libsynapse-cxx.a" -lc -lgcc_eh -lgcc -Wl,--end-group \
+	"$(gcc -print-file-name=crtend.o)" "$musl/lib/crtn.o"
