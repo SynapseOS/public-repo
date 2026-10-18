@@ -12,6 +12,15 @@ JOBS ?= 4
 BUILD_ROOT ?= $(ROOT)/pkgs/.work
 OUT ?= $(ROOT)/out
 SDK ?= $(ROOT)/.sdk
+REPO_DIR ?= $(OUT)/repo
+REPO_ID ?= official
+GENERATION ?=
+TTL ?= 2592000
+SIGNING_PUBLIC_KEY ?= $(HOME)/.ssh/id_ed25519.pub
+PACKAGE_FILES ?=
+REPOSITORY_CC ?= cc
+REPOSITORY_TOOL := $(BUILD_ROOT)/host-tools/repository
+export REPO_DIR REPO_ID GENERATION TTL SIGNING_PUBLIC_KEY REPOSITORY_TOOL
 export PATH := $(BUILD_ROOT)/host-tools/root/usr/bin:$(PATH)
 export BISON_PKGDATADIR := $(BUILD_ROOT)/host-tools/root/usr/share/bison
 export M4 := $(BUILD_ROOT)/host-tools/root/usr/bin/m4
@@ -19,8 +28,8 @@ unexport CC CXX AR LD NASM NASMFLAGS COMMON_CFLAGS COMMON_CPPFLAGS COMMON_LDFLAG
 export ROOT JOBS BUILD_ROOT OUT SDK
 PACKAGES := $(sort $(notdir $(patsubst %/,%,$(dir $(wildcard $(ROOT)/pkgs/*/manifest.json)))))
 SDK_INPUTS := $(shell find $(ROOT)/sdk -type f)
-BUILD_INPUTS := $(wildcard $(ROOT)/build/*.sh) $(ROOT)/build/TrustStore.java
-.PHONY: all list check check-tools host-tools sdk clean $(PACKAGES)
+BUILD_INPUTS := $(filter-out $(ROOT)/build/repository.sh $(ROOT)/build/repository-test.sh,$(wildcard $(ROOT)/build/*.sh)) $(ROOT)/build/TrustStore.java
+.PHONY: all list check check-tools host-tools sdk clean repository publish check-signing signing-key $(PACKAGES)
 all: $(PACKAGES)
 list:
 	@printf '%s\n' $(PACKAGES)
@@ -44,6 +53,26 @@ $(SDK)/.ready: $(SDK_INPUTS) $(ROOT)/build/sdk.sh | check-tools
 	@touch "$@"
 clean:
 	@echo 'Удаляйте нужные каталоги кэша и out явно, общая очистка отключена'
+
+# Сначала завершить сборку даже при запуске make с несколькими заданиями
+repository: all
+	+$(MAKE) publish
+
+# Подписать уже собранные архивы без повторной сборки пакетов
+publish: $(REPOSITORY_TOOL)
+	@bash "$(ROOT)/build/repository.sh" $(foreach archive,$(PACKAGE_FILES),"$(archive)")
+
+check-signing: $(REPOSITORY_TOOL)
+	@bash "$(ROOT)/build/repository-test.sh"
+
+signing-key: $(REPOSITORY_TOOL)
+	@"$(REPOSITORY_TOOL)" key "$(SIGNING_PUBLIC_KEY)"
+
+$(REPOSITORY_TOOL): $(ROOT)/build/repository.c
+	@mkdir -p "$(@D)"
+	$(REPOSITORY_CC) -std=c11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow \
+		-o "$@.new" "$<" -lcrypto
+	@mv "$@.new" "$@"
 
 define package_rule
 $(1): $(BUILD_ROOT)/$(1)/.built

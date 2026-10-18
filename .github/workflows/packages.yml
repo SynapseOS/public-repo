@@ -18,7 +18,8 @@ jobs:
           apt-get install -y build-essential musl-tools git ca-certificates curl jq libarchive-tools patch pkg-config \
             autoconf automake libtool bison flex gperf cmake ninja-build meson \
             python3 python3-venv python3-mako python3-yaml python3-packaging perl nasm unzip zip \
-            libwayland-dev libpng-dev libgmp-dev libmpfr-dev libmpc-dev openjdk-21-jdk-headless
+            libwayland-dev libpng-dev libgmp-dev libmpfr-dev libmpc-dev openjdk-21-jdk-headless \
+            libssl-dev openssl openssh-client
       - uses: actions/checkout@v4
       - name: Install pinned upstream Meson
         run: |
@@ -28,6 +29,8 @@ jobs:
           echo "$RUNNER_TEMP/synapse-host-tools/bin" >> "$GITHUB_PATH"
       - name: Check recipes
         run: make check
+      - name: Check repository signing with a temporary key
+        run: make check-signing
       - name: Build every package
         run: make all JOBS=2
       - name: Upload packages and manifests
