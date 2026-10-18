@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "nmap-nse-b",
-  "version": "7.991.0-r1",
+  "version": "7.991.0-r2",
   "description": "Official Nmap NSE data: nmap-nse-b",
   "kind": "application",
   "arch": "x86_64",
