@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "name": "synreplay",
+  "version": "1.0.0-r1",
+  "description": "Explicit local input recording, timed replay and compressed system diagnostics",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.665-r1",
+    "sbase",
+    "gzip"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/synrpl",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/synreplay.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/synreplay/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
