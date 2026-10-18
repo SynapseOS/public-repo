@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "synreplay",
-  "version": "1.0.0-r1",
+  "version": "1.0.0-r2",
   "description": "Explicit local input recording, timed replay and compressed system diagnostics",
   "kind": "application",
   "arch": "x86_64",
