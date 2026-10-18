@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "name": "curl",
+  "version": "8.22.0-r2",
+  "description": "curl HTTP/HTTPS client; blocking resolver and verified TLS",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/curl",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/curl/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/curl.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/curl/OpenSSL-LICENSE.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "name": "curl",
+  "upstream_version": "8.22.0",
+  "source": "https://curl.se/download/curl-8.22.0.tar.xz",
+  "sha256": "f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7",
+  "source_directory": "curl-8.22.0",
+  "patches": [],
+  "build_system": "configure",
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "binary": "curl",
+  "license_file": "COPYING",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-shared",
+    "--enable-static",
+    "--disable-threaded-resolver",
+    "--disable-ares",
+    "--disable-ipv6",
+    "--disable-ldap",
+    "--disable-ldaps",
+    "--disable-rtsp",
+    "--disable-dict",
+    "--disable-telnet",
+    "--disable-tftp",
+    "--disable-smb",
+    "--disable-pop3",
+    "--disable-imap",
+    "--disable-smtp",
+    "--disable-gopher",
+    "--disable-mqtt",
+    "--disable-ftp",
+    "--without-libpsl",
+    "--without-libidn2",
+    "--without-librtmp",
+    "--without-nghttp2",
+    "--without-nghttp3",
+    "--without-ngtcp2",
+    "--without-libssh2",
+    "--without-zstd",
+    "--without-brotli",
+    "--without-zlib",
+    "--with-openssl={root}/pkgs/.work/openssl/payload/usr",
+    "--with-ca-bundle=/etc/ssl/certs/ca-certificates.crt",
+    "--without-ca-path",
+    "--disable-unix-sockets"
+  ],
+  "configure_environment": {
+    "CPPFLAGS": "-I{root}/pkgs/.work/openssl/payload/usr/include",
+    "LDFLAGS": "-static -L{root}/pkgs/.work/openssl/payload/usr/lib",
+    "ac_cv_func_getifaddrs": "no",
+    "ac_cv_func_eventfd": "no"
+  },
+  "binary_source": "src/curl",
+  "make_targets": [
+    "all"
+  ],
+  "additional_files": {
+    "usr/share/licenses/curl/OpenSSL-LICENSE.txt": "pkgs/.work/openssl/payload/usr/share/licenses/openssl/LICENSE.txt"
+  }
+}
