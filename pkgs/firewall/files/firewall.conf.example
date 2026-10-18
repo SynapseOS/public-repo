@@ -1,0 +1,17 @@
+# Example only: not automatically loaded. Customize via local/VNC console.
+# Stateless firewall: explicit reply rules are needed for outbound clients.
+enabled 1
+policy in drop
+policy out allow
+# SSH server (restrict source subnet to your management network).
+allow in tcp any any any 22
+# Replies to DNS, HTTP(S), NTP clients: source ports are NOT connection tracking.
+allow in udp any any 53 any
+allow in udp any any 123 any
+allow in tcp any any 80 any
+allow in tcp any any 443 any
+# DHCP client renewal.
+allow in udp any any 67 68
+# ICMP needed for diagnostics/PMTU; ICMPv6 also for neighbor discovery.
+allow in icmp any any any any
+allow in icmp6 any any any any
