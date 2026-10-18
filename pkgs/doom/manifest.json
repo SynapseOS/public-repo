@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "doom",
-  "version": "0.1.0-r1",
+  "version": "0.1.0-r2",
   "description": "PureDOOM for SynapseOS with framebuffer/input support and bundled local IWADs",
   "kind": "application",
   "arch": "x86_64",
