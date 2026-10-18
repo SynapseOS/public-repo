@@ -1,0 +1,33 @@
+{
+  "name": "diffutils",
+  "upstream_version": "3.12",
+  "source": "https://ftp.gnu.org/gnu/diffutils/diffutils-3.12.tar.xz",
+  "sha256": "7c8b7f9fc8609141fdea9cece85249d308624391ff61dedaf528fcb337727dfd",
+  "source_directory": "diffutils-3.12",
+  "patches": [],
+  "build_system": "configure",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-nls"
+  ],
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "license": "GPL-3.0-or-later",
+  "license_file": "COPYING",
+  "binaries": {
+    "bin/diff": "src/diff",
+    "bin/diff3": "src/diff3",
+    "bin/sdiff": "src/sdiff",
+    "bin/gcmp": "src/cmp"
+  },
+  "configure_environment": {
+    "gl_cv_func_strcasecmp_works": "yes"
+  }
+}
