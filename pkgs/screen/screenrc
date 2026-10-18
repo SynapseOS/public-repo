@@ -1,0 +1,5 @@
+# GNU Screen defaults for SynapseOS.
+startup_message off
+defutf8 on
+shell /bin/sh
+defscrollback 2000
