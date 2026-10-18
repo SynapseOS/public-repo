@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "name": "webpanel",
+  "version": "0.3.1-r1",
+  "description": "SynapseOS administration panel: services, packages, processes, files and logs",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.554-r1",
+    "nginx >= 1.30.5-r2",
+    "service >= 0.0.0-r1",
+    "setup >= 0.1.512-r4",
+    "ip >= 0.0.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/webpanel",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/services/webpanel",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/webpanel/nginx.conf.example",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "usr/share/help/webpanel.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/webpanel/app.js",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/webpanel/index.html",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/webpanel/style.css",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
