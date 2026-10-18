@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "curl",
-  "version": "8.22.0-r2",
+  "version": "8.22.0-r4",
   "description": "curl HTTP/HTTPS client; blocking resolver and verified TLS",
   "kind": "application",
   "arch": "x86_64",
