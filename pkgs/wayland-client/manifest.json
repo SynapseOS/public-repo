@@ -1,14 +1,14 @@
 {
   "format": 1,
   "name": "wayland-client",
-  "version": "1.23.1-r1",
+  "version": "1.23.1-r2",
   "description": "Wayland client, cursor and XKB runtime for SynapseOS",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
     "musl-runtime",
-    "kernel >= 0.1.907"
+    "kernel >= 0.1.907-r1"
   ],
   "conflicts": [],
   "files": [
