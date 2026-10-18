@@ -1,0 +1,40 @@
+{
+  "format": 1,
+  "name": "lan",
+  "version": "1.0.0-r1",
+  "description": "Bounded IPv4 LAN discovery and SynapseOS self-identification service",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.768-r1",
+    "service"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/lan",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/services/lan-discovery",
+      "type": "file",
+      "mode": 448,
+      "config": true
+    },
+    {
+      "path": "usr/share/help/lan.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/lan/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
