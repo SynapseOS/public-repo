@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "mc",
-  "version": "4.8.33-r1",
+  "version": "4.8.33-r3",
   "description": "Midnight Commander local file manager, editor and diff viewer",
   "kind": "application",
   "arch": "x86_64",
