@@ -1,0 +1,1919 @@
+{
+  "format": 1,
+  "name": "openjdk",
+  "version": "21.0.11-r6",
+  "description": "OpenJDK 21 HotSpot headless runtime for musl",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "musl-runtime",
+    "kernel >= 0.1.645-r1",
+    "setup >= 0.1.512-r7"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/java",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/bin/java",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/bin/jfr",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/bin/jrunscript",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/bin/jwebserver",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/bin/keytool",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/bin/rmiregistry",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/jaxp.properties",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/logging.properties",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/management/jmxremote.access",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/management/jmxremote.password.template",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/management/management.properties",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/net.properties",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/sdp/sdp.conf.template",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/security/java.policy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/security/java.security",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/security/policy/README.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/security/policy/limited/default_US_export.policy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/security/policy/limited/default_local.policy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/security/policy/limited/exempt_local.policy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/security/policy/unlimited/default_US_export.policy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/security/policy/unlimited/default_local.policy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/conf/sound.properties",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/aes.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/asm.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/c-libutl.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/cldr.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/gcc.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/icu.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/public_suffix.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/siphash.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.base/unicode.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.compiler/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.compiler/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.compiler/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.datatransfer/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.datatransfer/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.datatransfer/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.desktop/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.desktop/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.desktop/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.desktop/colorimaging.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.desktop/harfbuzz.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.desktop/mesa3d.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.desktop/pipewire.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.desktop/xwd.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.instrument/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.instrument/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.instrument/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.logging/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.logging/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.logging/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.management/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.management/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.management/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.management.rmi/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.management.rmi/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.management.rmi/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.naming/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.naming/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.naming/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.net.http/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.net.http/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.net.http/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.prefs/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.prefs/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.prefs/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.rmi/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.rmi/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.rmi/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.scripting/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.scripting/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.scripting/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.se/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.se/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.se/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.security.jgss/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.security.jgss/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.security.jgss/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.security.sasl/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.security.sasl/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.security.sasl/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.smartcardio/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.smartcardio/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.smartcardio/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.smartcardio/pcsclite.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.sql/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.sql/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.sql/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.sql.rowset/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.sql.rowset/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.sql.rowset/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.transaction.xa/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.transaction.xa/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.transaction.xa/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml/bcel.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml/dom.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml/jcup.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml/xalan.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml/xerces.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml.crypto/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml.crypto/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml.crypto/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/java.xml.crypto/santuario.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.accessibility/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.accessibility/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.accessibility/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.attach/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.attach/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.attach/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.charsets/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.charsets/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.charsets/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.compiler/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.compiler/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.compiler/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/pkcs11cryptotoken.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/pkcs11wrapper.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.ec/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.ec/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.ec/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.dynalink/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.dynalink/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.dynalink/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.dynalink/dynalink.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.editpad/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.editpad/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.editpad/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.hotspot.agent/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.hotspot.agent/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.hotspot.agent/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.httpserver/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.httpserver/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.httpserver/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.incubator.vector/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.incubator.vector/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.incubator.vector/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.ed/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.ed/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.ed/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.jvmstat/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.jvmstat/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.jvmstat/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.le/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.le/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.le/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.le/jline.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.opt/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.opt/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.opt/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.opt/jopt-simple.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.ci/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.ci/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.ci/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler.management/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler.management/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler.management/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jartool/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jartool/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jartool/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/jquery.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/jqueryUI.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jcmd/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jcmd/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jcmd/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jconsole/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jconsole/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jconsole/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdeps/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdeps/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdeps/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdi/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdi/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdi/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdwp.agent/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdwp.agent/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jdwp.agent/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jfr/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jfr/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jfr/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jlink/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jlink/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jlink/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jpackage/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jpackage/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jpackage/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jshell/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jshell/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jshell/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jsobject/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jsobject/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jsobject/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jstatd/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jstatd/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.jstatd/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/cldr.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/thaidict.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management.agent/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management.agent/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management.agent/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management.jfr/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management.jfr/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.management.jfr/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.dns/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.dns/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.dns/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.rmi/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.rmi/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.rmi/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.net/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.net/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.net/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.nio.mapmode/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.nio.mapmode/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.nio.mapmode/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.random/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.random/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.random/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.sctp/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.sctp/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.sctp/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.security.auth/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.security.auth/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.security.auth/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.security.jgss/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.security.jgss/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.security.jgss/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported.desktop/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported.desktop/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported.desktop/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.xml.dom/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.xml.dom/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.xml.dom/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.zipfs/ADDITIONAL_LICENSE_INFO",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.zipfs/ASSEMBLY_EXCEPTION",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/legal/jdk.zipfs/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/classlist",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/jexec",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/jfr/default.jfc",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/jfr/profile.jfc",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/jrt-fs.jar",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/jspawnhelper",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/jvm.cfg",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libattach.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libawt.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libawt_headless.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libdt_socket.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libextnet.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libgcc_s.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libinstrument.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libj2gss.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libj2pcsc.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libj2pkcs11.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjaas.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjava.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjdwp.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjimage.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjli.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjsig.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjsvml.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/lible.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libmanagement.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libmanagement_agent.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libmanagement_ext.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libmlib_image.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libnet.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libnio.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libprefs.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/librmi.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libsaproc.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libsctp.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libstdc++.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libsyslookup.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libverify.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libz.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libzip.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/modules",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/psfont.properties.ja",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/psfontj2d.properties",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/security/blocked.certs",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/security/cacerts",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/security/default.policy",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/security/public_suffix_list.dat",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/server/classes.jsa",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/server/classes_nocoops.jsa",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/server/libjsig.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/server/libjvm.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/tzdb.dat",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/release",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/doc/openjdk/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
