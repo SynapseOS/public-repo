@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "opengl",
-  "version": "24.3.4-r2",
+  "version": "24.3.4-r3",
   "description": "OpenGL entry points backed by Mesa OSMesa (no GLX)",
   "kind": "application",
   "arch": "x86_64",
