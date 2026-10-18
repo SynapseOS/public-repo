@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "dropbear",
-  "version": "2026.94.0-r3",
+  "version": "2026.94.0-r5",
   "description": "Static Dropbear SSH suite for SynapseOS",
   "kind": "tool",
   "arch": "x86_64",
