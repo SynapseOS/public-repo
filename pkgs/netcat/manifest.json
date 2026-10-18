@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "name": "netcat",
+  "version": "1.10.0-r3",
+  "description": "Traditional netcat: TCP and UDP connections, listeners and port checks",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/nc",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/netcat/README",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/netcat.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

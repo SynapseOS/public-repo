@@ -1,0 +1,28 @@
+{
+  "name": "netcat",
+  "upstream_version": "1.10",
+  "source": "https://deb.debian.org/debian/pool/main/n/netcat/netcat_1.10.orig.tar.bz2",
+  "sha256": "64913dc3f0b4a96c3ab04d062d84f28ba6854152c94344e3985458b2aebca3d5",
+  "source_directory": "netcat-1.10.orig",
+  "patches": [
+    "patches/0001-musl-declarations.patch",
+    "patches/0002-bound-address-array-access.patch",
+    "patches/0003-synapse-bounded-connect.patch",
+    "patches/0004-listener-deadline.patch",
+    "patches/0005-udp-listener-deadline.patch"
+  ],
+  "sources": [
+    "netcat.c"
+  ],
+  "cflags": [
+    "-O2",
+    "-std=gnu89",
+    "-DLINUX",
+    "-ffunction-sections",
+    "-fdata-sections",
+    "-D__synapse__"
+  ],
+  "binary": "nc",
+  "license": "Public-Domain",
+  "license_file": "README"
+}

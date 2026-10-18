@@ -1,0 +1,107 @@
+--- a/netcat.c
++++ b/netcat.c
+@@ -77,6 +77,53 @@
+ #include <resolv.h>
+ int helpme(void);
+ #include <fcntl.h>		/* O_WRONLY et al */
++
++#ifdef __synapse__
++/* Bound connect with select: this kernel's legacy alarm ABI is a stub. */
++static int synapse_connect(int fd, const struct sockaddr *address, socklen_t length, int seconds) {
++	int flags, result, saved, error;
++	socklen_t size;
++	fd_set writefds;
++	struct timeval timeout;
++
++	if (!seconds)
++		return connect(fd, address, length);
++	flags = fcntl(fd, F_GETFL);
++
++	if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
++		return -1;
++	result = connect(fd, address, length);
++
++	if (result < 0 && errno == EINPROGRESS) {
++		FD_ZERO(&writefds);
++		FD_SET(fd, &writefds);
++		timeout.tv_sec = seconds;
++		timeout.tv_usec = 0;
++		result = select(fd + 1, NULL, &writefds, NULL, &timeout);
++
++		if (!result) {
++			errno = ETIMEDOUT;
++			result = -1;
++		} else if (result > 0) {
++			error = 0;
++			size = sizeof(error);
++			result = getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &size);
++
++			if (!result && error) {
++				errno = error;
++				result = -1;
++			}
++		}
++	}
++
++	saved = errno;
++
++	if (fcntl(fd, F_SETFL, flags) < 0 && !result)
++		return -1;
++	errno = saved;
++	return result;
++}
++#endif
+ 
+ /* handy stuff: */
+ #define SA struct sockaddr	/* socket overgeneralization braindeath */
+@@ -245,15 +292,19 @@
+   unsigned int num;
+   unsigned int secs;
+ {
+-  if (secs == 0) {			/* reset */
+-    signal (SIGALRM, SIG_IGN);
+-    alarm (0);
+-    jval = 0;
+-  } else {				/* set */
+-    signal (SIGALRM, tmtravel);
+-    alarm (secs);
+-    jval = num;
+-  } /* if secs */
++#ifdef __synapse__
++	/* readwrite uses select deadlines; connect has an explicit deadline below. */
++	return;
++#endif
++	if (secs == 0) { /* reset */
++		signal(SIGALRM, SIG_IGN);
++		alarm(0);
++		jval = 0;
++	} else { /* set */
++		signal(SIGALRM, tmtravel);
++		alarm(secs);
++		jval = num;
++	} /* if secs */
+ } /* arm */
+ 
+ /* Hmalloc :
+@@ -624,7 +675,7 @@
+   rr = setsockopt (nnetfd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof (x));
+   if (rr == -1)
+     holler ("nnetfd reuseaddr failed");		/* ??? */
+-#ifdef SO_REUSEPORT	/* doesnt exist everywhere... */
++#if defined(SO_REUSEPORT) && !defined(__synapse__) /* no shared listeners */
+   rr = setsockopt (nnetfd, SOL_SOCKET, SO_REUSEPORT, &x, sizeof (x));
+   if (rr == -1)
+     holler ("nnetfd reuseport failed");		/* ??? */
+@@ -749,7 +800,11 @@
+ /* wrap connect inside a timer, and hit it */
+   arm (1, o_wait);
+   if (setjmp (jbuf) == 0) {
+-    rr = connect (nnetfd, (SA *)remend, sizeof (SA));
++#ifdef __synapse__
++	  rr = synapse_connect(nnetfd, (SA *)remend, sizeof(SA), o_wait);
++#else
++	  rr = connect(nnetfd, (SA *)remend, sizeof(SA));
++#endif
+   } else {				/* setjmp: connect failed... */
+     rr = -1;
+     errno = ETIMEDOUT;			/* fake it */

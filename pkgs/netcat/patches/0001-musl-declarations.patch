@@ -1,0 +1,40 @@
+--- a/netcat.c
++++ b/netcat.c
+@@ -72,6 +72,10 @@
+ #include <string.h>		/* strcpy, strchr, yadda yadda */
+ #include <errno.h>
+ #include <signal.h>
++#include <unistd.h>
++#include <time.h>
++#include <resolv.h>
++int helpme(void);
+ #include <fcntl.h>		/* O_WRONLY et al */
+ 
+ /* handy stuff: */
+@@ -1292,9 +1296,9 @@
+ 
+ /* main :
+    now we pull it all together... */
+-main (argc, argv)
+-  int argc;
+-  char ** argv;
++int main(argc, argv)
++int argc;
++char **argv;
+ {
+ #ifndef HAVE_GETOPT
+   extern char * optarg;
+@@ -1627,10 +1631,9 @@
+ #ifdef HAVE_HELP		/* unless we wanna be *really* cryptic */
+ /* helpme :
+    the obvious */
+-helpme()
+-{
+-  o_verbose = 1;
+-  holler ("[v1.10]\n\
++int helpme(void) {
++	o_verbose = 1;
++	holler("[v1.10]\n\
+ connect to somewhere:	nc [-options] hostname port[s] [ports] ... \n\
+ listen for inbound:	nc -l -p port [-options] [hostname] [port]\n\
+ options:");

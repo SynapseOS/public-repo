@@ -1,0 +1,25 @@
+--- a/netcat.c
++++ b/netcat.c
+@@ -906,7 +906,21 @@
+   x = sizeof (SA);		/* retval for accept */
+   arm (2, o_wait);		/* wrap this in a timer, too; 0 = forever */
+   if (setjmp (jbuf) == 0) {
+-    rr = accept (nnetfd, (SA *)remend, &x);
++#ifdef __synapse__
++	  if (o_wait) {
++		  fd_set incoming;
++		  struct timeval deadline;
++		  FD_ZERO(&incoming);
++		  FD_SET(nnetfd, &incoming);
++		  deadline.tv_sec = o_wait;
++		  deadline.tv_usec = 0;
++		  rr = select(nnetfd + 1, &incoming, NULL, NULL, &deadline);
++
++		  if (rr <= 0)
++			  goto dol_tmo;
++	  }
++#endif
++	  rr = accept(nnetfd, (SA *)remend, &x);
+   } else
+     goto dol_tmo;		/* timeout */
+   arm (0, 0);

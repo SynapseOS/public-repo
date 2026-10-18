@@ -1,0 +1,31 @@
+--- a/netcat.c
++++ b/netcat.c
+@@ -881,10 +881,24 @@
+     x = sizeof (SA);		/* retval for recvfrom */
+     arm (2, o_wait);		/* might as well timeout this, too */
+     if (setjmp (jbuf) == 0) {	/* do timeout for initial connect */
+-      rr = recvfrom		/* and here we block... */
+-	(nnetfd, bigbuf_net, BIGSIZ, MSG_PEEK, (SA *) remend, &x);
+-Debug (("dolisten/recvfrom ding, rr = %d, netbuf %s ", rr, bigbuf_net))
+-    } else
++#ifdef __synapse__
++		if (o_wait) {
++			fd_set incoming;
++			struct timeval deadline;
++			FD_ZERO(&incoming);
++			FD_SET(nnetfd, &incoming);
++			deadline.tv_sec = o_wait;
++			deadline.tv_usec = 0;
++			rr = select(nnetfd + 1, &incoming, NULL, NULL, &deadline);
++
++			if (rr <= 0)
++				goto dol_tmo;
++		}
++#endif
++		rr = recvfrom /* and here we block... */
++			(nnetfd, bigbuf_net, BIGSIZ, MSG_PEEK, (SA *)remend, &x);
++		Debug(("dolisten/recvfrom ding, rr = %d, netbuf %s ", rr, bigbuf_net))
++	} else
+       goto dol_tmo;		/* timeout */
+     arm (0, 0);
+ /* I'm not completely clear on how this works -- BSD seems to make UDP

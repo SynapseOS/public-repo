@@ -1,0 +1,36 @@
+--- a/netcat.c
++++ b/netcat.c
+@@ -384,21 +384,21 @@
+       return (poop);			/* inverse stuff, we're done. */
+ /* do inverse lookups in separate loop based on our collected forward addrs,
+    since gethostby* tends to crap into the same buffer over and over */
+-    for (x = 0; poop->iaddrs[x].s_addr && (x < 8); x++) {
+-      hostent = gethostbyaddr ((char *)&poop->iaddrs[x],
+-				sizeof (IA), AF_INET);
+-      if ((! hostent) || (! hostent-> h_name))
+-	holler ("Warning: inverse host lookup failed for %s: ",
+-	  poop->addrs[x]);
+-      else
+-	(void) comparehosts (poop, hostent);
+-    } /* for x -> addrs, part B */
++	for (x = 0; (x < 8) && poop->iaddrs[x].s_addr; x++) {
++		hostent = gethostbyaddr((char *)&poop->iaddrs[x], sizeof(IA), AF_INET);
++
++		if ((!hostent) || (!hostent->h_name))
++			holler("Warning: inverse host lookup failed for %s: ", poop->addrs[x]);
++		else
++			(void)comparehosts(poop, hostent);
++	} /* for x -> addrs, part B */
+ 
+   } else {  /* not INADDR_NONE: numeric addresses... */
+     memcpy (poop->iaddrs, &iaddr, sizeof (IA));
+-    strncpy (poop->addrs[0], inet_ntoa (iaddr), sizeof (poop->addrs));
+-    if (numeric)			/* if numeric-only, we're done */
+-      return (poop);
++	strncpy(poop->addrs[0], inet_ntoa(iaddr), sizeof(poop->addrs[0]));
++
++	if (numeric) /* if numeric-only, we're done */
++		return (poop);
+     if (! o_verbose)			/* likewise if we don't want */
+       return (poop);			/* the full DNS hair */
+     hostent = gethostbyaddr ((char *) &iaddr, sizeof (IA), AF_INET);
