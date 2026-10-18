@@ -1,0 +1,26 @@
+{
+  "name": "patch",
+  "upstream_version": "2.8",
+  "source": "https://ftp.gnu.org/gnu/patch/patch-2.8.tar.xz",
+  "sha256": "f87cee69eec2b4fcbf60a396b030ad6aa3415f192aa5f7ee84cad5e11f7f5ae3",
+  "source_directory": "patch-2.8",
+  "patches": [],
+  "build_system": "configure",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-nls"
+  ],
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "license": "GPL-3.0-or-later",
+  "license_file": "COPYING",
+  "binary": "patch",
+  "binary_source": "src/patch"
+}

@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "name": "patch",
+  "version": "2.8.0-r1",
+  "description": "GNU Patch unified and context diff application",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/patch",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/patch/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/patch.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
