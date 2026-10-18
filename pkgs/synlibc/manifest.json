@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "synlibc",
-  "version": "1.0.0-r1",
+  "version": "1.0.0-r2",
   "description": "Native Orbit SynAPI development library and standalone synlibc",
   "kind": "library",
   "arch": "x86_64",
