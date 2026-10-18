@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "netcat",
-  "version": "1.10.0-r3",
+  "version": "1.10.0-r5",
   "description": "Traditional netcat: TCP and UDP connections, listeners and port checks",
   "kind": "tool",
   "arch": "x86_64",
