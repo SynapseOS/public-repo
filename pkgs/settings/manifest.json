@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "name": "settings",
+  "version": "1.0.0-r1",
+  "description": "Russian/English system settings TUI and shared configuration module",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.539-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/settings",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/settings.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/settings/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
