@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "firewall",
-  "version": "1.0.0-r1",
+  "version": "1.0.0-r2",
   "description": "Native Lumine stateless IPv4/IPv6 firewall control, atomic rulesets and counters",
   "kind": "application",
   "arch": "x86_64",
