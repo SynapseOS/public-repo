@@ -1,0 +1,1071 @@
+{
+  "format": 1,
+  "name": "mc",
+  "version": "4.8.33-r1",
+  "description": "Midnight Commander local file manager, editor and diff viewer",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.539-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/mc",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/mc/edit.indent.rc",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/mc/filehighlight.ini",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/mc/mc.default.keymap",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/mc/mc.emacs.keymap",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/mc/mc.ext.ini",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/mc/mc.keymap",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/mc/mc.menu",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/mc/mc.vim.keymap",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/mc/mcedit.menu",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "usr/share/help/mc.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/Apache-2.0.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/CC0-1.0.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/GPL-2.0-or-later.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/LGPL-2.1-only.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/LGPL-2.1-or-later.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/LLVM-exception.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/LicenseRef-old-glib-tests.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/MIT.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/MPL-1.1.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/glib/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/ncurses-COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mc/pcre2/LICENCE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/examples/macros.d/macro.0.sh",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/examples/macros.d/macro.1.sh",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/examples/macros.d/macro.3.sh",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/examples/macros.d/macro.4.sh",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/examples/macros.d/macro.5.sh",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/examples/macros.d/macro.6.sh",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/examples/macros.d/macro.7.sh",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/help/mc.hlp",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/hints/mc.hint",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/mc.charsets",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/mc.lib",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/dark.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/darkfar.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/default.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/double-lines.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/featured-plus.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/featured.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/gotar.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/gray-green-purple256.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/gray-orange-blue256.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/julia256.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/julia256root.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/mc46.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarcon16-defbg-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarcon16-defbg.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarcon16-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarcon16.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarcon16root-defbg-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarcon16root-defbg.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarcon16root-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarcon16root.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarin256-defbg-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarin256-defbg.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarin256-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarin256.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarin256root-defbg-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarin256root-defbg.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarin256root-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/modarin256root.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/nicedark.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/sand256.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/seasons-autumn16M.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/seasons-spring16M.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/seasons-summer16M.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/seasons-winter16M.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/xoria256-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/xoria256.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/xoria256root-thin.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/yadt256-defbg.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/skins/yadt256.ini",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/PKGBUILD.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/Syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/ada95.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/as.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/aspx.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/assembler.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/awk.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/b.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/c.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/cabal.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/changelog.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/cmake.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/cobol.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/cs.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/css.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/cuda.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/cxx.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/cython.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/d.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/debian-changelog.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/debian-control.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/debian-description.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/debian-sources-list.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/diff.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/dlink.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/dos.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/dot.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/ebuild.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/eiffel.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/erlang.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/f90.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/filehighlight.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/fortran.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/glsl.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/go.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/haskell.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/hive.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/html.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/idl.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/ini.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/j.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/jal.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/java.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/js.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/json.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/kotlin.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/latex.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/lisp.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/lkr.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/lsm.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/lua.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/m4.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/mail.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/makefile.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/markdown.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/meson.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/ml.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/named.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/nemerle.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/nroff.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/octave.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/opencl.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/osl.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/pascal.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/perl.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/php.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/po.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/povray.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/privoxy.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/procmail.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/properties.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/protobuf.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/puppet.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/python.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/r.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/ruby.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/rust.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/sh.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/slang.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/smalltalk.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/spec.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/spice.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/sql.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/strace.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/swift.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/swig.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/syntax.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/tcl.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/texinfo.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/toml.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/ts.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/tt.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/unknown.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/verilog.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/vhdl.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/xml.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/yabasic.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/yaml.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/yum-repo.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/mc/syntax/yxx.syntax",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "mc",
+  "version": "4.8.33-r1",
+  "source": "https://ftp.osuosl.org/pub/midnightcommander/mc-4.8.33.tar.xz",
+  "sha256": "cae149d42f844e5185d8c81d7db3913a8fa214c65f852200a9d896b468af164c",
+  "source_directory": "mc-4.8.33",
+  "patches": [],
+  "description": "Midnight Commander local file manager, editor and diff viewer",
+  "host_pkgconf": {
+    "version": "2.4.3",
+    "source": "https://distfiles.dereferenced.org/pkgconf/pkgconf-2.4.3.tar.xz",
+    "sha256": "51203d99ed573fa7344bf07ca626f10c7cc094e0846ac4aa0023bd0c83c25a41",
+    "source_directory": "pkgconf-2.4.3"
+  },
+  "build_system": "recipe"
+}
