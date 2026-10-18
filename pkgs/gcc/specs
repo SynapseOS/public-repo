@@ -1,0 +1,11 @@
+*startfile:
+/usr/lib/crti.o /usr/lib/crt1.o /usr/lib/gcc/x86_64-linux-musl/14.3.0/crtbeginT.o
+
+*endfile:
+/usr/lib/gcc/x86_64-linux-musl/14.3.0/crtend.o /usr/lib/crtn.o
+
+*link:
+-static -no-pie --eh-frame-hdr -T /usr/lib/gcc/x86_64-linux-musl/14.3.0/synapse.ld
+
+*lib:
+--start-group -lc -lgcc -lgcc_eh -lsynapse-cxx --end-group
