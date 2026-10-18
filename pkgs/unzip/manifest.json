@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "unzip",
-  "version": "6.0.0-r1",
+  "version": "6.0.0-r2",
   "description": "Info-ZIP archive extraction and listing",
   "kind": "application",
   "arch": "x86_64",
