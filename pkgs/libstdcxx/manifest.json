@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "libstdcxx",
-  "version": "14.3.0-r2",
+  "version": "14.3.0-r4",
   "description": "Static GCC C++ runtime built against Synapse musl, with ELF unwind support",
   "kind": "application",
   "arch": "x86_64",
