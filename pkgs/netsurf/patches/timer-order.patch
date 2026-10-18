@@ -1,0 +1,31 @@
+--- a/netsurf/frontends/framebuffer/schedule.c
++++ b/netsurf/frontends/framebuffer/schedule.c
+@@ -109,7 +109,10 @@
+         tv.tv_sec = tival / 1000; /* miliseconds to seconds */
+         tv.tv_usec = (tival % 1000) * 1000; /* remainder to microseconds */
+ 
+-	nscb = calloc(1, sizeof(struct nscallback));
++    nscb = calloc(1, sizeof(struct nscallback));
++    if (nscb == NULL) {
++        return NSERROR_NOMEM;
++    }
+ 
+ 	gettimeofday(&nscb->tv, NULL);
+ 	timeradd(&nscb->tv, &tv, &nscb->tv);
+@@ -117,9 +120,13 @@
+ 	nscb->callback = callback;
+ 	nscb->p = p;
+ 
+-        /* add to list front */
+-        nscb->next = schedule_list;
+-        schedule_list = nscb;
++    // Ранний таймер должен выполняться первым, равные сроки сохраняют порядок
++    struct nscallback **link = &schedule_list;
++    while (*link != NULL && !timercmp(&nscb->tv, &(*link)->tv, <)) {
++        link = &(*link)->next;
++    }
++    nscb->next = *link;
++    *link = nscb;
+ 
+ 	return NSERROR_OK;
+ }

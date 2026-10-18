@@ -1,0 +1,20 @@
+[
+  {
+    "name": "libjpeg-turbo-dev",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libjpeg-turbo-dev-3.1.0-r0.apk",
+    "sha256": "9c8de3db3a816f7a71c0ae3b087d7b975e479a8a7cb108f29c64307ccf318675",
+    "filename": "libjpeg-turbo-dev-3.1.0-r0.apk"
+  },
+  {
+    "name": "libjpeg-turbo",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libjpeg-turbo-3.1.0-r0.apk",
+    "sha256": "3b7230030b8876e966a11238144a9a08e89f72cfec9b99789acdca5d1ee9c78a",
+    "filename": "libjpeg-turbo-3.1.0-r0.apk"
+  },
+  {
+    "name": "gperf",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/gperf-3.3-r0.apk",
+    "sha256": "c1c206f81aaf594e9f14fc6ac1a90d947ba2467745d19b9b03073621d44117ec",
+    "filename": "gperf-3.3-r0.apk"
+  }
+]

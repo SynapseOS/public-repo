@@ -1,0 +1,10 @@
+--- a/netsurf/frontends/framebuffer/gui.c
++++ b/netsurf/frontends/framebuffer/gui.c
+@@ -470,6 +470,7 @@
+ {
+ 	if (type < fetype) {
+ 		fename = name;
++		fetype = type;
+ 	}
+ }
+ 

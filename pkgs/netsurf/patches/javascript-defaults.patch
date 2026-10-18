@@ -1,0 +1,51 @@
+--- a/netsurf/frontends/framebuffer/gui.c
++++ b/netsurf/frontends/framebuffer/gui.c
+@@ -557,6 +557,8 @@
+  */
+ static nserror set_defaults(struct nsoption_s *defaults)
+ {
++	nsoption_set_bool(enable_javascript, true);
++
+ 	/* Set defaults for absent option strings */
+ 	nsoption_setnull_charp(cookie_file, strdup("~/.netsurf/Cookies"));
+ 	nsoption_setnull_charp(cookie_jar, strdup("~/.netsurf/Cookies"));
+--- a/netsurf/content/handlers/javascript/duktape/Window.bnd
++++ b/netsurf/content/handlers/javascript/duktape/Window.bnd
+@@ -139,7 +139,7 @@
+ 			  int timeout)
+ {
+ 	size_t new_handle = next_handle++;
+-	window_schedule_t *sched = calloc(sizeof *sched, 1);
++	window_schedule_t *sched = calloc(1, sizeof *sched);
+ 	if (sched == NULL) {
+ 		return new_handle;
+ 	}
+--- a/nsgenbind/src/nsgenbind-parser.y
++++ b/nsgenbind/src/nsgenbind-parser.y
+@@ -9,11 +9,11 @@
+  /* bison prior to 2.4 cannot cope with %define api.pure so we use the
+   *  deprecated directive
+   */
+-%pure-parser
++%define api.pure
+ 
+ %locations
+ 
+-%error-verbose
++%define parse.error verbose
+  /* would use api.prefix but it needs to be different between bison
+   *  2.5 and 2.6
+   */
+--- a/nsgenbind/src/webidl-parser.y
++++ b/nsgenbind/src/webidl-parser.y
+@@ -48,8 +48,8 @@
+  /* bison prior to 2.4 cannot cope with %define api.pure so we use the
+   *  deprecated directive 
+   */
+-%pure-parser
+-%error-verbose
++%define api.pure
++%define parse.error verbose
+ %parse-param { struct webidl_node **webidl_ast }
+ 
+ %union

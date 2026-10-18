@@ -1,0 +1,90 @@
+--- a/netsurf/content/handlers/javascript/duktape/Window.bnd
++++ b/netsurf/content/handlers/javascript/duktape/Window.bnd
+@@ -13,6 +13,7 @@
+ 	private struct html_content * htmlc;
+ 	private struct window_schedule_s * schedule_ring;
+ 	private bool closed_down;
++	private struct synapse_web * web;
+ 	prologue %{
+ #include "utils/corestrings.h"
+ #include "utils/nsurl.h"
+@@ -24,6 +25,8 @@
+ #include "netsurf/misc.h"
+ #include "utils/ring.h"
+ #include "netsurf/inttypes.h"
++
++#include "synapse-web.inc"
+ 
+ #define WINDOW_CALLBACKS MAGIC(WindowCallbacks)
+ #define HANDLER_MAGIC MAGIC(HANDLER_MAP)
+@@ -231,6 +234,7 @@
+ 		return 0;
+ 	}
+ 
++	syn_web_close(ctx, priv);
+ 	priv->closed_down = true;
+ 
+ 	NSLOG(dukky, DEEPDEBUG, "Closing down thread");
+@@ -285,6 +289,8 @@
+ 	priv->htmlc = htmlc;
+ 	priv->schedule_ring = NULL;
+ 	priv->closed_down = false;
++	priv->web = NULL;
++	syn_web_install(ctx);
+ 	NSLOG(netsurf, DEEPDEBUG, "win=%p htmlc=%p", priv->win, priv->htmlc);
+ 
+ 	NSLOG(netsurf, DEEPDEBUG,
+@@ -295,6 +301,7 @@
+ 
+ fini Window()
+ %{
++	syn_web_close(ctx, priv);
+ 	NSLOG(dukky, DEEPDEBUG, "Shutting down Window %p", priv->win);
+ 	/* Cheaply iterate the schedule ring, cancelling any pending callbacks */
+ 	while (priv->schedule_ring != NULL) {
+--- a/netsurf/content/handlers/javascript/duktape/dukky.c
++++ b/netsurf/content/handlers/javascript/duktape/dukky.c
+@@ -60,6 +60,7 @@
+ 	duk_context *ctx; /**< duktape base context */
+ 	duk_uarridx_t next_thread; /**< monotonic thread counter */
+ 	bool pending_destroy; /**< Whether this heap is pending destruction */
++	unsigned int call_depth;
+ 	unsigned int live_threads; /**< number of live threads */
+ 	uint64_t exec_start_time;
+ };
+@@ -879,7 +880,23 @@
+ 		dukky_reset_start_time(ctx);
+ 	}
+ 
+-	duk_int_t ret = duk_pcall(ctx, argc);
++    duk_memory_functions memory;
++    duk_get_memory_functions(ctx, &memory);
++    jsheap *heap = memory.udata;
++    heap->call_depth++;
++    duk_int_t ret = duk_pcall(ctx, argc);
++    heap->call_depth--;
++    if (heap->call_depth == 0) {
++        duk_get_global_string(ctx, "__synapseDrainJobs");
++        if (duk_is_callable(ctx, -1)) {
++            heap->call_depth++;
++            if (duk_pcall(ctx, 0) != 0) {
++                dukky_dump_error(ctx);
++            }
++            heap->call_depth--;
++        }
++        duk_pop(ctx);
++    }
+ 	if (ret) {
+ 		/* Something went wrong calling this... */
+ 		dukky_dump_error(ctx);
+--- a/netsurf/content/handlers/javascript/duktape/dukky.c
++++ b/netsurf/content/handlers/javascript/duktape/dukky.c
+@@ -970,7 +970,7 @@
+ 		goto handle_error;
+ 	}
+ 
+-	if (duk_pcall(CTX, 0/*nargs*/) == DUK_EXEC_ERROR) {
++	if (dukky_pcall(CTX, 0, true) == DUK_EXEC_ERROR) {
+ 		NSLOG(dukky, DEBUG, "Failed to execute JavaScript");
+ 		goto handle_error;
+ 	}

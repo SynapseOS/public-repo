@@ -1,0 +1,178 @@
+--- a/libcss/src/select/select.c
++++ b/libcss/src/select/select.c
+@@ -138,7 +138,7 @@
+ {
+ 	struct css_node_data *nd;
+ 
+-	nd = calloc(sizeof(struct css_node_data), 1);
++	nd = calloc(1, sizeof(struct css_node_data));
+ 	if (nd == NULL) {
+ 		return CSS_NOMEM;
+ 	}
+@@ -234,7 +234,7 @@
+ 	if (result == NULL)
+ 		return CSS_BADPARM;
+ 
+-	c = calloc(sizeof(css_select_ctx), 1);
++	c = calloc(1, sizeof(css_select_ctx));
+ 	if (c == NULL)
+ 		return CSS_NOMEM;
+ 
+@@ -613,7 +613,7 @@
+ 	*node_bloom = NULL;
+ 
+ 	/* Create the node's bloom */
+-	bloom = calloc(sizeof(css_bloom), CSS_BLOOM_SIZE);
++	bloom = calloc(CSS_BLOOM_SIZE, sizeof(css_bloom));
+ 	if (bloom == NULL) {
+ 		return CSS_NOMEM;
+ 	}
+--- a/libcss/src/select/computed.c
++++ b/libcss/src/select/computed.c
+@@ -73,7 +73,7 @@
+ 	if (result == NULL)
+ 		return CSS_BADPARM;
+ 
+-	s = calloc(sizeof(css_computed_style), 1);
++	s = calloc(1, sizeof(css_computed_style));
+ 	if (s == NULL)
+ 		return CSS_NOMEM;
+ 
+--- a/libdom/src/core/node.c
++++ b/libdom/src/core/node.c
+@@ -2379,7 +2379,7 @@
+ 	if (t == NULL) {
+ 		/* Create the event target list */
+ 		size = 64;
+-		t = calloc(sizeof(*t), size);
++		t = calloc(size, sizeof(*t));
+ 		if (t == NULL) {
+ 			return DOM_NO_MEM_ERR;
+ 		}
+--- a/libdom/src/html/html_document.c
++++ b/libdom/src/html/html_document.c
+@@ -134,13 +134,12 @@
+ 	doc->cookie = NULL;
+ 	doc->body = NULL;
+ 
+-	doc->memoised = calloc(sizeof(dom_string *), hds_COUNT);
++	doc->memoised = calloc(hds_COUNT, sizeof(dom_string *));
+ 	if (doc->memoised == NULL) {
+ 		error = DOM_NO_MEM_ERR;
+ 		goto out;
+ 	}
+-	doc->elements = calloc(sizeof(dom_string *),
+-			DOM_HTML_ELEMENT_TYPE__COUNT);
++	doc->elements = calloc(DOM_HTML_ELEMENT_TYPE__COUNT, sizeof(dom_string *));
+ 	if (doc->elements == NULL) {
+ 		error = DOM_NO_MEM_ERR;
+ 		goto out;
+--- a/libdom/bindings/xml/expat_xmlparser.c
++++ b/libdom/bindings/xml/expat_xmlparser.c
+@@ -484,7 +484,7 @@
+ 
+ 	UNUSED(int_enc);
+ 
+-	parser = calloc(sizeof(*parser), 1);
++	parser = calloc(1, sizeof(*parser));
+ 	if (parser == NULL) {
+ 		msg(DOM_MSG_CRITICAL, mctx, "No memory for parser");
+ 		return NULL;
+--- a/netsurf/tools/convert_font.c
++++ b/netsurf/tools/convert_font.c
+@@ -710,7 +710,7 @@
+ 			(c == '.' || c == '#')) {
+ 		if (ctx->data.in_gd.e[glyph] == NULL) {
+ 			ctx->data.in_gd.e[glyph] =
+-					calloc(sizeof(struct glyph_entry), 1);
++					calloc(1, sizeof(struct glyph_entry));
+ 			if (ctx->data.in_gd.e[glyph] == NULL) {
+ 				LOG(LOG_ERROR, "  Couldn't allocate memory for "
+ 						"glyph entry\n");
+@@ -1023,7 +1023,7 @@
+ 		return false;
+ 	}
+ 
+-	d = calloc(sizeof(struct font_data), 1);
++	d = calloc(1, sizeof(struct font_data));
+ 	if (d == NULL) {
+ 		LOG(LOG_ERROR, "Couldn't allocate memory for font data\n");
+ 		fclose(fp);
+--- a/netsurf/desktop/textarea.c
++++ b/netsurf/desktop/textarea.c
+@@ -934,7 +934,7 @@
+ 	assert(ta->flags & TEXTAREA_MULTILINE);
+ 
+ 	if (ta->lines == NULL) {
+-		ta->lines = calloc(sizeof(struct line_info), LINE_CHUNK_SIZE);
++		ta->lines = calloc(LINE_CHUNK_SIZE, sizeof(struct line_info));
+ 		if (ta->lines == NULL) {
+ 			NSLOG(netsurf, INFO,
+ 			      "Failed to allocate memory for textarea lines");
+--- a/netsurf/content/llcache.c
++++ b/netsurf/content/llcache.c
+@@ -3593,8 +3593,7 @@
+ 	}
+ 
+ 	if (object->num_headers > 0) {
+-		newobj->headers = calloc(sizeof(llcache_header),
+-				object->num_headers);
++		newobj->headers = calloc(object->num_headers, sizeof(llcache_header));
+ 		if (newobj->headers == NULL) {
+ 			llcache_object_destroy(newobj);
+ 			return NSERROR_NOMEM;
+--- a/netsurf/content/hlcache.c
++++ b/netsurf/content/hlcache.c
+@@ -826,7 +826,7 @@
+ 		if (clone == NULL)
+ 			return NSERROR_NOMEM;
+ 
+-		entry = calloc(sizeof(struct hlcache_entry), 1);
++		entry = calloc(1, sizeof(struct hlcache_entry));
+ 
+ 		if (entry == NULL) {
+ 			content_destroy(clone);
+--- a/netsurf/content/fetch.c
++++ b/netsurf/content/fetch.c
+@@ -726,7 +726,7 @@
+ 
+ 	assert(list);
+ 
+-	newdata = calloc(sizeof(*newdata), 1);
++	newdata = calloc(1, sizeof(*newdata));
+ 
+ 	if (newdata == NULL) {
+ 		return NSERROR_NOMEM;
+--- a/netsurf/content/handlers/image/ico.c
++++ b/netsurf/content/handlers/image/ico.c
+@@ -74,7 +74,7 @@
+ 		.bitmap_get_buffer = guit->bitmap->get_buffer,
+ 	};
+ 
+-	c->ico = calloc(sizeof(ico_collection), 1);
++	c->ico = calloc(1, sizeof(ico_collection));
+ 	if (c->ico == NULL) {
+ 		content_broadcast_error(&c->base, NSERROR_NOMEM, NULL);
+ 		return NSERROR_NOMEM;
+--- a/netsurf/content/handlers/image/bmp.c
++++ b/netsurf/content/handlers/image/bmp.c
+@@ -77,7 +77,7 @@
+ 		.bitmap_get_buffer = guit->bitmap->get_buffer,
+ 	};
+ 
+-	bmp->bmp = calloc(sizeof(struct bmp_image), 1);
++	bmp->bmp = calloc(1, sizeof(struct bmp_image));
+ 	if (bmp->bmp == NULL) {
+ 		content_broadcast_error(&bmp->base, NSERROR_NOMEM, NULL);
+ 		return NSERROR_NOMEM;
+--- a/libsvgtiny/src/svgtiny.c
++++ b/libsvgtiny/src/svgtiny.c
+@@ -586,7 +586,7 @@
+ {
+ 	struct svgtiny_diagram *diagram;
+ 
+-	diagram = calloc(sizeof(*diagram), 1);
++	diagram = calloc(1, sizeof(*diagram));
+ 	if (!diagram)
+ 		return 0;
+ 

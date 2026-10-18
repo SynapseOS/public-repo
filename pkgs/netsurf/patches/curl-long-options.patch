@@ -1,0 +1,61 @@
+--- a/netsurf/content/fetchers/curl.c
++++ b/netsurf/content/fetchers/curl.c
+@@ -1243,7 +1243,7 @@
+ 	}
+ 
+ 	/* Force-enable SSL session ID caching, as some distros are odd. */
+-	SETOPT(CURLOPT_SSL_SESSIONID_CACHE, 1);
++	SETOPT(CURLOPT_SSL_SESSIONID_CACHE, 1L);
+ 
+ 	if (urldb_get_cert_permissions(f->url)) {
+ 		/* Disable certificate verification */
+@@ -1997,7 +1997,7 @@
+ 	/* built against 7.30.0 or later: configure caching */
+ 	{
+ 		CURLMcode mcode;
+-		int maxconnects = nsoption_int(max_fetchers) +
++		long maxconnects = nsoption_int(max_fetchers) +
+ 				nsoption_int(max_cached_fetch_handles);
+ 
+ #undef SETOPT
+@@ -2010,7 +2010,7 @@
+ 
+ 		SETOPT(CURLMOPT_MAXCONNECTS, maxconnects);
+ 		SETOPT(CURLMOPT_MAX_TOTAL_CONNECTIONS, maxconnects);
+-		SETOPT(CURLMOPT_MAX_HOST_CONNECTIONS, nsoption_int(max_fetchers_per_host));
++		SETOPT(CURLMOPT_MAX_HOST_CONNECTIONS, (long)nsoption_int(max_fetchers_per_host));
+ 	}
+ #endif
+ 
+@@ -2034,9 +2034,9 @@
+ 	SETOPT(CURLOPT_ERRORBUFFER, fetch_error_buffer);
+ 	SETOPT(CURLOPT_DEBUGFUNCTION, fetch_curl_debug);
+ 	if (nsoption_bool(suppress_curl_debug)) {
+-		SETOPT(CURLOPT_VERBOSE, 0);
++		SETOPT(CURLOPT_VERBOSE, 0L);
+ 	} else {
+-		SETOPT(CURLOPT_VERBOSE, 1);
++		SETOPT(CURLOPT_VERBOSE, 1L);
+ 	}
+ 
+ 	/* Currently we explode if curl uses HTTP2, so force 1.1. */
+@@ -2045,7 +2045,7 @@
+ 	SETOPT(CURLOPT_WRITEFUNCTION, fetch_curl_data);
+ 	SETOPT(CURLOPT_HEADERFUNCTION, fetch_curl_header);
+ 	SETOPT(NSCURLOPT_PROGRESS_FUNCTION, fetch_curl_progress);
+-	SETOPT(CURLOPT_NOPROGRESS, 0);
++	SETOPT(CURLOPT_NOPROGRESS, 0L);
+ 	SETOPT(CURLOPT_USERAGENT, user_agent_string());
+ 	SETOPT(CURLOPT_ENCODING, "gzip");
+ 	SETOPT(CURLOPT_LOW_SPEED_LIMIT, 1L);
+--- a/netsurf/content/fetchers/curl.c
++++ b/netsurf/content/fetchers/curl.c
+@@ -2051,7 +2051,7 @@
+ 	SETOPT(CURLOPT_LOW_SPEED_LIMIT, 1L);
+ 	SETOPT(CURLOPT_LOW_SPEED_TIME, 180L);
+ 	SETOPT(CURLOPT_NOSIGNAL, 1L);
+-	SETOPT(CURLOPT_CONNECTTIMEOUT, nsoption_uint(curl_fetch_timeout));
++	SETOPT(CURLOPT_CONNECTTIMEOUT, (long)nsoption_uint(curl_fetch_timeout));
+ 
+ 	if (nsoption_charp(ca_bundle) &&
+ 	    strcmp(nsoption_charp(ca_bundle), "")) {

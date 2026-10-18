@@ -1,0 +1,11 @@
+--- a/netsurf/content/fetchers/curl.c
++++ b/netsurf/content/fetchers/curl.c
+@@ -2047,7 +2047,7 @@
+ 	SETOPT(NSCURLOPT_PROGRESS_FUNCTION, fetch_curl_progress);
+ 	SETOPT(CURLOPT_NOPROGRESS, 0L);
+ 	SETOPT(CURLOPT_USERAGENT, user_agent_string());
+-	SETOPT(CURLOPT_ENCODING, "gzip");
++	SETOPT(CURLOPT_ENCODING, "");
+ 	SETOPT(CURLOPT_LOW_SPEED_LIMIT, 1L);
+ 	SETOPT(CURLOPT_LOW_SPEED_TIME, 180L);
+ 	SETOPT(CURLOPT_NOSIGNAL, 1L);
