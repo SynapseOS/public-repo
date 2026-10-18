@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "name": "pcre2",
+  "version": "10.49.0-r1",
+  "description": "PCRE2 Unicode regular expressions; static libraries and pcre2grep",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.539-r1",
+    "setup >= 0.1.512-r4"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/pcre2grep",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/include/pcre2.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/pcre2posix.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libpcre2-8.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libpcre2-posix.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/pcre2.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/pcre2/LICENCE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "pcre2",
+  "version": "10.49.0-r1",
+  "description": "PCRE2 Unicode regular expressions; static libraries and pcre2grep",
+  "source": "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.49/pcre2-10.49.tar.gz",
+  "sha256": "929f0b20e62879252a15886b06c89f1edef61a363cbd5826fb041080a5e557ae",
+  "source_directory": "pcre2-10.49",
+  "configure": [
+    "./configure",
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-shared",
+    "--enable-static",
+    "--disable-jit",
+    "--enable-unicode",
+    "--disable-pcre2grep-libz",
+    "--disable-pcre2grep-libbz2",
+    "--disable-pcre2test-libreadline",
+    "--disable-pcre2test-libedit"
+  ],
+  "make_targets": [],
+  "files": {
+    "bin/pcre2grep": "pcre2grep",
+    "usr/lib/libpcre2-8.a": ".libs/libpcre2-8.a",
+    "usr/lib/libpcre2-posix.a": ".libs/libpcre2-posix.a",
+    "usr/include/pcre2.h": "src/pcre2.h",
+    "usr/include/pcre2posix.h": "src/pcre2posix.h",
+    "usr/share/licenses/pcre2/LICENCE": "LICENCE.md"
+  },
+  "patches": []
+}
