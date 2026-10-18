@@ -1,0 +1,190 @@
+{
+  "format": 1,
+  "name": "git",
+  "version": "2.56.0-r1",
+  "description": "Git version control with static HTTPS transport",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.561-r1",
+    "bash >= 5.3.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/git",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/git-core/git-receive-pack",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/git-core/git-remote-http",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/git-core/git-remote-https",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/git-core/git-upload-pack",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/.gitignore",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/description",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/applypatch-msg.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/commit-msg.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/fsmonitor-watchman.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/post-update.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/pre-applypatch.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/pre-commit.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/pre-merge-commit.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/pre-push.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/pre-rebase.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/pre-receive.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/prepare-commit-msg.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/push-to-checkout.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/sendemail-validate.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/hooks/update.sample",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/git-core/templates/info/exclude",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/git.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/git/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/git/curl/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/git/curl/OpenSSL-LICENSE.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/git/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/git/openssl/LICENSE.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/git/zlib/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
