@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "name": "tcpdump",
+  "version": "4.99.7-r1",
+  "description": "tcpdump for SynapseOS native packet capture",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.567-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/tcpdump",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/tcpdump.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/tcpdump/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/tcpdump/libpcap-LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/tcpdump/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
