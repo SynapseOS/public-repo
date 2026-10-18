@@ -1,0 +1,24 @@
+[
+  {
+    "name": "qt6-qtbase-wayland",
+    "version": "6.11.1-r3",
+    "license": "LGPL-2.1-only AND LGPL-3.0-only AND GPL-3.0-only AND Qt-GPL-exception-1.0",
+    "branch": "edge",
+    "repository": "community",
+    "commit": "f62329886b5ff40d10879035728e7e0038c082d6",
+    "filename": "qt6-qtbase-wayland-6.11.1-r3.apk",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/edge/community/x86_64/qt6-qtbase-wayland-6.11.1-r3.apk",
+    "sha256": "1f1b0663f3c5436fb281cd2b6b889034e5445922309740c47bfd88a1f4c5d8fb"
+  },
+  {
+    "name": "qt6-qtwayland",
+    "version": "6.11.1-r2",
+    "license": "LGPL-2.1-only AND LGPL-3.0-only AND GPL-3.0-only AND Qt-GPL-exception-1.0",
+    "branch": "edge",
+    "repository": "community",
+    "commit": "14246af2c056503698b604a2c56f0d7fd9efabcc",
+    "filename": "qt6-qtwayland-6.11.1-r2.apk",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/edge/community/x86_64/qt6-qtwayland-6.11.1-r2.apk",
+    "sha256": "12daaf836ea39368cb0c962230a1e7197d14290d334591c8d1dfbf861322c881"
+  }
+]

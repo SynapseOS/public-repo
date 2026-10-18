@@ -1,0 +1,8 @@
+{
+  "name": "qt6-wayland",
+  "version": "6.11.1-r1",
+  "description": "Qt Wayland client integration for SynapseOS Weston",
+  "build_system": "recipe",
+  "status": "experimental",
+  "upstream_license": "LGPL-3.0-only AND GPL-3.0-only AND Qt-GPL-exception-1.0"
+}
