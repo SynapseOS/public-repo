@@ -1,0 +1,63 @@
+{
+  "format": 1,
+  "name": "synbench",
+  "version": "1.0.0-r1",
+  "description": "Orbit SynAPI correctness and same-kernel POSIX performance benchmarks",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.726-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/qwen3-posix-bench",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/qwen3-posix-fast-bench",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/qwen3-synapi-bench",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/qwen3-synapi-reference-bench",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/synbench",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/synbench.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/synbench/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/synbench/qwen3-c-LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
