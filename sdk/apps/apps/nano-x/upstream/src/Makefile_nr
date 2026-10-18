@@ -1,0 +1,510 @@
+# Microwindows Makefile for DOS/DJGPP and MinGW
+# based on makefile by V. Rogachev
+# by Georg Potthast August 2015
+# Atari Jaguar addition by Jean-Paul Mari, August 2020
+# updated May 2022 Greg Haerr
+#
+
+ifeq ($(ARCH), )
+$(info  ARCH= parameter not specified, please use:)
+$(info  make -f Makefile_nr ARCH=DOS)
+$(info  make -f Makefile_nr ARCH=CROSSDOS)
+$(info  make -f Makefile_nr ARCH=MINGW)
+$(info  make -f Makefile_nr ARCH=MACOS)
+$(info  make -f Makefile_nr ARCH=LINUX)
+$(info  make -f Makefile_nr ARCH=AJAGUAR)
+$(error exiting)
+endif
+
+# ARCH flags  ********************************
+
+ifeq ($(ARCH), DOS)
+DOSTARGET = Y
+VESA = Y
+ALL += initdos
+CFLAGS += -DDOS_DJGPP=1 -DMSDOS=1
+INC += -I$(MW_DIR_SRC)/include
+endif
+
+ifeq ($(ARCH), CROSSDOS)
+DOSTARGET = Y
+VESA = Y
+CFLAGS += -DDOS_DJGPP=1 -DMSDOS=1 -s
+INC += -I$(MW_DIR_SRC)/include $(INCLUDE_FLAGS)
+endif
+
+ifeq ($(ARCH), MINGW)
+DOSTARGET = Y
+INC += -I$(MW_DIR_SRC)/include
+INC += -I/c/MinGW/msys/1.0/local/include/freetype
+INC += -I/usr/local/include
+CFLAGS += -DMINGW=1 -s
+#CFLAGS += -L/c/MinGW/msys/1.0/local/lib -L/c/MinGW/lib
+#ALLEGRO4 = Y
+#LIBALLEGRO = -lalleg #.dll
+ALLEGRO5 = Y
+LIBALLEGRO = -lallegro #.dll
+endif
+
+ifeq ($(ARCH), MACOS)
+SDL2 = Y
+#NOEXTLIBS = Y
+CFLAGS += -DUNIX=1 -DMACOSX=1
+INC += -I$(MW_DIR_SRC)/include $(INCLUDE_FLAGS)
+INC += -I/usr/local/include/freetype2
+endif
+
+ifeq ($(ARCH), LINUX)
+FB = Y
+CFLAGS += -DUNIX=1 -DLINUX=1 -s
+INC += -I$(MW_DIR_SRC)/include $(INCLUDE_FLAGS)
+endif
+
+ifeq ($(ARCH), AJAGUAR)
+TOOLSPREFIX = m68k-elf-
+# Note: to avoid potential issues with modern GCC, better to have dedicated ctype.h
+CFLAGS += -DAJAGUAR=1 -s
+INC = -I$(MW_DIR_SRC)/include -IC:/Projects/Lib-M68K/include
+endif
+
+$(info Compiling for $(ARCH))
+
+# what to build and tools  ********************************
+
+# uncomment to build microwin or nano-X libraries ano/or demos
+MICROWIN=Y
+MICROWINDEMO=Y
+NANOX=Y
+NANOXDEMO=Y
+
+# for recursive makes into subdirectories
+MW_DIR_SRC := $(CURDIR)
+MW_DIR_BIN := $(CURDIR)/bin
+
+# set variable to compile with gcc
+CC = $(TOOLSPREFIX)gcc
+AS = $(TOOLSPREFIX)as
+LD = $(TOOLSPREFIX)ld
+AR = $(TOOLSPREFIX)ar
+STRIP = $(TOOLSPREFIX)strip
+
+HOSTCC = gcc
+HOSTCFLAGS = -I$(MW_DIR_SRC)/include
+
+# verbose compiler output
+VERBOSE=Y
+
+#GDB=Y
+ifeq ($(GDB), Y)
+CFLAGS += $(INC) -Wall -g
+endif
+
+# CFLAGS and included features  ********************************
+
+CFLAGS += $(INC)
+
+# Debug output support through GdError
+#CFLAGS += -DDEBUG=1
+
+CFLAGS += -Wno-deprecated-declarations
+CFLAGS += -O3
+
+CFLAGS += -DHAVE_FILEIO=1
+CFLAGS += -DMW_FEATURE_IMAGES=1
+CFLAGS += -DMW_FEATURE_TIMERS=1
+CFLAGS += -DHAVE_SIGNAL=0
+CFLAGS += -DHAVE_MMAP=0
+CFLAGS += -DNONETWORK=1
+
+# window manager
+CFLAGS += -DNANOWM=1
+#CFLAGS += -DNUKLEARUI=1
+
+# Window move algorithms, change for tradeoff between cpu speed and looks
+# UPDATEREGIONS paints in update clipping region only for better look and feel
+# ERASEMOVE repaints only backgrounds while window dragging, quicker
+# XORMOVE moves windows only after button up, quickest
+# OUTLINE_MOVE outlines window when moving (nano-X only)
+CFLAGS += -DUPDATEREGIONS=0
+CFLAGS += -DERASEMOVE=0
+CFLAGS += -DXORMOVE=1
+CFLAGS += -DOUTLINE_MOVE=1
+
+# basic image support
+CFLAGS += -DHAVE_BMP_SUPPORT=1
+CFLAGS += -DHAVE_GIF_SUPPORT=1
+CFLAGS += -DHAVE_PNM_SUPPORT=1
+CFLAGS += -DHAVE_XPM_SUPPORT=1
+
+CLIBS += $(LIBRARY_FLAGS)
+#CLIBS += -lm
+
+# external library support  ********************************
+ifndef NOEXTLIBS
+
+# set for JPEG image support
+CFLAGS += -DHAVE_JPEG_SUPPORT=1
+ifdef INSTALLED
+CLIBS += $(INSTALLED)/lib/libjpeg.a
+else
+CLIBS += -ljpeg
+endif
+
+# set for PNG image support
+CFLAGS += -DHAVE_PNG_SUPPORT=1
+ifdef INSTALLED
+CLIBS += $(INSTALLED)/lib/libpng.a $(INSTALLED)/lib/libz.a
+else
+CLIBS += -lpng -lz
+endif
+
+# set for PCF or FNT font .gz format
+CFLAGS += -DHAVE_FNTGZ_SUPPORT=1
+CFLAGS += -DHAVE_PCFGZ_SUPPORT=1
+ifdef INSTALLED
+CLIBS += $(INSTALLED)/lib/libz.a
+else
+CLIBS += -lz
+endif
+
+# set for TTF font support
+HAVE_FREETYPE_2_SUPPORT = Y
+CFLAGS += -DHAVE_FREETYPE_2_SUPPORT=1
+CFLAGS += -DFREETYPE_FONT_DIR=\"$(MW_FONT_DIR)/truetype\"
+ifdef INSTALLED
+CLIBS += $(INSTALLED)/lib/libfreetype.a $(INSTALLED)/lib/libz.a
+else
+CLIBS += -lfreetype -lz
+endif
+
+# set for TIFF image support
+#CFLAGS += -DHAVE_TIFF_SUPPORT=1
+#CLIBS += $(INSTALLED)/lib/libtiff.a
+#CLIBS += -ltiff
+
+# set for Type1 font support
+#CFLAGS += -DHAVE_T1LIB_SUPPORT=1
+#CFLAGS += -DT1LIB_FONT_DIR=\"$(MW_FONT_DIR)/type1\"
+#CLIBS += $(INSTALLED)/lib/libt1.a
+#CLIBS += -lt1
+
+endif # NOEXTLIBS
+
+ifeq ($(SDL2), Y)
+CLIBS += -lSDL2
+endif
+
+# font support  ********************************
+
+ifeq ($(DOSTARGET), Y)
+    MW_FONT_DIR := /fonts
+else
+    # for hosted testing, use absolute path to mwin fonts dir
+    MW_FONT_DIR := $(shell pwd)/fonts
+endif
+CFLAGS += -DMW_FONT_DIR=\"$(MW_FONT_DIR)\"
+
+CFLAGS += -DHAVE_PCF_SUPPORT=1
+CFLAGS += -DPCF_FONT_DIR=\"$(MW_FONT_DIR)/pcf\"
+
+CFLAGS += -DHAVE_FNT_SUPPORT=1
+CFLAGS += -DFNT_FONT_DIR=\"$(MW_FONT_DIR)/fnt\"
+
+# NX11 font settings
+
+# XLFD font directory path used in nx11/fontlist.c
+CFLAGS += -DXLOCALFONTPATH=\"$(MW_FONT_DIR)\"
+
+# use stanard X11 XLFD system directories for fonts
+CFLAGS += -DHAVE_SYSTEM_FONT_PATHS=1
+
+# screen size and pixel format  ****************
+
+# 800x600, 1024x768, 1400x1050
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+SCREEN_DEPTH = 8
+CFLAGS += -DSCREEN_HEIGHT=$(SCREEN_HEIGHT)
+CFLAGS += -DSCREEN_WIDTH=$(SCREEN_WIDTH)
+CFLAGS += -DSCREEN_DEPTH=$(SCREEN_DEPTH)
+
+# pixel is packed 32 bits byte order |B|G|R|A|
+SCREEN_PIXTYPE = MWPF_TRUECOLORARGB
+
+# pixel is packed 32 bits byte order |R|G|B|A|
+#SCREEN_PIXTYPE = MWPF_TRUECOLORABGR
+
+# pixel is packed 24 bits byte order |B|G|R|
+#SCREEN_PIXTYPE = MWPF_TRUECOLORRGB
+
+# pixel is packed 16 bits little endian RGB565
+# use this making screenshots with snarf
+#SCREEN_PIXTYPE = MWPF_TRUECOLOR565
+
+# pixel is packed 8 bits 1, 4 or 8 pal index
+#SCREEN_PIXTYPE = MWPF_PALETTE
+
+CFLAGS += -DSCREEN_PIXTYPE=$(SCREEN_PIXTYPE)
+CFLAGS += -DMWPIXEL_FORMAT=$(SCREEN_PIXTYPE)
+
+# ALL target ********************************
+
+ALL += init
+ALL += drivers/libmwdrivers.a fonts/libfonts.a engine/libmwengine.a nanox/libnano-X.a
+ALL += nx11/libNX11.a
+
+ifdef MICROWIN
+ALL += mwin/libmwin.a
+ALL += images/demos/mwin/libimages.a
+endif
+
+ifdef MICROWINDEMO
+ALL += mwindemos
+endif
+
+ifdef NANOXDEMO
+ALL += nanoxdemos
+endif
+
+# CLIBS, LIBS and NANOLIBS ******************
+
+LIBS += -L$(MW_DIR_SRC)/lib
+CLIBS += -L$(MW_DIR_SRC)/lib
+CLIBS += $(LIBALLEGRO)
+
+ifdef NANOX
+NANOLIBS += -lnano-X -lNX11 $(EXTENGINELIBS)
+NANOLIBSA += lib/libnano-X.a lib/libNX11.a
+endif
+NANOLIBS += $(CLIBS)
+
+ifdef MICROWIN
+LIBS += -lmwin -limages $(CLIBS) $(EXTENGINELIBS)
+endif
+
+#CLIBS += -lsocket -lnsl
+
+# mwin demo programs
+MTARGETS1 := mwmine mwdemoalpha mwtest mwdemo mwstretch mwcontrols
+MTARGETS2 := $(addprefix $(MW_DIR_BIN)/,$(MTARGETS1))
+MTARGETS := $(addsuffix .exe,$(MTARGETS2))
+
+# nanox demo programs
+NTARGETS1 += demo-blit demo-dash demo-hello demo-grabkey
+NTARGETS1 += demo-monobitmap demo-tilestipple demo-polygon
+NTARGETS1 += demo-arc demo-blit demo-ttfont demo-aafont show-font demo-font
+NTARGETS1 += nxview nxclock nxeyes nxmine nxworld nxslider nxtux nxtetris show-ppm
+NTARGETS1 += tuxchess
+
+NTARGETS2 := $(addprefix $(MW_DIR_BIN)/,$(NTARGETS1))
+NTARGETS := $(addsuffix .exe,$(NTARGETS2))
+
+# start build  ******************
+
+$(info       )
+$(info ------------------------------------------------------------------)
+$(info DOSTARGET = $(DOSTARGET))
+$(info INC = $(INC))
+$(info CFLAGS = $(CFLAGS))
+$(info LIBS = $(LIBS))
+$(info CLIBS = $(CLIBS))
+$(info ------------------------------------------------------------------)
+$(info       )
+
+.PHONY: all
+
+all: $(ALL)
+
+# If you dont want to see every executed command ...
+ifndef VERBOSE
+.SILENT:
+endif
+
+.PHONY: init
+
+# copy files before build ******************
+initdos:
+	-$("shell md lib 2>NUL")
+	-$("shell md bin 2>NUL")
+	-$("shell md obj 2>NUL")
+
+init:
+	-mkdir -p $(MW_DIR_BIN)/fonts
+	-mkdir -p $(MW_DIR_BIN)/demos/tuxchess/images
+	-mkdir -p $(MW_DIR_BIN)/images/demos/nanox
+	-cp -r \
+		$(MW_DIR_SRC)/fonts/fnt \
+		$(MW_DIR_SRC)/fonts/pcf \
+		$(MW_DIR_SRC)/fonts/truetype \
+		$(MW_DIR_BIN)/fonts
+	-cp $(MW_DIR_SRC)/demos/tuxchess/images/*.gif $(MW_DIR_BIN)/demos/tuxchess/images
+	-cp $(MW_DIR_SRC)/images/demos/nanox/nxworld.map $(MW_DIR_BIN)/images/demos/nanox
+	-cp \
+		$(MW_DIR_SRC)/images/test/earth.jpg \
+		$(MW_DIR_BIN)
+
+# build targets ********************************
+
+.PHONY: mwindemos
+mwindemos: $(MTARGETS)
+
+ifeq ($(ARCH), AJAGUAR)
+# Building demos for Atari Jaguar requires specific files so only object files are made
+$(MW_DIR_BIN)/%.exe: demos/mwin/%.o
+	echo "compiling $<"
+else
+$(MW_DIR_BIN)/%.exe: demos/mwin/%.o
+	echo "compiling $@"
+	$(CC) $(CFLAGS) -o $@ $< $(LIBS)
+endif
+
+.PHONY: nanoxdemos
+nanoxdemos: $(NTARGETS)
+
+$(MW_DIR_BIN)/%.exe: demos/nanox/%.o
+	echo "compiling $@"
+	$(CC) $(CFLAGS) -o $@ $< $(NANOLIBS)
+
+TUXOBJS = $(patsubst %.c,%.o,$(wildcard demos/tuxchess/*.c))
+$(MW_DIR_BIN)/tuxchess.exe: $(TUXOBJS)
+	echo "compiling $@"
+	$(CC) $(CFLAGS) -o $@ $(TUXOBJS) $(NANOLIBS)
+
+# clean target ********************************
+.PHONY: clean
+
+ifeq ($(ARCH), MINGW)
+clean:
+	echo "Cleaning MINGW files"
+	-rm obj/mwin/*.o 2>/dev/null
+	-rm obj/demos/tuxchess/*.o 2>/dev/null
+	-rm obj/images/demos/mwin/*.o 2>/dev/null
+	-rm obj/images/demos/mwin/mwmine/*.o 2>/dev/null
+	-rm obj/images/tools/convbmp obj/images/tools/makebmp 2>/dev/null
+	-rm obj/drivers/*.o 2>/dev/null
+	-rm obj/mwin/winlib/*.o 2>/dev/null
+	-rm obj/engine/*.o 2>/dev/null
+	-rm obj/fonts/compiled/*.o 2>/dev/null
+	-rm drivers/*.o 2>/dev/null
+	-rm mwin/*.o 2>/dev/null
+	-rm images/demos/mwin/*.o 2>/dev/null
+	-rm mwin/winlib/*.o 2>/dev/null
+	-rm nanox/*.o 2>/dev/null
+	-rm engine/*.o 2>/dev/null
+	-rm lib/*.a	 2>/dev/null
+	-rm bin/*.exe 2>/dev/null
+	-rm bin/*.ppm 2>/dev/null
+	-rm bin/*.pgm 2>/dev/null
+	-rm -rf bin/fonts/ 2>/dev/null
+	-rm -rf bin/demos
+	-rm -rf bin/images
+	-rm images/demos/mwin/*.exe 2>/dev/null
+	-$(MAKE) -C nx11 clean
+	echo "Cleaned *.o, *.a, and *.exe files"
+endif
+
+ifneq ($(ARCH), MINGW)
+ifneq ($(ARCH), DOS)
+clean:
+	echo "Cleaning files"
+	-rm mwin/*.o
+	-rm demos/tuxchess/*.o
+	-rm images/demos/mwin/*.o
+	-rm images/demos/mwin/mwmine/*.o
+	-rm images/tools/convbmp images/tools/makebmp
+	-rm mwin/winlib/*.o
+	-rm nanox/*.o
+	-rm fonts/compiled/*.o
+	-rm drivers/*.o
+	-rm engine/*.o
+	-rm lib/*.a
+	-rm bin/*.exe
+	-rm bin/*.ppm
+	-rm bin/*.pgm
+	-rm -rf bin/fonts
+	-rm -rf bin/demos
+	-rm -rf bin/images
+	-rm nx11/*.o
+	-$(MAKE) -C nx11 clean
+	echo "Cleaned *.o, *.a, and *.exe files"
+endif
+endif
+
+ifeq ($(ARCH), DOS)
+clean:
+	echo "Cleaning DOS files"
+	-del mwin\*.o
+	-del demos\tuxchess\*.o
+	-del mwin\bmp\*.o
+	-del images\demos\mwin\*.o
+	-del images\demos\mwin\mwmine\*.o
+	-del images\tools\convbmp
+	-del images\tools\makebmp
+	-del mwin\winlib\*.o
+	-del nanox\*.o
+	-del fonts\compiled\*.o
+	-del drivers\*.o
+	-del engine\*.o
+	-del lib\*.a
+	-del bin\*.exe
+	-del bin\*.ppm
+	-del bin\*.pgm
+	-del nx11\*.o
+	-$(MAKE) -C nx11 clean
+	echo "Cleaned *.o, *.a, and *.exe files"
+endif
+
+.PHONY: install
+
+ifeq ($(ARCH), MINGW)
+install:
+	cp lib/*.a /local/lib
+	cp inc /local/include/mwin
+endif
+
+ifeq ($(ARCH), DOS)
+install:
+	copy lib\*.a \djgpp\lib
+	copy inc \djgpp\include\mwin
+endif
+
+# export variables for sublevel makefiles
+export CC CFLAGS AS LD AR STRIP HOSTCC HOSTCFLAGS VERBOSE
+export MW_DIR_SRC MW_FONT_DIR
+export HAVE_FREETYPE_2_SUPPORT DOSTARGET VESA ALLEGRO4 ALLEGRO5 AJAGUAR SDL2 X11 FB
+
+# library targets ********************************
+
+nanox/libnano-X.a:
+	echo "Generating $@"
+	$(MAKE) -C nanox  -f ../contrib/makefiles_nr/Makefile-nanox
+
+mwin/libmwin.a:
+	echo "Generating $@"
+	$(MAKE) -C mwin -f ../contrib/makefiles_nr/Makefile-mwin
+
+#mwin/winlib/libwinlib.a:
+#	$(MAKE) -C mwin/winlib
+
+fonts/libfonts.a:
+	echo "Generating font object files"
+	$(MAKE) -C fonts -f ../contrib/makefiles_nr/Makefile-fonts
+
+engine/libmwengine.a:
+	echo "Generating engine object files"
+	$(MAKE) -C engine -f ../contrib/makefiles_nr/Makefile-engine
+
+drivers/libmwdrivers.a:
+	echo "Generating driver object files"
+	$(MAKE) -C drivers -f ../contrib/makefiles_nr/Makefile-drivers
+
+images/demos/mwin/libimages.a:
+	echo "Generating $@"
+	$(MAKE) -C images -f ../contrib/makefiles_nr/Makefile-bmp
+
+nx11/libNX11.a:
+	echo "Generating $@"
+	$(MAKE) -C nx11 -f ../contrib/makefiles_nr/Makefile-nx11
+
+# build nano-X server
+#	$(MAKE) -C nanox -f ../contrib/makefiles_nr/Makefile-nanox-bin

@@ -1,0 +1,59 @@
+#!/bin/sh
+# Synapse compiler: static by default, explicit ELF shared-library/runtime modes.
+set -eu
+base=$(CDPATH= cd -- "$(dirname -- "$0")/.." &&
+	pwd)
+musl="$base/../musl"
+link=1
+mode=${SYNAPSE_LINK_MODE:-static}
+
+for arg; do
+	case "$arg" in
+		-shared)
+			mode=shared
+			;;
+		-c | -E | -S | -M | -MM | --version | -dump*)
+			link=0
+			;;
+	esac
+done
+
+case "$mode" in
+	static)
+		codeflags="-fno-pie"
+		;;
+	dynamic | shared)
+		codeflags="-fPIC"
+		;;
+	*)
+		echo "invalid SYNAPSE_LINK_MODE" >&2
+		exit 2
+		;;
+esac
+
+if [ "$link" = 0 ]; then
+	exec gcc -nostdinc -isystem "$musl/obj/include" -isystem "$musl/include" \
+		-isystem "$musl/arch/x86_64" -isystem "$musl/arch/generic" \
+		-fno-stack-protector $codeflags -mno-red-zone "$@"
+fi
+
+if [ "$mode" = shared ]; then
+	exec gcc -nostdinc -isystem "$musl/obj/include" -isystem "$musl/include" \
+		-isystem "$musl/arch/x86_64" -isystem "$musl/arch/generic" \
+		-fno-stack-protector -fPIC -mno-red-zone -Wl,--build-id=none -nostdlib -shared \
+		"$musl/lib/crti.o" "$@" -L"$musl/lib" -lc -lgcc "$musl/lib/crtn.o"
+fi
+
+if [ "$mode" = dynamic ]; then
+	exec gcc -nostdinc -isystem "$musl/obj/include" -isystem "$musl/include" \
+		-isystem "$musl/arch/x86_64" -isystem "$musl/arch/generic" \
+		-fno-stack-protector -fPIC -mno-red-zone -Wl,--build-id=none -nostdlib -pie \
+		-Wl,--dynamic-linker=/lib/ld-musl-x86_64.so.1 \
+		"$musl/lib/crti.o" "$musl/lib/Scrt1.o" "$@" -L"$musl/lib" -lc -lgcc "$musl/lib/crtn.o"
+fi
+
+exec gcc -nostdinc -isystem "$musl/obj/include" -isystem "$musl/include" \
+	-isystem "$musl/arch/x86_64" -isystem "$musl/arch/generic" \
+	-fno-stack-protector -fno-pie -mno-red-zone -Wl,--build-id=none -nostdlib -static -no-pie \
+	-Wl,-T,"$base/common/apps.ld" "$musl/lib/crti.o" "$musl/lib/crt1.o" \
+	"$@" -L"$musl/lib" -Wl,--start-group -lc -lgcc -Wl,--end-group "$musl/lib/crtn.o"

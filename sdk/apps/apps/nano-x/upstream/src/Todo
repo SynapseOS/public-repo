@@ -1,0 +1,399 @@
+add mwfont_findpath to createfont_t1lib, createfont_eujcp, createfont_hbf
+    may need to add extensions to fonts in fonts/xxx dirs
+add PWD to xxx_FONT_DIR in non-Makefile_nr builds to always have absolute font dir path
+
+add Atari Jaguar specific features and optimizations.
+try resolution above 320x240.
+console gamepad and mouse/keyboard emulation support.
+to complete/fix the makefile to handle the platform.
+to remove references from another platforms in the Makefile_ajaguar.
+
+look at MwInitializeDialogs for mwapp init and msvc init
+fix undefined externs in mwin MULTIAPP .so links (image lib, mwstretch.c)
+test ALLEGRO with winmain2.c and shared libs
+remove main in nanox/srvmain.c
+fix GdDelay for new EMSCRIPTEN
+nano-x event processing for shared event loop
+
+update demo-font, demo-aafont to test all CJK fonts
+win32 SetTimer/KillTimer idTimer is UINT_PTR, not UINT
+add ANDROID GdDelay()
+check -DHAVE_MMAP=? for EMSCRIPTEN
+update runapp for nx11-test and contrib/TinyWidgets/{demo,tndesigner}
+rename PIXEL888*, PIXEL8888* in mwtypes.h
+fix nanox/clientfb.c for direct fb access
+
+add scr_sgm.c, suifont.c, DrawBitmap
+add X11 mag driver
+wide border rects, ^R redisplay screen
+add MWTF_CENTER, MWTF_COLUMN, compound fonts?
+
+check whether font previously loaded, cache pfont return?
+move image decoders to library
+remove internal server image format, use pixmaps instead
+add amortized background text clear for other subengines
+
+add GrSetLocale flag for text?
+add PIXIL screentop window manager
+add PIXIL nxutil library
+
+TypedReadBlock not checked
+fixup GrNewBitmapFromPixmap
+add psi->fbdriver, psi->rmask, psi->portrait in all drivers/scr*.c
+ability to link in only specified fb Xbpp drivers
+
+send recursive UPDATE_MOVE events to child windows, correct wp->x, wp->y sent
+add WM_KEYDOWN/KEYUP bits to win32
+fix GR_EVENT_TYPE_BUTTON_UP doesn't include correct buttons entry for up button
+client/server gets screwed up on GsError delivery (GrCloseWindow for instance)
+NanoWM should decorate top level windows only
+rewrite nanowm to be table-driven
+MAXREQSIZE is statically compiled into each client, should be server only
+fix MAXREQSIZE of 10000 in nxproto.h for images...
+fix nxterm to take x,y,w,h fg,bg on startup
+fix nxterm to redisplay properly
+fix potential sibling window clip bug with move2.sh and nanowm
+
+fix GrBitmap bit orders? (reversed from X11?)
+fix strlen(const "") (bug in nxkbd.c for #define TITLE)
+free props.title is required in client/server but must not in link-into-server
+
+change VTech Helio kernel to return proper visual for scr_fb.c (TPHELIO)
+
+automatically create correct MWPIXEL_FORMAT in exported mwtypes.h
+fix Polygon auto-complete outline
+
+GdHideCursor/ShowCursor still interferes with GdFixCursor
+	for X11 Enter/LeaveNotify auto-hiding of cursor
+add startup options: -portrait, -landscape
+t1lib UCS2->8859 conversion
+auto swap x/y for autoportrait mode if y>x unless -portrait
+
+hwnd->update should be an HRGN, make things easier
+hwnd->update should be cleared in BeginPaint, except for OWNDC
+BeginPaint requires DCX_EXCLUDEUPDATE, may be buggy
+
+handle WS_POPUP owner vs parent for GetParent call
+handle lost focus on disable window call, check disabled when setfocus
+change kbd driver to return ESC, exit check in upper level GsCheckKbd
+slim down devfont.c for small systems
+add showcursor flag on return from mousedev open
+remove sinfo struct
+cursor isn't clipped from blit source rectangle (mterm cursor bug)
+share clipping code winclip.c with nanox/srvutil.c
+implement client and window rects in nanox
+build window mgr api
+change printf's to GsError returns in srvnet.c
+X11 still has flush problems with demo.c
+add length fields to replies
+nomalloc returns are bad in wrapper functions
+fix GrRetNoMem to be GsError()
+fix DeliverEvent in client lib
+move to Xlib api compatibility
+warn if bad color args are passed?
+
+put fixed bcc allowing // comments on ftp site
+
+have GrGetNextEvent work with timeout returns, for nclock.c etc
+fix GrRegisterInput for multiple fd's
+fix GrRegisterInput to work with GrCheckNextEvent
+
+eliminate any timeout in select() loop
+no duplicate /dev/tty0 open
+fix -O3 framebuffer compile requirement
+remove gen_ routines from screen drivers into library, create fb library
+tag bitmap drawing palette conversion table to bitmap ID for speed
+fix DOS driver for stdpal4bpp for static pseudocolor
+rotate 2bpp Everex driver for normal display viewing
+
+turn on NDEBUG for speed
+bitblt src mem clipping (copy BLACK?) not implemented
+bitblt assumes src and dest bitmap are same bpp
+vgaplan4 still needs vga_to_mempl4 blit
+fix asmplan4.s: don't draw last point, add psd struct, write ega_init
+
+allow more than one WndRegisterFdInput, run multiple mterm's
+dynamically load fonts, replace existing ones
+error check gdi structures, check for magic word
+
+FIXME
+
+nuklear main loop uses GrGetNextEventTimeout followed by GrPeekEvent
+	doesn't work in LINK_APP_INTO_SERVER case because GrPeekEvent generates poll and timeout event
+	workaround is to break when GrGetNextEventTimeout returns timeout
+nanowm always selects CHLD_UPDATE
+	temp kluge stops sending updates for windows not owned by event client
+		needs WM_CHLD_UPDATE to fix properly
+	some update events don't always propogate to client, and client always gets root chld_update events
+	would need WMCHLD_UPDATE or seperate wm client struct allocated
+TinyWidgets scrollbartest fails in infinite loop, scrollbars don't drag, mousewheel fails
+
+loadable fonts should have standard method of adding font dir, each is different
+compiled in DBCS fonts are fixed 12x12 size in fonts_dbcs.c, except 16x16 KSC5601
+test KSC5601 16x16 compiled in font
+HZK font drawing uses GdArea, background should be transparent
+HZK font ALLOCA overwrites bitmap, temp fix add 1024 to alloc
+t1lib not working on OSX
+X11 keypad not working
+fix OLDWAY in devimage.c::DrawImagePartToFit()
+win32 underline text controls underlines in wrong position. Should also use freetype not LineTo
+devfont.c: abs(height) doesn't handle win32 case for char height not cell height when height < 0
+winres.c: mwResCompare checks HIWORD of template pointers, but then calls strcmp() if not FFFF
+fix compiletime SCREEN_PIXTYPE requirement, convblit RGB2PIXEL etc macros
+add XOR/rasterop capability to mono FT antialiased drawing
+
+look at tc1555.diff patch
+
+consider removing GdStretchImage, test convblits available in different pixtypes
+	make sure that similar bpp's are supported
+
+remove move.c demo, debug move handling bugs/issues
+
+merge GdFindConvBlit and GdFindFrameBlit
+consider rasterops for 2-32bpp pixmaps
+consider quad vs byte MWIF for mono pixmaps, former can use rasterops, check case statements
+replace 1bpp non-usebg blit with PAINT (SRC|DST)
+	won't work if src image isn't padded to DWORD (FT2 and T1 are not)
+fblin1/rev.c blit (GdRasterOps) won't work in portrait modes
+	consider rotating pixmaps to hw format, or rotation conversion (slow)
+	rotated pixmaps may need back-rotation or consideration when convblit'd to higher bpp
+
+how to handle child windows in buffered window scheme
+resize buffered pixmap rather than erase to background color
+allow bgpixmaps to work with buffered windows for pixmap init
+
+GdBlit Frame->Pixmap fails, needs src rotate (and test)
+GdStretchBlit Frame->Frame and Frame->Pixmap fails, needs src/dst rotate (and test)
+convblits could be updated with rotation macros, move macros to convblit.h
+compression flipy in mwin/winresbmp.c::resDecodeBitmap, remove duplicate bmp support
+investigate why link with /usr/local/lib/libfreetype.so doesn't work!
+remove printf/fprinf from all demo programs, add methods to nano-X.h
+check optimization for gcc, will -O0 allow static inlines to be optimized?
+
+check that gr_foreground possibly invalid w/same gc used across 32bpp then 16bpp framebuffer
+GrLoadImageFromFile uses &scrdev, shouldn't use psd parameter, remove from loaders (jpg, xpm)
+change GdFindColor to use MWIF image type, not psd->pixtype, remove psd->pixtype
+
+background pixmap clear issues for pixmaps w/alpha using src_over: stop blink by buffering
+	need better way of determining whether pixmap has non-255 alpha, src_over vs copy
+	may blink from extra clear background on non-compositing pixmaps
+stipple needs to use convblit
+need 1bpp GrNewPixmapEx options
+16bpp convblits are endian-specific (LE)
+MWIMAGE (short) words and blits are endian-specific (LE)
+
+nxterm.sh buggy when overlapped blit
+rewrite GdStretchImage to use convblit_stretch
+rewrite GdDrawImageToFit to use new stretchblit and/or pixmap
+rewrite image routines to use pixmaps, deprecate MWIMAGEHDR
+bin/mdemo requires extra mouse press/move to redraw on X11
+remove seperate driver procs and combine to single SUBDRIVER in screendevice
+rename orgsubdriver, left_subdriver etc
+debug fltk test/pixmap putTruecolorImage GrArea problem
+consider adding srcover to GrArea MWPF_RGB images (use MWPF_RGBA)
+
+Look at RGB2PIXEL in convblit_mask/8888.c, will this work on all systems?
+	RGB2PIXEL kluged for MWPF_PALETTE compiles, set to 0 as not supported
+
+seperate x11 mouse/kbd from screen driver
+need different way of SUBDRIVER left/right/down etc switching
+
+64 bit port fails on windows sizeof(int) != sizeof(char *), need INT redefinition to 64
+test VTSWITCH
+fix vncserver.c support (drawarea, etc)
+
+FT2 driver downgrades to non-antialias when needed
+
+rename TRUECOLOR macros to match image byte order, or use upper vs lower case
+bgra/rgba blit uses src[3] for alpha, will only work on RGBA and BGRA formats
+fblin32alpha.c draws SRCOVER in pixel, h/vline, add to fblin32.c
+
+remove FT1 from Config/configs*
+config option to eliminate not needed subdrivers?
+
+move data_format in MWIMAGEHDR	after changing convbmp
+deprecate old screen drivers, fontmapper, !DYNAMICREGIONS
+	fix mwin/winfonts.c::EnumFonts GdGetFontList/GdFreeFontList/GdTextSizeEx for FT1
+	add GdGetTextSizeEx/GdGetFontList to FT2 from FT1
+
+check 255 alpha required on 8888_8888 copy (from GdBitmap or convblit)
+check slight change in GrReadArea->GrArea using GdBitmap vs convblit (alpha/nxroach)
+	appears that GdBitmap using GdBitmapByPoint isn't writing alpha=255
+plans for GdArea Translation, GdReadArea blit?
+
+drawarea alphamap, copytrans, copyall(=convblit copy vs srcover)
+	check srcover vs copy for RGBA8888 images
+
+fixup other image formats: pnm, to RGB/RGBA, gif etc need palette conversion function
+	update mwin/bmp/convbmp.c when data_format changes for image_bmp.c
+convert palette images to RGBA when running on 24/32 systems (gif, bmp)
+
+autoportrait works great except for when change occurs and cursor still on?
+	(fblin32 blit: assert h < 0)
+
+fblin32alpha.c/fblin32.c:
+	add MWROP_* compositing handling (currently only SRC_OVER alpha blend)
+	check whether alpha != 0 check needed
+		fblin32alpha.c always draws alpha in drawpixel, drawh, drawv
+		#define ALPHABLEND, what does it do now?
+	check MWPF_ values in case statements in GdDrawImage for 12/18bpp cases, use default
+	look at code generated for = vs += muldiv255, and fblin32alpha longword calcs
+change image id's to pixmaps (win32 and nano-X)
+fix add INVERT2BPP to config, combine with INVERT4BPP or reverse palette, INVERT() macro
+add X11 keyboard and mouse support to fbe
+init_alpha_lookup needs reinit if palette changed
+
+add GdGetFontList for FT2 and others
+add BGRA and big endian to fbe, all psd image formats
+investigate image vs truecolor ARGB naming schemes, detail support for each
+remove freetype_init from mwin/winfont.c
+investigate endian problem of ever reading color data as DWORD
+add ximage X11 debug statements
+enhance x11 driver to use fast blit from savebits
+leftBearing < 0 not handled in PCF loader nor MWCFONT structs, add l/r bearing returns?
+T1LIB appears to never discard font memory!
+check STANDALONE options
+
+moving window on bin/malpha waits until second buttondown
+MWROP_BLENDCONSTANT needs alpha passed (not 150)
+add .fnt/.fnt.gz or .pcf/.pcf.gz to FNT and PCF file spec
+fix config files to update new font info
+look at auto Antialias in GdCreateFont, handle for T1, FT2
+handle width=0 with aspect ratio of device
+test speed gen16_drawtext to use GdConvertBlit rather than GdBitmap
+
+fix bin/mwdvetest crash on closebox after static dialog
+fix bin/mwdvetest crash on ESC exit from main dialog
+look at MessageBoxTimeout, newlistbox.c. remove OLD_DRAWTEXT
+
+add SUBDRIVER entry into SCREENDEVICE
+add restrict pointers for better optimization to fb drivers
+fix pcfdemo to allow drawing of undefined chars using jiskan24.pcf.gz crash
+add timer support to PSP port (nano-X and win32)
+fix GdDrawImage to not have to swap bytes on endianness or image byte order for speed
+check GdDrawImage switch code on MWPF_TRUECOLORxxx values for speed
+test alpha 0xFFRRGGBB in X11 and fblin32 non-alpha screen drivers
+	test ABGR w/freetype and t1lib alphablend
+	test ABGR and 8888 w/palette images and GETPALLETE
+	test ABGR w/snap_jpg and snap_ppm
+test MWIMAGE_BGR format images and add test .bmp and other files
+png decoder may fail on 8bpp grayscale images w/alpha, needs testing
+nanowm: static procnames or rename
+	nxclock doesn't update when LINK_APP_INTO_SERVER/NANOWM and mouse motion
+correct space char width=1 for FNT, CORE and FT fonts
+add Cyerbit.ttf fonts outside tree for testing
+fix srandom/srand in various apps (rtems/ecos)
+check rtems timer patch, dont require fp for it
+bin/mterm: closing terminal window causes hang rather than server exit
+MSVC: need attribute for #pragma pack in PACKEDDATA in device.h
+GdCaptureScreen() only works with framebuffer /dev/fb0 present
+GdArea, GdBlit
+	for when fast driver blit can't be used.  Pass usebg, alpha blend
+	etc directly to low level driver, don't use gr_xxx globals
+	GrArea needs to allow src offsets
+	GrReadArea needs to allow hw pixel format return
+old GdArc doesn't draw 2nd point on circle, see grdemo.sh/arcdemo
+replace old GdArc routine w/new version based on GdArcAngle
+ft2: no underline or background drawn when rotated
+ft2: must use forced slow rotation code when cache off
+mwdvetest demo segfaults when dialog moved or credits closed
+remove 2nd thislen parm in GrSendClientData
+italic wrap bug - lubI24.bdf 'r', 'M'
+fix fast gray palette handling for jpegs
+check incorrect jpeg decode when !FASTJPEG
+add 32bpp BMP support?
+remove GR_GRAB_EXCLUSIVE_MOUSE?, check HOTKEY event
+fixup GsDeliverRawMouseEvent, remove internal button handling
+fonts/*/Makefile removed: *.o created with config.dbcs
+MWCOORD_MAX possibly incorrect, int vs uint16 for MWCOORD in nxproto.h
+	check LARGE_COORDINATES in devrgn2.c
+remove psd from GdDuplicateFont, GdCreateFontFromBuffer?
+fix kluge rotate filters
+nanocal doesn't work on fb
+remove GsDeliverRawMouseEvent
+rewrite GrGrabKey implementation
+add MWTF_ encoding flags in DrawTextA, MwDrawText, MwExtTextOut
+	fix USE_BIG5 in mwin/winlib/*.c
+PCF font indexing (MWTF_XCHAR2B) in t1demo.c needs looking into
+add PORTRAIT_HACK to config file
+add GdGetTextSizeEx, add entry points for GdGetFontList, GdFreeFontList
+add release new fonts tar file
+***GrCopyArea gcp->exposure flag needs checking into
+	look at GrSetGCExposures, needs to send different type exposure
+***still have mapping bug: xfreecell vs grabscreen, srvutil.c::GsRealizeWindow...
+	parenting issue with UPDATE_MAP events...
+***	change OLDWAY
+
+should fixup and test win32 CreateFont for auto .ttf search/load
+copy regions in GrSetGCRegion like GrSetWindowRegion
+	use MWCLIPREGION *, instead of id
+must copy regions in GrSetGCRegion for X11 lib to work...
+	look into region copy on xoff/yoff != 0 in GsPrepareDrawing
+
+notifyactivate in nanowm should check all child windows (qt bug)
+
+change stipple/tile unsigned short to MWIMAGEBITS, use GdBitmap
+seperate out dashed and stipple in config file and devdraw.c
+
+change to GrChangeGC instead of new GrSetXXX routines?
+***typedef CheckEvent in nanox/client.c
+GetTypedEventPred - typedef CheckEvent, remove params??
+***GrCopyGC broken for stipple allocs, etc
+add 1bpp pixmap flag??
+
+tcc: engine/devfont.c:://#error ... \
+tcc: tuxchess can't compile due to CRLF source
+
+need korean, japanese font test program
+
+add nanocal, oneshot, periodic, pressure, ipcclient, ipcserver demos
+add speed demo
+
+add UPDATE_TEMPMAP?
+check unrealize/realize ok in move, resize, reborder routines
+test fontmapping?
+
+think about GrReadArea return value based on MWPF_ pixel format
+
+add EVENT_CHILD_REDIRECT
+
+try ecos compile,  add ACCESS_THREAD_DATA to new routines
+
+fix nanowm: can't let two copies run at once...
+cache nanowm title draw font creation
+
+filled polygons fail with polydemo - check devpoly.c algorithms...
+	should GrPoly close polygon if last point != first?
+cursor clipped above blit area with xteevee - check
+shaped windows broken w/xfreecell: no bounding box, error w/anim
+SetWindowRegion still buggy under bounding box with bkgnd graphics
+SetWindowRegion doesn't work with borders
+same fonts aren't cached by name in server
+freetype fonts character spacing incorrect when antialias on
+
+chess.sh display error on drag window left offscreen, but not with foo3.sh (fixed)
+
+There's still bugs with apps after closebox pressed
+There's still some bugs in the Arc/Pie code - see FLTK valuators demo
+
+X11 runs out of colors on t1demo.sh
+
+SetWindowPos is broken for resize of child windows
+should BeginPaint incorporate the update region with current DC?
+WM_MOUSEMOVE shouldn't send hittest code like WM_NCMOUSEMOVE
+ATI cards in 16bpp mode: palette not setup properly
+PF_PALETTE emulation doesn't work well on X11 (use PF_TRUECOLOR0888)
+alpha blending is broken on X11
+cursor disappears with much blitting
+
+Non-client title bar not repainted properly on repaint
+
+repaint on VT switch doesn't work with client/server library
+Sleep api isn't accurate
+switch palette's on the fly from framebuffer identification
+
+BitBlt clips blit rectangle to source screen/memimage size
+Terminal emulator doesn't clip text on right side for some reason
+If closing last window, GetMessage/microwindows hangs if not exiting
+
+The ELKS microwin demo draws mouse droppings on screen

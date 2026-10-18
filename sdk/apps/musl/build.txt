@@ -1,0 +1,9 @@
+
+./configure \
+    --target=x86_64-synapse \
+    --disable-shared \
+    --enable-static \
+    CC=gcc AR=ar RANLIB=ranlib \
+    CROSS_COMPILE="" \
+    CFLAGS="-Os -pipe -fno-stack-protector"
+make

@@ -1,0 +1,4 @@
+ncurses 6.5
+Source: https://ftp.gnu.org/gnu/ncurses/ncurses-6.5.tar.gz
+License: upstream/COPYING
+Built-in terminfo: linux, xterm, xterm-256color, vt100, ansi.

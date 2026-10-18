@@ -1,0 +1,6 @@
+upstream/src/bin/
+upstream/src/lib/
+upstream/src/obj/
+*.o
+*.d
+.depend*
