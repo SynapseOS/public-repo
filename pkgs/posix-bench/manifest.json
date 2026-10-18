@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "name": "posix-bench",
+  "version": "1.0.0-r2",
+  "description": "Native POSIX behavior checks and API latency benchmarks",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.724-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/posix-bench",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/posix-bench.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/posix-bench/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
