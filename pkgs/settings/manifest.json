@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "settings",
-  "version": "1.0.0-r1",
+  "version": "1.0.0-r3",
   "description": "Russian/English system settings TUI and shared configuration module",
   "kind": "application",
   "arch": "x86_64",
