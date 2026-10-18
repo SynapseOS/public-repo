@@ -1,0 +1,31 @@
+{
+  "name": "gawk",
+  "upstream_version": "5.3.2",
+  "source": "https://ftp.gnu.org/gnu/gawk/gawk-5.3.2.tar.gz",
+  "sha256": "8639a1a88fb411a1be02663739d03e902a6d313b5c6fe024d0bfeb3341a19a11",
+  "source_directory": "gawk-5.3.2",
+  "patches": [],
+  "build_system": "configure",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--disable-nls",
+    "--disable-mpfr",
+    "--disable-readline",
+    "--disable-load"
+  ],
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "license": "GPL-3.0-or-later",
+  "license_file": "COPYING",
+  "binaries": {
+    "bin/gawk": "gawk",
+    "bin/awk": "gawk"
+  }
+}
