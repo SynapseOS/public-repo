@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "name": "sqlite",
+  "version": "3.54.0-r2",
+  "description": "SQLite CLI, static library and headers; atomic dotfile locking",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.554-r1",
+    "setup >= 0.1.512-r4"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/sqlite3",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/include/sqlite3.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/sqlite3ext.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libsqlite3.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/sqlite.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/sqlite/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+--- a/sqlite3.c
++++ b/sqlite3.c
+@@ -49133,7 +49133,11 @@
+   ** array cannot be const.
+   */
+   static sqlite3_vfs aVfs[] = {
+-#if SQLITE_ENABLE_LOCKING_STYLE && defined(__APPLE__)
++#if defined(__synapse__)
++    /* SynapseOS has no POSIX byte-range file locks yet. Dotfile locking
++    ** uses atomic mkdir, retaining real exclusion between processes. */
++    UNIXVFS("unix",          dotlockIoFinder ),
++#elif SQLITE_ENABLE_LOCKING_STYLE && defined(__APPLE__)
+     UNIXVFS("unix",          autolockIoFinder ),
+ #elif OS_VXWORKS
+     UNIXVFS("unix",          vxworksIoFinder ),

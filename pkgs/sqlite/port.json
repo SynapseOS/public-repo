@@ -1,0 +1,17 @@
+{
+  "name": "sqlite",
+  "version": "3.54.0",
+  "url": "https://sqlite.org/2026/sqlite-autoconf-3540000.tar.gz",
+  "sha256": "134ec0802dda5795816e25d25872d20b312cb3973438c49b30bc40b7705ea9ed",
+  "source_directory": "sqlite-autoconf-3540000",
+  "patches": [
+    "0001-synapse-dotfile-locking.patch"
+  ],
+  "build_system": "recipe",
+  "license": "Public Domain",
+  "depends": [
+    "kernel >= 0.1.554-r1",
+    "setup >= 0.1.512-r4"
+  ],
+  "revision": 2
+}
