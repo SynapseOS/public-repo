@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "nmap",
-  "version": "7.991.0-r1",
+  "version": "7.991.0-r3",
   "description": "Nmap network scanner with native Synapse packet backend and full NSE data",
   "kind": "application",
   "arch": "x86_64",
