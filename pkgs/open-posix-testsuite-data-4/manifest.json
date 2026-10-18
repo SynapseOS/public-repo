@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "open-posix-testsuite-data-4",
-  "version": "2026.10.12-r1",
+  "version": "2026.10.12-r2",
   "description": "Open POSIX conformance test binaries, part 4",
   "kind": "application",
   "arch": "x86_64",
