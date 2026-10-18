@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "m4",
-  "version": "1.4.20-r1",
+  "version": "1.4.20-r3",
   "description": "GNU M4 macro processor",
   "kind": "tool",
   "arch": "x86_64",
