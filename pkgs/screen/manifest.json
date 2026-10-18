@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "screen",
-  "version": "5.0.1-r2",
+  "version": "5.0.1-r4",
   "description": "GNU Screen terminal sessions; pathname Unix stream IPC",
   "kind": "application",
   "arch": "x86_64",
