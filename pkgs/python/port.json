@@ -1,0 +1,20 @@
+{
+  "name": "python",
+  "version": "3.13.16-r6",
+  "source": "https://www.python.org/ftp/python/3.13.16/Python-3.13.16.tar.xz",
+  "sha256": "f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d",
+  "source_directory": "Python-3.13.16",
+  "patches": [],
+  "description": "CPython 3 with static builtin modules and standard library",
+  "openssl": {
+    "source": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+    "sha256": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a",
+    "source_directory": "openssl-3.5.9"
+  },
+  "pip_bootstrap": {
+    "version": "26.2.1",
+    "archive_member": "Lib/ensurepip/_bundled/pip-26.2.1-py3-none-any.whl",
+    "sha256": "71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e"
+  },
+  "build_system": "recipe"
+}

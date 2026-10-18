@@ -1,0 +1,11 @@
+#!/bin/sh
+# The host gcc driver reports its glibc triplet; this wrapper targets musl.
+if [ "$#" = 1 ] &&
+	[ "$1" = --print-multiarch ]; then
+	echo x86_64-linux-musl
+	exit 0
+fi
+
+base=$(CDPATH= cd -- "$(dirname -- "$0")/../.." &&
+	pwd)
+exec "$base/apps/apps/common/musl-cc" "$@"
