@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "links",
-  "version": "2.30.0-r2",
+  "version": "2.30.0-r4",
   "description": "Text web browser with verified HTTPS via mbedTLS; Links 2.30",
   "kind": "application",
   "arch": "x86_64",
