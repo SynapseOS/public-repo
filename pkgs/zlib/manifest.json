@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "name": "zlib",
+  "version": "1.3.2-r1",
+  "description": "Static zlib compression library and C headers",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.539-r1",
+    "setup >= 0.1.512-r4"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/include/zconf.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/zlib.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libz.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/zlib.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/zlib/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

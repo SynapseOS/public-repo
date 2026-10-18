@@ -1,0 +1,23 @@
+{
+  "name": "zlib",
+  "version": "1.3.2-r1",
+  "description": "Static zlib compression library and C headers",
+  "source": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz",
+  "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
+  "source_directory": "zlib-1.3.2",
+  "configure": [
+    "./configure",
+    "--static",
+    "--prefix=/usr"
+  ],
+  "make_targets": [
+    "libz.a"
+  ],
+  "files": {
+    "usr/lib/libz.a": "libz.a",
+    "usr/include/zlib.h": "zlib.h",
+    "usr/include/zconf.h": "zconf.h",
+    "usr/share/licenses/zlib/LICENSE": "LICENSE"
+  },
+  "patches": []
+}
