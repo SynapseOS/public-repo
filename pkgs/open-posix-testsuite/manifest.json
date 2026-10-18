@@ -1,0 +1,80 @@
+{
+  "format": 1,
+  "name": "open-posix-testsuite",
+  "version": "2026.10.12-r1",
+  "description": "Open POSIX Testsuite conformance tests, statically linked for Synapse",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.724-r1",
+    "bash >= 5.3.0-r1",
+    "open-posix-testsuite-data-1 = 2026.10.12-r1",
+    "open-posix-testsuite-data-2 = 2026.10.12-r1",
+    "open-posix-testsuite-data-3 = 2026.10.12-r1",
+    "open-posix-testsuite-data-4 = 2026.10.12-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/open-posix-testsuite",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/COPYING",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/build.log",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/inventory.json",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/open-posix-testsuite/tests.tsv",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/open-posix-testsuite.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/open-posix-testsuite/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/open-posix-testsuite/recipe.sh",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/open-posix-testsuite/runner.c",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/open-posix-testsuite/upstream.tar.gz",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

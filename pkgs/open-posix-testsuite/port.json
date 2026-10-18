@@ -1,0 +1,10 @@
+{
+  "name": "open-posix-testsuite",
+  "version": "2026.10.12-r1",
+  "source": "https://codeload.github.com/linux-test-project/ltp/tar.gz/07da37cf3dbda876b33ad820168a33b9deacbddb",
+  "sha256": "92d0f6e2d2696a3b6f62d84e646d87783b7a02a4ce91d9fde47693105de1b36c",
+  "commit": "07da37cf3dbda876b33ad820168a33b9deacbddb",
+  "description": "Open POSIX Testsuite conformance tests, statically linked for Synapse",
+  "scope": "conformance (definitions, interfaces, behavior; including speculative cases)",
+  "build_system": "recipe"
+}
