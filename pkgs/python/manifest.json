@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "python",
-  "version": "3.13.16-r6",
+  "version": "3.13.16-r8",
   "description": "CPython 3 with static builtin modules and standard library",
   "kind": "application",
   "arch": "x86_64",
