@@ -1,0 +1,18 @@
+{
+  "name": "mindustry",
+  "version": "160.7.0-r7",
+  "assets": [
+    {
+      "name": "Mindustry.jar",
+      "url": "https://github.com/Anuken/Mindustry/releases/download/v160.7/Mindustry.jar",
+      "sha256": "36d94941a1639478ad1d9be25a9d802c6f77552f400c6da0338b7b019f63a0d1"
+    },
+    {
+      "name": "server-release.jar",
+      "url": "https://github.com/Anuken/Mindustry/releases/download/v160.7/server-release.jar",
+      "sha256": "f7b899a4038b95b14a824d5f8993984f79d73baa3254c385b6538327f9c0befd"
+    }
+  ],
+  "license": "GPL-3.0",
+  "build_system": "recipe"
+}

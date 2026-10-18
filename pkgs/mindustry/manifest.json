@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "name": "mindustry",
+  "version": "160.7.0-r7",
+  "description": "Mindustry v160.7 server and desktop client",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "openjdk-current >= 21.0.11-r3"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/mindustry",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/mindustry-server",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/doc/mindustry/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/games/mindustry/Mindustry.jar",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/games/mindustry/server-release.jar",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mindustry/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/games",
+      "type": "directory",
+      "mode": 493,
+      "config": false
+    }
+  ]
+}
