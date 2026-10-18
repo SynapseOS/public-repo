@@ -1,0 +1,34 @@
+{
+  "name": "less",
+  "upstream_version": "685",
+  "source": "https://ftpmirror.gnu.org/less/less-685.tar.gz",
+  "sha256": "2701041e767e697ee420ce0825641cedc8f20b51576abe99d92c1666d332e9dc",
+  "source_directory": "less-685",
+  "patches": [],
+  "build_system": "configure",
+  "configure_args": [
+    "--host=x86_64-linux-musl",
+    "--build=x86_64-linux-gnu",
+    "--prefix=/usr",
+    "--with-regex=posix"
+  ],
+  "configure_environment": {
+    "CPPFLAGS": "-I{root}/apps/apps/common/ncurses/install/include -I{root}/apps/apps/common/ncurses/install/include/ncursesw",
+    "LIBS": "{root}/apps/apps/common/ncurses/install/lib/libncursesw.a",
+    "LDFLAGS": "-static -Wl,--gc-sections -L{root}/apps/apps/common/ncurses/install/lib"
+  },
+  "cflags": [
+    "-O2",
+    "-D_GNU_SOURCE",
+    "-D__synapse__",
+    "-ffunction-sections",
+    "-fdata-sections"
+  ],
+  "binaries": {
+    "bin/less": "less",
+    "bin/lesskey": "lesskey",
+    "bin/lessecho": "lessecho"
+  },
+  "license": "GPL-3.0-or-later OR BSD-2-Clause",
+  "license_file": "COPYING"
+}

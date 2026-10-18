@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "name": "less",
+  "version": "685.0.0-r1",
+  "description": "Less terminal pager and companion tools",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/less",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/lesskey",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/lessecho",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/less/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/less.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
