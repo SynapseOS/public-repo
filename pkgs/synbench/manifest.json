@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "synbench",
-  "version": "1.0.0-r1",
+  "version": "1.0.0-r2",
   "description": "Orbit SynAPI correctness and same-kernel POSIX performance benchmarks",
   "kind": "application",
   "arch": "x86_64",
