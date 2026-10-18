@@ -1,0 +1,8 @@
+{
+  "name": "qt6-base",
+  "version": "6.11.1-r1",
+  "description": "Qt 6 musl runtime and SynapseOS Wayland smoke test",
+  "build_system": "recipe",
+  "status": "experimental",
+  "upstream_license": "LGPL-3.0-only AND GPL-3.0-only AND Qt-GPL-exception-1.0"
+}
