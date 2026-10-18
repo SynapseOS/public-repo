@@ -1,0 +1,118 @@
+{
+  "format": 1,
+  "name": "wayland-client",
+  "version": "1.23.1-r1",
+  "description": "Wayland client, cursor and XKB runtime for SynapseOS",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "musl-runtime",
+    "kernel >= 0.1.907"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/include/wayland-client-core.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/wayland-client-protocol.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/wayland-client.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/wayland-cursor.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/wayland-util.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/wayland-version.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/xkbcommon/xkbcommon-compat.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/xkbcommon/xkbcommon-compose.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/xkbcommon/xkbcommon-keysyms.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/xkbcommon/xkbcommon-names.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/xkbcommon/xkbcommon-x11.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/xkbcommon/xkbcommon.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/xkbcommon/xkbregistry.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libwayland-client.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libwayland-cursor.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libxkbcommon.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/wayland-client/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
