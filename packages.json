@@ -2,6 +2,10 @@
   "format": 2,
   "packages": [
     {
+      "name": "ayugram",
+      "upstream_license": "GPL-3.0-or-later WITH OpenSSL"
+    },
+    {
       "name": "bash",
       "upstream_license": "GPL-3.0-or-later"
     },
@@ -180,6 +184,18 @@
     {
       "name": "python",
       "upstream_license": null
+    },
+    {
+      "name": "qt6-base",
+      "upstream_license": "LGPL-3.0-only AND GPL-3.0-only AND Qt-GPL-exception-1.0"
+    },
+    {
+      "name": "qt6-llvm-runtime",
+      "upstream_license": "Apache-2.0 WITH LLVM-exception"
+    },
+    {
+      "name": "qt6-wayland",
+      "upstream_license": "LGPL-3.0-only AND GPL-3.0-only AND Qt-GPL-exception-1.0"
     },
     {
       "name": "rsync",

@@ -46,3 +46,8 @@ $(SDK)/.mbedtls-ready: $(SDK)/.ready
 	+$(MAKE) -C "$(SDK)/apps/apps/common/mbedtls"
 	@touch "$@"
 $(BUILD_ROOT)/sdl2/.built: $(ROOT)/pkgs/mindustry-desktop/SDL_synapsevideo.c
+$(BUILD_ROOT)/qt6-llvm-runtime/.built: $(ROOT)/pkgs/qt6-base/runtime.sh
+$(BUILD_ROOT)/qt6-base/.built: $(BUILD_ROOT)/weston/.built $(BUILD_ROOT)/qt6-llvm-runtime/.built $(ROOT)/build/cxx-shared.sh
+$(BUILD_ROOT)/qt6-wayland/.built: $(BUILD_ROOT)/qt6-base/.built
+$(BUILD_ROOT)/ayugram/.built: $(BUILD_ROOT)/qt6-wayland/.built $(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/pkgs/qt6-base/runtime.sh
+$(BUILD_ROOT)/ayugram/.built: $(wildcard $(or $(TELEGRAM_API_FILE),$(HOME)/.config/synapseos/telegram-api.env))
