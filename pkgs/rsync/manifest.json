@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "rsync",
-  "version": "3.4.4-r1",
+  "version": "3.4.4-r3",
   "description": "rsync local and SSH synchronization; no ACL/xattr support",
   "kind": "application",
   "arch": "x86_64",
