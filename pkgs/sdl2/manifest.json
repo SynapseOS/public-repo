@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "name": "sdl2",
+  "version": "2.30.11-r7",
+  "description": "SDL2 Synapse Wayland windows, framebuffer, input and OSS backend",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "mesa >= 24.3.4-r2",
+    "wayland-client >= 1.23.1-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/lib/libSDL2-2.0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/doc/sdl2/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/sdl2/DejaVu-LICENSE.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/sdl2/LICENSE.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/sdl2/dejavu-mono.psf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
