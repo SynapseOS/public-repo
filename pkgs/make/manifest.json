@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "name": "make",
+  "version": "4.4.1-r1",
+  "description": "GNU Make build automation",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/make",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/make/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/make.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
