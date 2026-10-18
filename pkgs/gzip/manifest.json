@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "gzip",
-  "version": "1.14.0-r1",
+  "version": "1.14.0-r2",
   "description": "GNU gzip compression and decompression",
   "kind": "application",
   "arch": "x86_64",
