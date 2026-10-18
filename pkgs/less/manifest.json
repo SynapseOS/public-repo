@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "less",
-  "version": "685.0.0-r1",
+  "version": "685.0.0-r3",
   "description": "Less terminal pager and companion tools",
   "kind": "tool",
   "arch": "x86_64",
