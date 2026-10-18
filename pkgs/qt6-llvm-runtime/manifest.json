@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "name": "qt6-llvm-runtime",
+  "version": "20.1.8-r1",
+  "description": "Private LLVM runtime for Qt Mesa dependencies",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "musl-runtime"
+  ],
+  "conflicts": [],
+  "files": []
+}

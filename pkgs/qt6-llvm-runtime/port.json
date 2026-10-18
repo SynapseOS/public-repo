@@ -1,0 +1,8 @@
+{
+  "name": "qt6-llvm-runtime",
+  "version": "20.1.8-r1",
+  "description": "Private LLVM runtime for Qt Mesa dependencies",
+  "build_system": "recipe",
+  "status": "experimental",
+  "upstream_license": "Apache-2.0 WITH LLVM-exception"
+}
