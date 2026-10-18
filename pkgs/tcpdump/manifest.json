@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "tcpdump",
-  "version": "4.99.7-r1",
+  "version": "4.99.7-r3",
   "description": "tcpdump for SynapseOS native packet capture",
   "kind": "application",
   "arch": "x86_64",
