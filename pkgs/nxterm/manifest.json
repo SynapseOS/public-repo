@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "nxterm",
-  "version": "0.1.0-r4",
+  "version": "0.1.0-r5",
   "description": "NanoX graphical terminal with Unix98 PTY and shell/Links support",
   "kind": "application",
   "arch": "x86_64",
