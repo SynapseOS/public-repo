@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "name": "unzip",
+  "version": "6.0.0-r1",
+  "description": "Info-ZIP archive extraction and listing",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/unzip",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/zipinfo",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/unzip/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/unzip.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
