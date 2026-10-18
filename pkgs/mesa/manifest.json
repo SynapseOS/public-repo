@@ -1,0 +1,105 @@
+{
+  "format": 1,
+  "name": "mesa",
+  "version": "24.3.4-r2",
+  "description": "Mesa software OpenGL / OSMesa llvmpipe and softpipe for SynapseOS",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "musl-runtime"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/include/GL/gl.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/GL/glext.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/GL/osmesa.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libLLVM.so.19.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libOSMesa.so.8",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libffi.so.8",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libgcc_s.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libglapi.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/liblzma.so.5",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libstdc++.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libxml2.so.2",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libz.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libzstd.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/doc/mesa/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/mesa/license.rst",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "version": "24.3.4-r2",
+  "source": "https://archive.mesa3d.org/mesa-24.3.4.tar.xz",
+  "sha256": "e641ae27191d387599219694560d221b7feaa91c900bcec46bf444218ed66025",
+  "llvm_assets": [
+    {
+      "name": "llvm-libs.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/llvm19-libs-19.1.7-r6.apk",
+      "sha256": "7f6a0899dc0e6829516a060437730a853ae2a4758bf90c1303e3b413eb82fcc8"
+    },
+    {
+      "name": "llvm-dev.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/llvm19-dev-19.1.7-r6.apk",
+      "sha256": "d3677846f64d4ee04d268ad18a35531fc62d5b98ecd61b72431a1c65b5970baf"
+    },
+    {
+      "name": "llvm.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/llvm19-19.1.7-r6.apk",
+      "sha256": "4c2a21863cfc88a28f459b36920b5c9dfd05f6497b225f14c6218bbfa6cabfac"
+    },
+    {
+      "name": "libffi.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libffi-3.4.8-r0.apk",
+      "sha256": "9a75cb9024693c1e52c3d8d7c9afb7c79e6e20f6c08df28effdb8dd816095083"
+    },
+    {
+      "name": "zstd.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/zstd-libs-1.5.7-r0.apk",
+      "sha256": "1bdd6e57cfbfbfd6e8481cad37ddd5d199950715bec1879b3afb600272dbb09e"
+    },
+    {
+      "name": "libxml2.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxml2-2.13.9-r1.apk",
+      "sha256": "be361698c6f728f492b99550e99e898ae478940fe593d8c11b14c5f3d1b5a938"
+    },
+    {
+      "name": "xz-libs.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/xz-libs-5.8.4-r0.apk",
+      "sha256": "37e169b7b400304fa7027cab79f9c1c7a280e83acf6c95463384b8abb7ebb254"
+    }
+  ],
+  "build_system": "recipe"
+}
