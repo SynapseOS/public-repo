@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "open-posix-testsuite",
-  "version": "2026.10.12-r1",
+  "version": "2026.10.12-r2",
   "description": "Open POSIX Testsuite conformance tests, statically linked for Synapse",
   "kind": "application",
   "arch": "x86_64",
