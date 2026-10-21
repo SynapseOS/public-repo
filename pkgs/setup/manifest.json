@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "setup",
-  "version": "0.1.512-r14",
+  "version": "0.1.512-r15",
   "description": "SynapseOS signed binary package manager",
   "kind": "tool",
   "arch": "x86_64",

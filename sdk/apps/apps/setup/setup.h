@@ -1,9 +1,12 @@
 // setup.h: Общие типы и функции setup
 // Автор: Елчинян Арен Артурович, 2026
+// Архитектура: x86_64, ABI: Linux (ELF64)
+//
 // Структуры каталога, плана установки и состояния транзакции
 // Подсистема: пакетный менеджер setup
-// Создан: 11.10.2026
-// Последнее изменение: 14.10.2026
+// Первое изменение в истории Git: 11.10.2026
+// Последнее изменение: 21.10.2026
+// Доступ: общедоступный
 
 #ifndef SYNAPSE_SETUP_H
 #define SYNAPSE_SETUP_H
@@ -23,13 +26,11 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-
 struct download_progress {
-	long long start, last;
-	uint64_t total;
-	int tty;
+    long long start, last;
+    uint64_t total;
+    int tty;
 };
-
 void progress_start(struct download_progress *, uint64_t);
 void progress_update(struct download_progress *, uint64_t, int);
 #define ABI "synapse-x86_64-v1"
@@ -37,34 +38,33 @@ void progress_update(struct download_progress *, uint64_t, int);
 #define MAXFILES 512
 #define MAXDEP 32
 #define MAXREPO 16
+#define MAXMIRROR 4
 #define META_LIMIT (4 * 1024 * 1024)
 #define PACKAGE_LIMIT (256 * 1024 * 1024)
-
 struct file {
-	char path[512], hash[65], target[512];
-	uint64_t size;
-	unsigned mode;
-	int config, type;
+    char path[512], hash[65], target[512];
+    uint64_t size;
+    unsigned mode;
+    int config, type;
 };
-
 struct package {
-	char name[64], version[64], description[256], kind[32], arch[32], abi[64];
-	char dep[MAXDEP][192], conflict[MAXDEP][64];
-	int ndep, nconf, nfile;
-	struct file *files;
-	char *manifest;
-	size_t manifest_len;
-	int repo, explicit, installed, reinstall;
-	char hash[65], url[128];
-	uint64_t size;
+    char name[64], version[64], description[256], kind[32], arch[32], abi[64];
+    char dep[MAXDEP][192], conflict[MAXDEP][64];
+    int ndep, nconf, nfile;
+    struct file *files;
+    char *manifest;
+    size_t manifest_len;
+    int repo, explicit, installed, reinstall;
+    char hash[65], url[128];
+    uint64_t size;
 };
-
 struct repo {
-	char id[64], url[1024], key[65], prefix[64];
-	char token_file[512];
-	int priority, official;
-	uint64_t minimum, generation;
-	time_t expires;
+    char id[64], url[1024], key[65], prefix[64];
+    char mirrors[MAXMIRROR][1024];
+    char token_file[512];
+    int nmirrors, mirror_checked, priority, official;
+    uint64_t minimum, generation;
+    time_t expires;
 };
 extern struct package *available[MAXPKG], *installed[MAXPKG], *chosen[MAXPKG];
 extern int navailable, ninstalled, nchosen, nrepo, dry_run, yes;
@@ -94,8 +94,11 @@ void load_state(void);
 void load_repos(int update);
 void plus_command(int argc, char **argv);
 void auth_command(int argc, char **argv);
-void private_fetch(const char *url, const char *dest, size_t limit, const char *token_file);
+void private_fetch(const char *url, const char *dest, size_t limit,
+                   const char *token_file);
 void fetch(const char *url, const char *dest, size_t limit);
+void fetch_package(struct repo *r, const char *relative, const char *dest,
+                   size_t limit, const char *hash);
 int version_cmp(const char *a, const char *b);
 int satisfies(const char *version, const char *constraint);
 void solve(int argc, char **argv, int upgrade);

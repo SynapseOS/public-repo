@@ -9,7 +9,9 @@ SOURCES := progress.c plus.c ../common/tls/tls.c main.c common.c repository.c re
 all: $(OUTPUT_DIR)/$(TARGET)
 $(OUTPUT_DIR)/$(TARGET): Makefile $(SOURCES) setup.h ../common/boot/limine-menu.h ../qemu-ga/json.h ../common/tls/tls.h $(LIBS)
 	@mkdir -p $(OUTPUT_DIR)
-	$(CC) -O2 -Wall -Wextra -Wno-misleading-indentation -DJSON_TOKENS=131072 -ffunction-sections -fdata-sections -I$(TLS)/include $(SOURCES) $(LIBS) -Wl,--gc-sections -o $@
+	$(CC) -O2 -Wall -Wextra -Wno-misleading-indentation -DJSON_TOKENS=131072 \
+		-ffunction-sections -fdata-sections -I$(TLS)/include $(SOURCES) $(LIBS) \
+		-Wl,--gc-sections -Wl,--build-id=none -o $@
 $(LIBS) &:
 	$(MAKE) -C ../common/mbedtls
 clean:
