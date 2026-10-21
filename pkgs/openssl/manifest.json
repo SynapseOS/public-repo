@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "openssl",
-  "version": "3.5.9-r4",
+  "version": "3.5.9-r5",
   "description": "OpenSSL LTS static TLS libraries and CLI; single-thread build",
   "kind": "application",
   "arch": "x86_64",
