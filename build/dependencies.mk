@@ -1,5 +1,6 @@
 # Зависимости выходных файлов
 $(BUILD_ROOT)/curl/.built: $(BUILD_ROOT)/openssl/.built
+$(BUILD_ROOT)/nginx/.built: $(BUILD_ROOT)/openssl/.built $(BUILD_ROOT)/pcre2/.built $(BUILD_ROOT)/zlib/.built
 $(BUILD_ROOT)/wget/.built: $(BUILD_ROOT)/openssl/.built
 $(BUILD_ROOT)/python/.built: $(BUILD_ROOT)/openssl/.built $(BUILD_ROOT)/zlib/.built $(BUILD_ROOT)/sqlite/.built
 $(BUILD_ROOT)/git/.built: $(BUILD_ROOT)/curl/.built $(BUILD_ROOT)/openssl/.built $(BUILD_ROOT)/zlib/.built
@@ -12,6 +13,7 @@ $(BUILD_ROOT)/mc/.built: $(BUILD_ROOT)/glib/.built $(BUILD_ROOT)/pcre2/.built $(
 $(BUILD_ROOT)/glib/.built: $(BUILD_ROOT)/pcre2/.built
 $(BUILD_ROOT)/less/.built: $(SDK)/.ncurses-ready
 $(BUILD_ROOT)/screen/.built: $(SDK)/.ncurses-ready
+$(BUILD_ROOT)/vim/.built: $(SDK)/.ncurses-ready
 $(BUILD_ROOT)/links/.built: $(SDK)/.mbedtls-ready
 $(BUILD_ROOT)/setup/.built: $(SDK)/.mbedtls-ready
 $(BUILD_ROOT)/tcpdump/.built: $(BUILD_ROOT)/libpcap/.built

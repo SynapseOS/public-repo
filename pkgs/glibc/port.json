@@ -1,0 +1,10 @@
+{
+  "name": "glibc",
+  "version": "2.44.0-r3",
+  "description": "Experimental GNU C Library runtime for the Linux ABI",
+  "source": "https://gitlab.com/gnutools/glibc/-/archive/045c51476c7abf6144815a4db44f51a118b4cb3e/glibc-045c51476c7abf6144815a4db44f51a118b4cb3e.tar.gz",
+  "sha256": "5894b65628630090f3267df50d2cfb7edc700daf75fb91df7d881d5eb4e327f7",
+  "source_directory": "glibc-045c51476c7abf6144815a4db44f51a118b4cb3e",
+  "build_system": "recipe",
+  "patches": []
+}

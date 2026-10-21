@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "vim",
+  "version": "9.2.1169-r1",
+  "description": "Vim terminal editor with selected runtime files",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}

@@ -1,0 +1,10 @@
+{
+  "name": "vim",
+  "version": "9.2.1169-r1",
+  "source": "https://github.com/vim/vim/archive/refs/tags/v9.2.1169.tar.gz",
+  "sha256": "e683a1e3a90296ccd56a4228a854f8d4120b3f3ff6d4e397dd33414bebfdf321",
+  "source_directory": "vim-9.2.1169",
+  "patches": [],
+  "description": "Vim terminal editor with selected runtime files",
+  "build_system": "recipe"
+}

@@ -1,0 +1,45 @@
+{
+  "name": "nginx",
+  "upstream_version": "1.30.5",
+  "source": "https://nginx.org/download/nginx-1.30.5.tar.gz",
+  "sha256": "6c20565aa2325cb82216ae804f4a4ff1875179014759a381c42ddc8e11c4906d",
+  "source_directory": "nginx-1.30.5",
+  "patches": [
+    "patches/0001-synapse-platform.patch"
+  ],
+  "build_system": "configure",
+  "configure_args": [
+    "--crossbuild=SynapseOS:x86_64",
+    "--with-cc={root}/.sdk/apps/apps/common/musl-cc",
+    "--with-cc-opt=-O2 -D_GNU_SOURCE -D__synapse__ -I{root}/pkgs/.work/openssl/payload/usr/include -I{root}/pkgs/.work/pcre2/payload/usr/include -I{root}/pkgs/.work/zlib/payload/usr/include",
+    "--with-ld-opt=-static -Wl,--gc-sections -L{root}/pkgs/.work/openssl/payload/usr/lib -L{root}/pkgs/.work/pcre2/payload/usr/lib -L{root}/pkgs/.work/zlib/payload/usr/lib",
+    "--prefix=/var/lib/nginx",
+    "--sbin-path=/bin/nginx",
+    "--conf-path=/etc/nginx/nginx.conf",
+    "--pid-path=/run/nginx.pid",
+    "--error-log-path=/var/log/nginx.log",
+    "--http-log-path=/var/log/nginx-access.log",
+    "--with-poll_module",
+    "--with-select_module",
+    "--without-http-cache",
+    "--without-http_upstream_zone_module",
+    "--without-http_grpc_module",
+    "--with-http_stub_status_module",
+    "--with-http_ssl_module"
+  ],
+  "cflags": [
+    "-O2"
+  ],
+  "binary": "nginx",
+  "binary_source": "objs/nginx",
+  "license": "BSD-2-Clause",
+  "license_file": "LICENSE",
+  "additional_files": {
+    "etc/nginx/nginx.conf": "pkgs/nginx/files/nginx.conf",
+    "etc/services/nginx": "pkgs/nginx/files/service",
+    "bin/nginx-start": "pkgs/nginx/files/nginx-start",
+    "usr/share/licenses/nginx/OpenSSL-LICENSE.txt": "pkgs/.work/openssl/payload/usr/share/licenses/openssl/LICENSE.txt",
+    "usr/share/licenses/nginx/PCRE2-LICENCE": "pkgs/.work/pcre2/payload/usr/share/licenses/pcre2/LICENCE",
+    "usr/share/licenses/nginx/zlib-LICENSE": "pkgs/.work/zlib/payload/usr/share/licenses/zlib/LICENSE"
+  }
+}

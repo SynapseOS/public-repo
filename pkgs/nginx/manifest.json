@@ -1,0 +1,69 @@
+{
+  "format": 1,
+  "name": "nginx",
+  "version": "1.30.5-r4",
+  "description": "Static nginx HTTP/HTTPS server with PCRE2 rewrite and zlib gzip",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.554-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/nginx",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/nginx-start",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/nginx/nginx.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/services/nginx",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "usr/share/licenses/nginx/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/help/nginx.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nginx/OpenSSL-LICENSE.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nginx/PCRE2-LICENCE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nginx/zlib-LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

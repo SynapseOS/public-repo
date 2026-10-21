@@ -1,0 +1,55 @@
+--- a/auto/feature
++++ b/auto/feature
+@@ -13,6 +13,26 @@
+ END
+ 
+ ngx_found=no
++
++# Runtime feature tests cannot execute the target CRT on the build host.
++case "$NGX_PLATFORM:$ngx_feature_run" in
++    SynapseOS:*:yes) ngx_feature_run=no ;;
++esac
++
++# Host probes must not enable Linux facilities absent from SynapseOS.
++case "$NGX_PLATFORM:$ngx_feature_name" in
++    SynapseOS:*:NGX_HAVE_FIONREAD | \
++    SynapseOS:*:NGX_HAVE_ACCEPT4 | SynapseOS:*:NGX_HAVE_INET6 | \
++    SynapseOS:*:NGX_HAVE_REUSEPORT | SynapseOS:*:NGX_HAVE_DEFERRED_ACCEPT | \
++    SynapseOS:*:NGX_HAVE_SYSVSHM | SynapseOS:*:NGX_HAVE_POSIX_SEM | \
++    SynapseOS:*:NGX_HAVE_SCHED_SETAFFINITY | SynapseOS:*:NGX_HAVE_FILE_AIO | \
++    SynapseOS:*:NGX_HAVE_PWRITEV | SynapseOS:*:NGX_HAVE_O_DIRECT | \
++    SynapseOS:*:NGX_HAVE_TRANSPARENT_PROXY | SynapseOS:*:NGX_HAVE_DLOPEN | \
++    SynapseOS:*:NGX_HAVE_TCP_FASTOPEN | SynapseOS:*:NGX_HAVE_IP_BIND_ADDRESS_NO_PORT)
++        echo " disabled for SynapseOS"
++        return
++    ;;
++esac
+ 
+ if test -n "$ngx_feature_name"; then
+     ngx_have_feature=`echo $ngx_feature_name \
+--- a/auto/types/sizeof
++++ b/auto/types/sizeof
+@@ -40,7 +40,11 @@
+ 
+ 
+ if [ -x $NGX_AUTOTEST ]; then
+-    ngx_size=`$NGX_AUTOTEST`
++    case "$NGX_PLATFORM:$ngx_type" in
++        SynapseOS:*:int) ngx_size=4 ;;
++        SynapseOS:*:*) ngx_size=8 ;;
++        *) ngx_size=`$NGX_AUTOTEST` ;;
++    esac
+     echo " $ngx_size bytes"
+ fi
+ 
+--- a/auto/endianness
++++ b/auto/endianness
+@@ -32,7 +32,7 @@
+ eval "$ngx_test >> $NGX_AUTOCONF_ERR 2>&1"
+ 
+ if [ -x $NGX_AUTOTEST ]; then
+-    if $NGX_AUTOTEST >/dev/null 2>&1; then
++    if [ "$NGX_PLATFORM" = "SynapseOS:x86_64" ] || $NGX_AUTOTEST >/dev/null 2>&1; then
+         echo " little endian"
+         have=NGX_HAVE_LITTLE_ENDIAN . auto/have
+     else

@@ -2,7 +2,7 @@
 # package.sh: сборка пакета по закреплённому рецепту
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 21.10.2026
 # Статус доступа: общедоступный
 
 set -euo pipefail
@@ -22,6 +22,10 @@ port="$ROOT/pkgs/$name"
 spec="$port/port.json"
 work="$BUILD_ROOT/$name"
 payload="$work/payload"
+
+if package_uses_glibc "$port/manifest.json"; then
+	export SYNAPSE_LINK_MODE=dynamic
+fi
 
 mkdir -p "$work"
 exec 9>"$work/build.lock"
@@ -144,8 +148,16 @@ done \
 
 while IFS= read -r -d '' binary; do
 	if readelf -l -d "$binary" 2>/dev/null | grep -Eq 'INTERP|\(NEEDED\)'; then
-		echo "Unexpected dynamic executable: $binary" >&2
-		exit 1
+		if ! package_uses_glibc "$port/manifest.json"; then
+			echo "Unexpected dynamic executable: $binary" >&2
+			exit 1
+		fi
+
+		if ! readelf -l "$binary" 2>/dev/null |
+			grep -F '[Requesting program interpreter: /lib/ld-linux-x86-64.so.2]' >/dev/null; then
+			echo "Unexpected dynamic interpreter: $binary" >&2
+			exit 1
+		fi
 	fi
 
 	chmod 755 "$binary"

@@ -2,7 +2,7 @@
 # common.sh: загрузка, подготовка и упаковка публичных пакетов
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 21.10.2026
 # Статус доступа: общедоступный
 
 set -euo pipefail
@@ -33,6 +33,12 @@ fetch() {
 copy() {
 	mkdir -p "$(dirname "$payload/$2")"
 	cp -L -- "$1" "$payload/$2"
+}
+
+# Проверить явный выбор glibc в манифесте пакета
+package_uses_glibc() {
+	local manifest=$1
+	jq -e '.name=="glibc" or any(.depends[]; test("^glibc( |$)"))' "$manifest" >/dev/null
 }
 
 # Подготовить закреплённые исходники в отдельном каталоге пакета
@@ -72,8 +78,10 @@ pack() {
 		cp "$SDK/docs/user/$name.md" "$tree/usr/share/help/$name.md"
 	fi
 
-	mkdir -p "$tree/usr/share/licenses/$name"
-	cp "$SDK/apps/musl/COPYRIGHT" "$tree/usr/share/licenses/$name/musl-COPYRIGHT"
+	if ! package_uses_glibc "$manifest"; then
+		mkdir -p "$tree/usr/share/licenses/$name"
+		cp "$SDK/apps/musl/COPYRIGHT" "$tree/usr/share/licenses/$name/musl-COPYRIGHT"
+	fi
 
 	while IFS= read -r required; do
 		[[ -f $tree/$required ]] ||
@@ -91,7 +99,7 @@ pack() {
 		rel=${file#"$tree/"}
 
 		if [[ $(od -An -tx1 -N4 "$file" | tr -d ' \n') == 7f454c46 ]]; then
-			if readelf -d "$file" 2>/dev/null |
+			if ! package_uses_glibc "$manifest" && readelf -d "$file" 2>/dev/null |
 				grep -E '\[(libc\.so\.6|libm\.so\.6|libpthread\.so\.0|ld-linux[^]]*)\]' >/dev/null; then
 				echo "Host glibc dependency in $rel" >&2
 				return 1
@@ -193,7 +201,13 @@ runtime_deps() {
 				libc.so | libc.musl-* | libSDL2-2.0.so.0)
 					continue
 					;;
-				libc.so.6 | ld-linux* | libpthread.so.0)
+				libc.so.6 | libm.so.6 | libmvec.so.1 | ld-linux* | libpthread.so.0 | \
+				libdl.so.2 | librt.so.1 | libutil.so.1 | libresolv.so.2 | \
+				libnss_*.so.2 | libanl.so.1 | libBrokenLocale.so.1)
+					if package_uses_glibc "$port/manifest.json"; then
+						continue
+					fi
+
 					return 1
 					;;
 			esac

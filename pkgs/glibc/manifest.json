@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "name": "glibc",
+  "version": "2.44.0-r3",
+  "description": "Experimental GNU C Library runtime for the Linux ABI",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.947-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}
