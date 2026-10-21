@@ -4,12 +4,13 @@
   "source": "https://curl.se/download/curl-8.22.0.tar.xz",
   "sha256": "f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7",
   "source_directory": "curl-8.22.0",
-  "patches": [],
+  "patches": ["patches/0001-synapse-pipelined-file-output.patch"],
   "build_system": "configure",
   "cflags": [
     "-O2",
     "-D_GNU_SOURCE",
     "-D__synapse__",
+    "-pthread",
     "-ffunction-sections",
     "-fdata-sections"
   ],
@@ -54,7 +55,7 @@
   ],
   "configure_environment": {
     "CPPFLAGS": "-I{root}/pkgs/.work/openssl/payload/usr/include",
-    "LDFLAGS": "-static -L{root}/pkgs/.work/openssl/payload/usr/lib",
+    "LDFLAGS": "-static -pthread -L{root}/pkgs/.work/openssl/payload/usr/lib",
     "ac_cv_func_getifaddrs": "no",
     "ac_cv_func_eventfd": "no"
   },

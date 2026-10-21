@@ -1,0 +1,234 @@
+--- a/src/tool_sdecls.h
++++ b/src/tool_sdecls.h
+@@ -67,6 +67,10 @@
+   FILE *stream;
+   curl_off_t bytes;
+   curl_off_t init;
++#ifdef __synapse__
++  struct syn_async_writer *async;
++  BIT(async_disabled);
++#endif
+ #ifdef _WIN32
+   unsigned char utf8seq[5];
+ #endif
+--- a/src/tool_cb_wrt.h
++++ b/src/tool_cb_wrt.h
+@@ -34,4 +34,9 @@
+ bool tool_create_output_file(struct OutStruct *outs,
+                              struct OperationConfig *config);
+ 
++#ifdef __synapse__
++/* Finish file writes before retry, close or file metadata updates */
++bool tool_async_finish(struct OutStruct *outs);
++#endif
++
+ #endif /* HEADER_CURL_TOOL_CB_WRT_H */
+--- a/src/tool_cb_wrt.c
++++ b/src/tool_cb_wrt.c
+@@ -27,6 +27,170 @@
+ #include "tool_msgs.h"
+ #include "tool_cb_wrt.h"
+ #include "tool_operate.h"
++
++#ifdef __synapse__
++#include <pthread.h>
++
++#define SYN_WRITE_CHUNK (1024U * 1024U)
++#define SYN_WRITE_SLOTS 4U
++
++struct syn_async_writer {
++  pthread_t thread;
++  pthread_mutex_t mutex;
++  pthread_cond_t changed;
++  FILE *stream;
++  unsigned char data[SYN_WRITE_SLOTS][SYN_WRITE_CHUNK];
++  size_t length[SYN_WRITE_SLOTS];
++  unsigned int head;
++  unsigned int tail;
++  unsigned int queued;
++  bool closing;
++  bool failed;
++};
++
++// Записывать заполненные блоки, пока основной поток принимает данные
++static void *syn_async_run(void *arg)
++{
++  struct syn_async_writer *writer = arg;
++
++  pthread_mutex_lock(&writer->mutex);
++  for(;;) {
++    unsigned int index;
++    size_t length;
++    size_t written;
++
++    while(!writer->queued && !writer->closing)
++      pthread_cond_wait(&writer->changed, &writer->mutex);
++
++    if(!writer->queued)
++      break;
++
++    index = writer->head;
++    length = writer->length[index];
++    pthread_mutex_unlock(&writer->mutex);
++
++    written = fwrite(writer->data[index], 1, length, writer->stream);
++
++    pthread_mutex_lock(&writer->mutex);
++    if(written != length) {
++      writer->failed = TRUE;
++      pthread_cond_broadcast(&writer->changed);
++      break;
++    }
++
++    writer->length[index] = 0;
++    writer->head = (index + 1U) % SYN_WRITE_SLOTS;
++    writer->queued--;
++    pthread_cond_broadcast(&writer->changed);
++  }
++
++  pthread_mutex_unlock(&writer->mutex);
++  return NULL;
++}
++
++// Создать ограниченную очередь записи для обычного файла
++static bool syn_async_start(struct OutStruct *outs)
++{
++  struct syn_async_writer *writer = malloc(sizeof(*writer));
++  curlx_struct_stat fileinfo;
++
++  if(!writer)
++    return FALSE;
++
++  memset(writer, 0, sizeof(*writer));
++  writer->stream = outs->stream;
++
++  if(curlx_fstat(fileno(outs->stream), &fileinfo) ||
++     !S_ISREG(fileinfo.st_mode) ||
++     pthread_mutex_init(&writer->mutex, NULL)) {
++    free(writer);
++    return FALSE;
++  }
++
++  if(pthread_cond_init(&writer->changed, NULL)) {
++    pthread_mutex_destroy(&writer->mutex);
++    free(writer);
++    return FALSE;
++  }
++
++  if(pthread_create(&writer->thread, NULL, syn_async_run, writer)) {
++    pthread_cond_destroy(&writer->changed);
++    pthread_mutex_destroy(&writer->mutex);
++    free(writer);
++    return FALSE;
++  }
++
++  outs->async = writer;
++  return TRUE;
++}
++
++// Добавить сетевой блок в очередь без неограниченного роста памяти
++static bool syn_async_append(struct OutStruct *outs,
++                             const char *buffer, size_t bytes)
++{
++  struct syn_async_writer *writer = outs->async;
++  size_t offset = 0;
++
++  pthread_mutex_lock(&writer->mutex);
++  while(offset < bytes && !writer->failed) {
++    size_t room;
++    size_t amount;
++
++    while(writer->queued == SYN_WRITE_SLOTS && !writer->failed)
++      pthread_cond_wait(&writer->changed, &writer->mutex);
++
++    if(writer->failed)
++      break;
++
++    room = SYN_WRITE_CHUNK - writer->length[writer->tail];
++    amount = bytes - offset;
++    if(amount > room)
++      amount = room;
++
++    memcpy(writer->data[writer->tail] + writer->length[writer->tail],
++           buffer + offset, amount);
++    writer->length[writer->tail] += amount;
++    offset += amount;
++
++    if(writer->length[writer->tail] == SYN_WRITE_CHUNK) {
++      writer->queued++;
++      writer->tail = (writer->tail + 1U) % SYN_WRITE_SLOTS;
++      pthread_cond_signal(&writer->changed);
++    }
++  }
++
++  pthread_mutex_unlock(&writer->mutex);
++  return offset == bytes;
++}
++
++// Дождаться записи хвоста и освободить очередь перед работой с файлом
++bool tool_async_finish(struct OutStruct *outs)
++{
++  struct syn_async_writer *writer = outs->async;
++  bool success;
++
++  if(!writer)
++    return TRUE;
++
++  pthread_mutex_lock(&writer->mutex);
++  if(!writer->failed && writer->length[writer->tail]) {
++    writer->queued++;
++    writer->tail = (writer->tail + 1U) % SYN_WRITE_SLOTS;
++  }
++  writer->closing = TRUE;
++  pthread_cond_signal(&writer->changed);
++  pthread_mutex_unlock(&writer->mutex);
++
++  pthread_join(writer->thread, NULL);
++  success = !writer->failed;
++
++  pthread_cond_destroy(&writer->changed);
++  pthread_mutex_destroy(&writer->mutex);
++  free(writer);
++  outs->async = NULL;
++  return success;
++}
++#endif
+ 
+ #ifdef _WIN32
+ #define OPENMODE (_S_IREAD | _S_IWRITE)
+@@ -337,6 +501,22 @@
+       if(tool_write_headers(&per->hdrcbdata, outs->stream))
+         return CURL_WRITEFUNC_ERROR;
+     }
++#ifdef __synapse__
++    if(outs->regular_file && outs->fopened && !config->nobuffer &&
++       !config->show_headers && !per->hdrcbdata.headlist) {
++      if(!outs->async && !outs->async_disabled && !syn_async_start(outs))
++        outs->async_disabled = TRUE;
++
++      if(outs->async) {
++        if(!syn_async_append(outs, buffer, bytes))
++          return CURL_WRITEFUNC_ERROR;
++        rc = bytes;
++      }
++      else
++        rc = fwrite(buffer, sz, nmemb, outs->stream);
++    }
++    else
++#endif
+     rc = fwrite(buffer, sz, nmemb, outs->stream);
+   }
+ 
+--- a/src/tool_operate.c
++++ b/src/tool_operate.c
+@@ -756,6 +756,10 @@
+       curlx_close(per->infd);
+ 
+   if(!per->skip) {
++#ifdef __synapse__
++    if(!tool_async_finish(outs))
++      result = CURLE_WRITE_ERROR;
++#endif
+     result = post_check_result(per, result);
+     result = post_output_handling(per, result);
+ 
