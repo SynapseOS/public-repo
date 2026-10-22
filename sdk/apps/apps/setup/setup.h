@@ -5,7 +5,7 @@
 // Структуры каталога, плана установки и состояния транзакции
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 21.10.2026
+// Последнее изменение: 22.10.2026
 // Доступ: общедоступный
 
 #ifndef SYNAPSE_SETUP_H
@@ -35,7 +35,7 @@ void progress_start(struct download_progress *, uint64_t);
 void progress_update(struct download_progress *, uint64_t, int);
 #define ABI "synapse-x86_64-v1"
 #define MAXPKG 512
-#define MAXFILES 512
+#define MAXFILES 4096
 #define MAXDEP 32
 #define MAXREPO 16
 #define MAXMIRROR 4

@@ -2,7 +2,7 @@
 # common.sh: загрузка, подготовка и упаковка публичных пакетов
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 21.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 22.10.2026
 # Статус доступа: общедоступный
 
 set -euo pipefail
@@ -144,8 +144,8 @@ pack() {
 		printf 'payload/%s\n' "$rel" >>"$stage/order"
 	done < <(find "$tree" -type f -print0 | sort -z)
 
-	if [[ $(wc -l <"$stage/files.jsonl") -gt 512 ]]; then
-		echo "Package $name exceeds the 512-file manifest limit" >&2
+	if [[ $(wc -l <"$stage/files.jsonl") -gt 4096 ]]; then
+		echo "Package $name exceeds the 4096-file manifest limit" >&2
 		return 1
 	fi
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # repository.sh: подготовить подписанный каталог пакетов
 # Автор: Елчинян Арен Артурович, 2026, архитектура хоста, ABI POSIX
-# Подсистема: выпуск пакетов, первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Подсистема: выпуск пакетов, первое изменение: 18.10.2026, последнее изменение: 22.10.2026
 # Статус доступа: общедоступный
 
 set -euo pipefail
@@ -152,7 +152,7 @@ for package in "$@"; do
 		($m.description | type == "string") and
 		($m.kind | . == "application" or . == "library" or . == "tool" or . == "kernel") and
 		([$m.depends, $m.conflicts] | all(type == "array" and length <= 32 and all(type == "string"))) and
-		($m.files | type == "array" and length <= 512 and
+		($m.files | type == "array" and length <= 4096 and
 			(length == (map(.path) | unique | length)) and all(
 				(.path | safe_path) and (.type == "file" or .type == "directory") and
 				(.mode | integer and . <= 511) and (.size | integer) and

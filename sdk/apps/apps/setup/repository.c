@@ -5,7 +5,7 @@
 // Получение каталога, проверка подписи и учёт источников пакетов
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 21.10.2026
+// Последнее изменение: 22.10.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -21,6 +21,8 @@ struct package *available[MAXPKG], *installed[MAXPKG], *chosen[MAXPKG];
 int navailable, ninstalled, nchosen, dry_run, yes;
 int dropbear_ed25519_verify(const unsigned char *, unsigned long, const unsigned char *,
                             unsigned long, const unsigned char *);
+static void repo_index(struct repo *r, int ri, const char *data, size_t len,
+                       const char *sig, size_t siglen, uint64_t floor, int add);
 static long long millis(void) {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
@@ -404,8 +406,36 @@ static uint64_t select_mirror(struct repo *r, const char *current, uint64_t floo
     return best_generation;
 }
 
-// Загрузить индекс и подпись одного поколения с одного зеркала
-static void fetch_snapshot(struct repo *r, uint64_t generation,
+// Проверить скачанный каталог в дочернем процессе перед выбором зеркала
+static int verify_snapshot_attempt(struct repo *r, uint64_t generation,
+                                   uint64_t floor, const char *index, const char *sig) {
+    pid_t pid = fork();
+    if (pid < 0) {
+        fail("fork snapshot verification");
+    }
+    if (pid == 0) {
+        if (setjmp(failure)) {
+            _exit(1);
+        }
+
+        size_t len, siglen;
+        char *data = read_bytes(index, META_LIMIT, &len);
+        char *signature = read_bytes(sig, 128, &siglen);
+        repo_index(r, -1, data, len, signature, siglen, floor, 0);
+        _exit(r->generation == generation ? 0 : 1);
+    }
+
+    int status;
+    while (waitpid(pid, &status, 0) < 0) {
+        if (errno != EINTR) {
+            fail("wait snapshot verification");
+        }
+    }
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : -1;
+}
+
+// Загрузить проверенный индекс и подпись одного поколения с одного зеркала
+static void fetch_snapshot(struct repo *r, uint64_t generation, uint64_t floor,
                            const char *index, const char *sig) {
     int selected = 0;
     for (int i = 0; i < r->nmirrors; i++) {
@@ -429,11 +459,15 @@ static void fetch_snapshot(struct repo *r, uint64_t generation,
                              r->mirrors[i], (unsigned long long)generation) >= sizeof url) {
             fail("signature URL too long");
         }
-        if (!fetch_attempt(url, sig, 128, NULL, 0, 0)) {
+        if (!fetch_attempt(url, sig, 128, NULL, 0, 0) &&
+            !verify_snapshot_attempt(r, generation, floor, index, sig)) {
             strcpy(r->url, r->mirrors[i]);
             return;
         }
+        fprintf(stderr, "Repository %s: mirror %s has no valid snapshot\n",
+                r->id, r->mirrors[i]);
         unlink(index);
+        unlink(sig);
     }
 
     fail("no mirror has snapshot %llu for %s", (unsigned long long)generation, r->id);
@@ -760,7 +794,7 @@ void load_repos(int update) {
             generation = select_mirror(r, current, floor);
             snprintf(temp, sizeof temp, "%s/index.download", cachebase);
             snprintf(tempsig, sizeof tempsig, "%s/sig.download", cachebase);
-            fetch_snapshot(r, generation, temp, tempsig);
+            fetch_snapshot(r, generation, floor, temp, tempsig);
         } else {
             if (!has) {
                 nrepo++;

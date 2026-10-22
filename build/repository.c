@@ -1,6 +1,6 @@
 // repository.c: проверка архивов и подпись каталога через SSH-agent
 // Автор: Елчинян Арен Артурович, 2026, архитектура хоста, ABI POSIX
-// Подсистема: выпуск пакетов, первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+// Подсистема: выпуск пакетов, первое изменение: 18.10.2026, последнее изменение: 22.10.2026
 // Статус доступа: общедоступный
 
 #define _POSIX_C_SOURCE 200809L
@@ -239,7 +239,7 @@ static void inspect(const char *path) {
 			printf(",\"entries\":[");
 			free(manifest);
 		} else {
-			if (entries > 512 || strncmp(name, "payload/", 8) != 0 || name[8] == 0) {
+			if (entries > 4096 || strncmp(name, "payload/", 8) != 0 || name[8] == 0) {
 				fail("invalid payload entry or file count");
 			}
 
