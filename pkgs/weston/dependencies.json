@@ -1,24 +1,24 @@
 [
   {
     "name": "brotli",
-    "version": "1.1.0-r2",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/brotli-1.1.0-r2.apk",
-    "sha256": "2662e80b2b7608c3231d6d90c33ed34d79e15da3c585787cd282dcdfe36cb8a9",
-    "filename": "brotli-1.1.0-r2.apk"
+    "version": "1.1.1-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/brotli-1.1.1-r0.apk",
+    "sha256": "906347fcde133624669674dd9acadc764cf233651f85a92cb2544103206364ae",
+    "filename": "brotli-1.1.1-r0.apk"
   },
   {
     "name": "brotli-dev",
-    "version": "1.1.0-r2",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/brotli-dev-1.1.0-r2.apk",
-    "sha256": "fdab998e01bba0c612adf98f219c9f40f23c4a4062312bb1bb808ec629648d6b",
-    "filename": "brotli-dev-1.1.0-r2.apk"
+    "version": "1.1.1-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/brotli-dev-1.1.1-r0.apk",
+    "sha256": "a6ebbec67adbbb996f4c8c955362db9318b8f96deb030a24dc220be9385726fa",
+    "filename": "brotli-dev-1.1.1-r0.apk"
   },
   {
     "name": "brotli-libs",
-    "version": "1.1.0-r2",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/brotli-libs-1.1.0-r2.apk",
-    "sha256": "a693524543421b3a90f163ccb48d5ad0f5fd773b5c3b640acc461eace2cb01b6",
-    "filename": "brotli-libs-1.1.0-r2.apk"
+    "version": "1.1.1-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/brotli-libs-1.1.1-r0.apk",
+    "sha256": "9e52618457762f65bf273f42d71db8084633a1e9d938ff2611015ba20d44a8cf",
+    "filename": "brotli-libs-1.1.1-r0.apk"
   },
   {
     "name": "bsd-compat-headers",
@@ -120,17 +120,17 @@
   },
   {
     "name": "expat",
-    "version": "2.8.5-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/expat-2.8.5-r0.apk",
-    "sha256": "13ea2524e34ebd51f1969db9a546b12f2653e44b4683c691c455864b2d6bfc40",
-    "filename": "expat-2.8.5-r0.apk"
+    "version": "2.9.0-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/expat-2.9.0-r0.apk",
+    "sha256": "3ba03b94b2a58ada0dfbd06a18e4b8ea18d22df81feca244206cd2c01b086bad",
+    "filename": "expat-2.9.0-r0.apk"
   },
   {
     "name": "expat-dev",
-    "version": "2.8.5-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/expat-dev-2.8.5-r0.apk",
-    "sha256": "116d4185f893915ade215fab08001b65649b98808dc7261a9f99e7d7743ed4a3",
-    "filename": "expat-dev-2.8.5-r0.apk"
+    "version": "2.9.0-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/expat-dev-2.9.0-r0.apk",
+    "sha256": "b1257d315ea45085eededcefc3f5f20f872670631dc2a8d1087554672d7f6774",
+    "filename": "expat-dev-2.9.0-r0.apk"
   },
   {
     "name": "fontconfig",
@@ -400,10 +400,10 @@
   },
   {
     "name": "libexpat",
-    "version": "2.8.5-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libexpat-2.8.5-r0.apk",
-    "sha256": "771c18e6f7891a503a4664cfc09a3c4fb35a9b2fd2d4a643caf7206b792f5444",
-    "filename": "libexpat-2.8.5-r0.apk"
+    "version": "2.9.0-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libexpat-2.9.0-r0.apk",
+    "sha256": "4c9fb621d455d12475767e261821a4be7b4e91e2ba19c20a02e7fa99189b0d6d",
+    "filename": "libexpat-2.9.0-r0.apk"
   },
   {
     "name": "libfdisk",
@@ -533,17 +533,17 @@
   },
   {
     "name": "libpcre2-16",
-    "version": "10.46-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libpcre2-16-10.46-r0.apk",
-    "sha256": "3e0e70688c2f8410896a760705bbc887f6c9b1b8e6bb510ab1847f1261b13a3e",
-    "filename": "libpcre2-16-10.46-r0.apk"
+    "version": "10.46-r1",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libpcre2-16-10.46-r1.apk",
+    "sha256": "63fb6e08815d6b72bc2792cce9fb8dd5b1c5952e0624915ca8324919dd50e497",
+    "filename": "libpcre2-16-10.46-r1.apk"
   },
   {
     "name": "libpcre2-32",
-    "version": "10.46-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libpcre2-32-10.46-r0.apk",
-    "sha256": "4876148f21e35b232ba908f79e10929b454cc416a1cd70ae6e2535e5561d9bb9",
-    "filename": "libpcre2-32-10.46-r0.apk"
+    "version": "10.46-r1",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libpcre2-32-10.46-r1.apk",
+    "sha256": "78d642fc74c9ae60d612ed61b6b4bc9a2371158bd836d48f093a6feb0834d695",
+    "filename": "libpcre2-32-10.46-r1.apk"
   },
   {
     "name": "libpng",
@@ -799,17 +799,17 @@
   },
   {
     "name": "pcre2",
-    "version": "10.46-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/pcre2-10.46-r0.apk",
-    "sha256": "cfb8ad103a101fa6a31769e50e188dab9c60124705682d01b3de268795db58ad",
-    "filename": "pcre2-10.46-r0.apk"
+    "version": "10.46-r1",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/pcre2-10.46-r1.apk",
+    "sha256": "e0e0e3c5f3b4a37a77799a7367bb40dd38596be55f56f3bc60f2cb4b584f842c",
+    "filename": "pcre2-10.46-r1.apk"
   },
   {
     "name": "pcre2-dev",
-    "version": "10.46-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/pcre2-dev-10.46-r0.apk",
-    "sha256": "747663667e0da4bf59e4b1c63fd5d5e58eef111a88262fdd6ed878ecde0dd50d",
-    "filename": "pcre2-dev-10.46-r0.apk"
+    "version": "10.46-r1",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/pcre2-dev-10.46-r1.apk",
+    "sha256": "7d26ebbb0786a2beb702c0ccee87cbe94b112a98823ff06fae7e20a05c69268b",
+    "filename": "pcre2-dev-10.46-r1.apk"
   },
   {
     "name": "pixman",
