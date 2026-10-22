@@ -1,7 +1,7 @@
-# recipe.sh: Собрать нативный компилятор C и его заголовки без приватного дерева ядра
+# recipe.sh: Собрать нативные компиляторы C и C++ без приватного дерева ядра
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 22.10.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -53,7 +53,7 @@ done
 (
 	cd "$work/build" &&
 		"$source/configure" --build=x86_64-pc-linux-gnu --host=x86_64-linux-musl \
-			--target=x86_64-linux-musl --prefix=/usr --libexecdir=/usr/libexec --enable-languages=c \
+			--target=x86_64-linux-musl --prefix=/usr --libexecdir=/usr/libexec --enable-languages=c,c++ \
 			--disable-bootstrap --disable-multilib --disable-nls --disable-shared --disable-threads \
 			--disable-libsanitizer --disable-libssp --disable-libquadmath --disable-libgomp --disable-libatomic \
 			--disable-libstdcxx --disable-lto --disable-plugin --disable-werror --without-isl \
@@ -64,8 +64,11 @@ done
 make -C "$work/build" -j"$JOBS" all-gcc
 target=x86_64-linux-musl/14.3.0
 copy "$work/build/gcc/xgcc" "usr/libexec/gcc/$target/gcc"
+copy "$work/build/gcc/xg++" "usr/libexec/gcc/$target/g++"
 copy "$work/build/gcc/cc1" "usr/libexec/gcc/$target/cc1"
+copy "$work/build/gcc/cc1plus" "usr/libexec/gcc/$target/cc1plus"
 "$CC" -O2 -Wall -Wextra -Werror "$port/gcc-wrapper.c" -o "$payload/bin/gcc"
+"$CC" -O2 -Wall -Wextra -Werror "$port/gxx-wrapper.c" -o "$payload/bin/g++"
 copy "$payload/bin/gcc" bin/cc
 copy "$port/specs" "usr/lib/gcc/$target/specs"
 

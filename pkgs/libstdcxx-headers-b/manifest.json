@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "libstdcxx-headers-b",
+  "version": "14.3.0-r1",
+  "description": "GCC C++ development headers, second half",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["libstdcxx >= 14.3.0-r4"],
+  "conflicts": [],
+  "files": []
+}

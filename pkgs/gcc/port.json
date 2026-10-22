@@ -1,10 +1,10 @@
 {
   "name": "gcc",
-  "version": "14.3.0-r2",
+  "version": "14.3.0-r4",
   "source": "https://ftpmirror.gnu.org/gcc/gcc-14.3.0/gcc-14.3.0.tar.xz",
   "sha256": "e0dc77297625631ac8e50fa92fffefe899a4eb702592da5c32ef04e2293aca3a",
   "source_directory": "gcc-14.3.0",
   "patches": [],
-  "description": "Native static GCC C compiler and musl development files for Synapse",
+  "description": "Native static GCC C and C++ compilers with musl development files for Synapse",
   "build_system": "recipe"
 }

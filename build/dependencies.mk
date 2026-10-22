@@ -5,8 +5,11 @@ $(BUILD_ROOT)/wget/.built: $(BUILD_ROOT)/openssl/.built
 $(BUILD_ROOT)/python/.built: $(BUILD_ROOT)/openssl/.built $(BUILD_ROOT)/zlib/.built $(BUILD_ROOT)/sqlite/.built
 $(BUILD_ROOT)/git/.built: $(BUILD_ROOT)/curl/.built $(BUILD_ROOT)/openssl/.built $(BUILD_ROOT)/zlib/.built
 $(BUILD_ROOT)/libstdcxx/.built: $(SDK)/.ready
+$(BUILD_ROOT)/libstdcxx-headers-a/.built: $(BUILD_ROOT)/libstdcxx/.built
+$(BUILD_ROOT)/libstdcxx-headers-b/.built: $(BUILD_ROOT)/libstdcxx/.built
 $(BUILD_ROOT)/binutils/.built: $(BUILD_ROOT)/libstdcxx/.built
-$(BUILD_ROOT)/gcc/.built: $(BUILD_ROOT)/binutils/.built $(BUILD_ROOT)/libstdcxx/.built $(BUILD_ROOT)/m4/.built
+$(BUILD_ROOT)/gcc/.built: $(BUILD_ROOT)/binutils/.built $(BUILD_ROOT)/libstdcxx/.built \
+	$(BUILD_ROOT)/libstdcxx-headers-a/.built $(BUILD_ROOT)/libstdcxx-headers-b/.built $(BUILD_ROOT)/m4/.built
 $(BUILD_ROOT)/posix-bench/.built: $(SDK)/.ready
 $(BUILD_ROOT)/open-posix-testsuite/.built: $(SDK)/.ready
 $(BUILD_ROOT)/mc/.built: $(BUILD_ROOT)/glib/.built $(BUILD_ROOT)/pcre2/.built $(SDK)/.ncurses-ready
