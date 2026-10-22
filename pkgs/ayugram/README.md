@@ -82,6 +82,17 @@ make ayugram JOBS=2
 make ayugram JOBS=2 TELEGRAM_API_FILE="$HOME/.config/synapseos/telegram-api.env"
 ```
 
+Для локальной сборки можно передать обе переменные окружения прямо в Make,
+без файла `telegram-api.env`:
+
+```sh
+TDESKTOP_API_ID=ВАШ_ID TDESKTOP_API_HASH=ВАШ_HASH make ayugram JOBS=2
+```
+
+Обе переменные обязательны; если они заданы, файл не читается. При использовании
+собственных секретных реквизитов учитывайте историю команд оболочки. Для выпуска
+клиента используйте собственный API ID, как требует Telegram.
+
 В SynapseOS запустите `weston`, затем из его терминала:
 
 ```sh

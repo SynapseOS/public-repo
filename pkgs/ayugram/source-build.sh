@@ -2,7 +2,7 @@
 # source-build.sh: собрать AyuGram с локальными реквизитами приложения
 # Автор: Елчинян Арен Артурович, 2026, архитектура x86_64, ABI musl и Linux
 # Подсистема: сборка графических пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 19.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 22.10.2026
 # Статус доступа: общедоступный, MIT
 
 set +x
@@ -24,39 +24,46 @@ redact_build_output() {
 	done
 }
 
-if [[ ! -f $api_file || -L $api_file || ! -O $api_file ]]; then
-	printf 'Expected a local credential file owned by the current user\n' >&2
-	exit 1
-fi
-
-mode=$(stat -c '%a' "$api_file")
-
-if (( (8#$mode & 077) != 0 )); then
-	printf 'Credential file must have mode 600 or 400\n' >&2
-	exit 1
-fi
-
-while IFS= read -r line || [[ -n $line ]]; do
-	line=${line%$'\r'}
-
-	if [[ -z $line || $line == \#* ]]; then
-		continue
+if [[ -n ${TDESKTOP_API_ID:-} || -n ${TDESKTOP_API_HASH:-} ]]; then
+	if [[ -z ${TDESKTOP_API_ID:-} || -z ${TDESKTOP_API_HASH:-} ]]; then
+		printf 'Set both TDESKTOP_API_ID and TDESKTOP_API_HASH\n' >&2
+		exit 1
 	fi
-
-	if [[ ! $line =~ ^(TDESKTOP_API_ID|TDESKTOP_API_HASH)=(.*)$ ]]; then
-		printf 'Invalid credential file syntax\n' >&2
+else
+	if [[ ! -f $api_file || -L $api_file || ! -O $api_file ]]; then
+		printf 'Expected a local credential file owned by the current user\n' >&2
 		exit 1
 	fi
 
-	key=${BASH_REMATCH[1]}
-	value=${BASH_REMATCH[2]}
+	mode=$(stat -c '%a' "$api_file")
 
-	if [[ $value == \'*\' || $value == \"*\" ]]; then
-		value=${value:1:${#value}-2}
+	if (( (8#$mode & 077) != 0 )); then
+		printf 'Credential file must have mode 600 or 400\n' >&2
+		exit 1
 	fi
 
-	export "$key=$value"
-done <"$api_file"
+	while IFS= read -r line || [[ -n $line ]]; do
+		line=${line%$'\r'}
+
+		if [[ -z $line || $line == \#* ]]; then
+			continue
+		fi
+
+		if [[ ! $line =~ ^(TDESKTOP_API_ID|TDESKTOP_API_HASH)=(.*)$ ]]; then
+			printf 'Invalid credential file syntax\n' >&2
+			exit 1
+		fi
+
+		key=${BASH_REMATCH[1]}
+		value=${BASH_REMATCH[2]}
+
+		if [[ $value == \'*\' || $value == \"*\" ]]; then
+			value=${value:1:${#value}-2}
+		fi
+
+		export "$key=$value"
+	done <"$api_file"
+fi
 
 if [[ ! ${TDESKTOP_API_ID:-} =~ ^[1-9][0-9]{0,9}$ ||
 	! ${TDESKTOP_API_HASH:-} =~ ^[a-fA-F0-9]{32}$ || ${TDESKTOP_API_ID:-} == 17349 ]]; then
