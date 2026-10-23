@@ -337,8 +337,9 @@ static int fetch_attempt(const char *url, const char *dest, size_t limit,
             size_t len;
             char *data = read_bytes(dest, 4096, &len);
             struct json *j = parse_json(data, len);
-            object_fields(j, 0, "|format||generation|");
-            if (jnum(j, 0, "format") != 1 || jnum(j, 0, "generation") < floor) {
+            // Указатель не подписан, доверяем только поколению проверенного ниже снимка
+            if (j->t[0].type != J_OBJECT || jnum(j, 0, "format") < 1 ||
+                jnum(j, 0, "generation") < floor) {
                 _exit(1);
             }
         }
@@ -522,6 +523,7 @@ static void atomic_text(const char *dest, const void *data, size_t len) {
     }
     sync_parent(dest);
 }
+// Проверить подпись и содержимое снимка, затем добавить поддерживаемые пакеты
 static void repo_index(struct repo *r, int ri, const char *data, size_t len,
                        const char *sig, size_t siglen, uint64_t floor, int add) {
     if (siglen != 128) {
@@ -541,24 +543,38 @@ static void repo_index(struct repo *r, int ri, const char *data, size_t len,
     }
 
     struct json *j = parse_json(data, len);
-    object_fields(j, 0, "|format||repo||generation||created||expires||packages|");
     uint64_t format = jnum(j, 0, "format");
-    if (format != 1 && format != 2) {
+    if (format != 1 && format != 2 && format != 3) {
         fail("wrong index format/repository");
     }
-    static const unsigned char domain[] = "SynapseOS repository index v2";
-    unsigned char message[sizeof domain + 32];
+    const char *allowed = format == 3 ?
+        "|format||repo||generation||created||expires||packages||required_features||extensions|" :
+        "|format||repo||generation||created||expires||packages|";
+    object_fields(j, 0, allowed);
+    if (format == 3) {
+        int required = json_get(j, 0, "required_features");
+        int extensions = json_get(j, 0, "extensions");
+        if (required < 0 || j->t[required].type != J_ARRAY || j->t[required].children != 0 ||
+            (extensions >= 0 && j->t[extensions].type != J_OBJECT)) {
+            fail("unsupported repository features");
+        }
+    }
+    static const unsigned char domain_v2[] = "SynapseOS repository index v2";
+    static const unsigned char domain_v3[] = "SynapseOS repository index v3";
+    unsigned char message[sizeof domain_v3 + 32];
     const unsigned char *signed_data = (const unsigned char *)data;
     size_t signed_len = len;
-    if (format == 2) {
+    if (format >= 2) {
         char hash[65];
         sha_bytes(data, len, hash);
-        memcpy(message, domain, sizeof domain); // Копируем также нулевой байт домена
-        if (unhex(hash, message + sizeof domain, 32)) {
+        const unsigned char *domain = format == 2 ? domain_v2 : domain_v3;
+        size_t domain_len = sizeof domain_v3;
+        memcpy(message, domain, domain_len);
+        if (unhex(hash, message + domain_len, 32)) {
             fail("invalid SHA256 index digest");
         }
         signed_data = message;
-        signed_len = sizeof message;
+        signed_len = domain_len + 32;
     }
     if (unhex(key, pk, 32) || unhex(sig, signature, 64) ||
         dropbear_ed25519_verify(signed_data, signed_len, signature, 64, pk)) {
@@ -591,7 +607,12 @@ static void repo_index(struct repo *r, int ri, const char *data, size_t len,
     }
 
     for (int t = a + 1; t < j->t[a].next; t = j->t[t].next) {
-        object_fields(j, t, "|manifest||sha256||size||url|");
+        object_fields(j, t, format == 3 ?
+            "|manifest||sha256||size||url||extensions|" : "|manifest||sha256||size||url|");
+        int extensions = json_get(j, t, "extensions");
+        if (extensions >= 0 && j->t[extensions].type != J_OBJECT) {
+            fail("invalid package extensions");
+        }
         int m = json_get(j, t, "manifest");
         if (m < 0 || j->t[m].type != J_OBJECT) {
             fail("invalid package manifest");
