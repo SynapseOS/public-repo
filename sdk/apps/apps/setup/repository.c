@@ -5,7 +5,7 @@
 // Получение каталога, проверка подписи и учёт источников пакетов
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 22.10.2026
+// Последнее изменение: 23.10.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -593,18 +593,37 @@ static void repo_index(struct repo *r, int ri, const char *data, size_t len,
     for (int t = a + 1; t < j->t[a].next; t = j->t[t].next) {
         object_fields(j, t, "|manifest||sha256||size||url|");
         int m = json_get(j, t, "manifest");
-        struct package *p = parse_package(j, m);
-        p->repo = ri;
-        jstr(j, t, "sha256", p->hash, sizeof p->hash);
-        jstr(j, t, "url", p->url, sizeof p->url);
-        p->size = jnum(j, t, "size");
+        if (m < 0 || j->t[m].type != J_OBJECT) {
+            fail("invalid package manifest");
+        }
+
+        int64_t package_format;
+        if (json_integer(j, json_get(j, m, "format"), &package_format) ||
+            package_format < 1) {
+            fail("invalid package format");
+        }
+
+        char hash[65], url[128];
+        jstr(j, t, "sha256", hash, sizeof hash);
+        jstr(j, t, "url", url, sizeof url);
+        uint64_t size = jnum(j, t, "size");
         unsigned char h[32];
         char expected[128];
-        snprintf(expected, sizeof expected, "packages/%s.spkg", p->hash);
-        if (unhex(p->hash, h, 32) || strcmp(expected, p->url) ||
-            p->size > PACKAGE_LIMIT || p->size < 1024) {
+        snprintf(expected, sizeof expected, "packages/%s.spkg", hash);
+        if (unhex(hash, h, 32) || strcmp(expected, url) ||
+            size > PACKAGE_LIMIT || size < 1024) {
             fail("invalid package transport metadata");
         }
+
+        if (package_format != 1) {
+            continue;
+        }
+
+        struct package *p = parse_package(j, m);
+        p->repo = ri;
+        strcpy(p->hash, hash);
+        strcpy(p->url, url);
+        p->size = size;
         if (add) {
             if (navailable >= MAXPKG) {
                 fail("too many available packages");
