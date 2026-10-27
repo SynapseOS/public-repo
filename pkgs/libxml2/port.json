@@ -1,0 +1,10 @@
+{
+  "name": "libxml2",
+  "version": "2.14.6-r1",
+  "source": "https://download.gnome.org/sources/libxml2/2.14/libxml2-2.14.6.tar.xz",
+  "sha256": "7ce458a0affeb83f0b55f1f4f9e0e55735dbfc1a9de124ee86fb4a66b597203a",
+  "source_directory": "libxml2-2.14.6",
+  "patches": [],
+  "license": "MIT",
+  "build_system": "recipe"
+}
