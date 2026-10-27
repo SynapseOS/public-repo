@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "name": "e2fsprogs",
+  "version": "1.47.4-r1",
+  "description": "Offline ext filesystem repair utility",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.948-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/e2fsck",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/e2fsprogs/NOTICE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/e2fsprogs/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
