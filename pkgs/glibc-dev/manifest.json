@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "name": "glibc-dev",
+  "version": "2.44.0-r6",
+  "description": "Isolated glibc headers, startup objects and link libraries",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "glibc >= 2.44.0-r6"
+  ],
+  "conflicts": [],
+  "files": []
+}

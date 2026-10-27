@@ -1,0 +1,6 @@
+{
+  "name": "glibc-dev",
+  "version": "2.44.0-r6",
+  "description": "Isolated glibc development sysroot built from the glibc package",
+  "build_system": "recipe"
+}
