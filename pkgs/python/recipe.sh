@@ -1,7 +1,7 @@
 # recipe.sh: Собрать CPython с нативными встроенными модулями и отдельной потоковой OpenSSL
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 25.10.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -66,13 +66,14 @@ strip --strip-debug "$payload/bin/python3"
 copy "$port/pip.conf" etc/pip.conf
 wheel="$source/$(jq -r .pip_bootstrap.archive_member "$spec")"
 printf '%s  %s\n' "$(jq -r .pip_bootstrap.sha256 "$spec")" "$wheel" | sha256sum --check --status
+rm -rf -- "$work/stdlib"
 mkdir -p "$work/stdlib" "$payload/usr/lib/python3.13/site-packages"
 
 while IFS= read -r -d '' file; do
 	relative=${file#"$source/Lib/"}
 
 	case "/$relative" in
-		*/ensurepip/* | */test/* | */tests/* | */__pycache__/* | */idlelib/* | */tkinter/* | *.pyc | *.pyo)
+		*/ensurepip/* | */venv/* | */test/* | */tests/* | */__pycache__/* | */idlelib/* | */tkinter/* | *.pyc | *.pyo)
 			continue
 			;;
 	esac
@@ -93,6 +94,10 @@ bsdtar -xf "$wheel" -C "$payload/usr/lib/python3.13/site-packages"
 while IFS= read -r -d '' file; do
 	copy "$file" "usr/lib/python3.13/ensurepip/${file#"$source/Lib/ensurepip/"}"
 done < <(find "$source/Lib/ensurepip" -type f \( -name '*.py' -o -name "$(basename "$wheel")" \) -print0)
+
+while IFS= read -r -d '' file; do
+	copy "$file" "usr/lib/python3.13/venv/${file#"$source/Lib/venv/"}"
+done < <(find "$source/Lib/venv" -type f -print0)
 
 "$SDK/apps/apps/common/musl-cc" -O2 "$port/pip-main.c" -o "$work/pip-launcher"
 

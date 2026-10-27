@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "python",
-  "version": "3.13.16-r8",
+  "version": "3.13.16-r9",
   "description": "CPython 3 with static builtin modules and standard library",
   "kind": "application",
   "arch": "x86_64",
@@ -2935,6 +2935,54 @@
     },
     {
       "path": "usr/lib/python3.13/site-packages/pip-26.2.1.dist-info/licenses/src/pip/_vendor/urllib3/LICENSE.txt",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/python3.13/venv/__init__.py",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/python3.13/venv/__main__.py",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/python3.13/venv/scripts/common/Activate.ps1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/python3.13/venv/scripts/common/activate",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/python3.13/venv/scripts/common/activate.fish",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/python3.13/venv/scripts/nt/activate.bat",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/python3.13/venv/scripts/nt/deactivate.bat",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/python3.13/venv/scripts/posix/activate.csh",
       "type": "file",
       "mode": 420,
       "config": false
