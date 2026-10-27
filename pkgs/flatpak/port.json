@@ -1,0 +1,12 @@
+{
+  "name": "flatpak",
+  "version": "1.18.3-r1",
+  "source": "https://github.com/flatpak/flatpak/releases/download/1.18.3/flatpak-1.18.3.tar.xz",
+  "sha256": "0f03c5e50e04225013cc3bd9155a94f0036923060722ced3278c5c66c68cf8fb",
+  "linux_headers_source": "https://deb.debian.org/debian/pool/main/l/linux/linux-libc-dev_6.12.107-1_all.deb",
+  "linux_headers_sha256": "dc68dd53c7356598d005866da0d19d7bd33af2a62971aced624cdf04492902b4",
+  "source_directory": "flatpak-1.18.3",
+  "patches": [],
+  "license": "LGPL-2.1-or-later",
+  "build_system": "recipe"
+}
