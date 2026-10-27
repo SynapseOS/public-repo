@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "gpgme",
+  "version": "2.2.0-r1",
+  "description": "GnuPG API for Flatpak signature verification",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "libgpg-error >= 1.61.0-r1",
+    "libassuan >= 3.0.2-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}

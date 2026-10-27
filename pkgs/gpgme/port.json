@@ -1,0 +1,10 @@
+{
+  "name": "gpgme",
+  "version": "2.2.0-r1",
+  "source": "https://gnupg.org/ftp/gcrypt/gpgme/gpgme-2.2.0.tar.bz2",
+  "sha256": "7160e80e84dafd00d956c84891c533bb7ab16a6a54fbe1574b2f3acf0496977b",
+  "source_directory": "gpgme-2.2.0",
+  "patches": ["patches/0001-musl-dirent-types.patch"],
+  "license": "LGPL-2.1-or-later",
+  "build_system": "recipe"
+}
