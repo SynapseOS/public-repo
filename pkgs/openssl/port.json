@@ -13,7 +13,6 @@
     "no-shared",
     "no-threads",
     "no-async",
-    "no-asm",
     "no-dso",
     "no-engine",
     "no-tests",
