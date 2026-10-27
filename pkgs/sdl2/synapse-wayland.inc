@@ -284,8 +284,8 @@ static void syn_wl_top_configure(void *data, struct xdg_toplevel *top, int32_t w
 
 	int old_border = state->border;
 	int old_caption = state->caption;
-	state->border = state->fullscreen ? 0 : 4;
-	state->caption = state->fullscreen ? 0 : 32;
+	state->border = state->fullscreen ? 0 : 6;
+	state->caption = state->fullscreen ? 0 : 27;
 
 	if (state->border != old_border || state->caption != old_caption) {
 		syn_wl_buffers_destroy(state);
@@ -468,14 +468,16 @@ static void syn_wl_pointer_button(void *data, struct wl_pointer *pointer, uint32
 
 		if (edge != XDG_TOPLEVEL_RESIZE_EDGE_NONE) {
 			xdg_toplevel_resize(state->toplevel, state->seat, serial, edge);
-		} else if (x >= video->w - 28) {
+		} else if (x >= video->w - 32) {
 			SDL_SendWindowEvent(video->window, SDL_WINDOWEVENT_CLOSE, 0, 0);
-		} else if (x >= video->w - 60) {
+		} else if (x >= video->w - 64) {
 			if (state->maximized) {
 				xdg_toplevel_unset_maximized(state->toplevel);
 			} else {
 				xdg_toplevel_set_maximized(state->toplevel);
 			}
+		} else if (x >= video->w - 96) {
+			xdg_toplevel_set_minimized(state->toplevel);
 		} else {
 			xdg_toplevel_move(state->toplevel, state->seat, serial);
 		}
@@ -930,8 +932,8 @@ static int syn_wl_init(_THIS) {
 
 	video->wayland = state;
 	state->video = video;
-	state->border = 4;
-	state->caption = 32;
+	state->border = 6;
+	state->caption = 27;
 	state->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	state->display = wl_display_connect(NULL);
 
@@ -1060,19 +1062,28 @@ static void syn_wl_caption(SynapseVideo *video, Uint32 *pixels, int width) {
 
 	for (int y = 0; y < state->caption; y++) {
 		for (int x = 0; x < width; x++) {
-			pixels[y * width + x] = y < 4 ? 0x526579 : 0x26384b;
+			pixels[y * width + x] = y < 6 ? 0xffffff : 0xcccccc;
 		}
 	}
 
-	if (width < 72) {
+	if (width < 2 * state->border + 96) {
 		return;
 	}
 
-	if (video->hud_font != NULL) {
-		int y0 = SDL_max(4, (state->caption - (int)video->hud_height) / 2);
+	if (video->hud_font != NULL && video->hud_width > 0) {
+		int title_width = width - 2 * state->border - 96;
+		unsigned title_chars = 0;
 
-		for (unsigned i = 0; title[i] != 0 && (i + 2) * video->hud_width < (unsigned)(width - 72);
-		     i++) {
+		while (title[title_chars] != 0 &&
+		       title_chars < (unsigned)title_width / video->hud_width) {
+			title_chars++;
+		}
+
+		int text_width = (int)(title_chars * video->hud_width);
+		int x0 = state->border + SDL_max(0, (title_width - text_width) / 2);
+		int y0 = SDL_max(0, (state->caption - (int)video->hud_height) / 2);
+
+		for (unsigned i = 0; i < title_chars; i++) {
 			unsigned ch = (unsigned char)title[i];
 			unsigned glyph = video->hud_glyph[ch < 128 ? ch : '?'];
 
@@ -1081,20 +1092,39 @@ static void syn_wl_caption(SynapseVideo *video, Uint32 *pixels, int width) {
 				    video->hud_font + glyph * video->hud_bytes + y * video->hud_stride;
 				for (unsigned x = 0; x < video->hud_width; x++) {
 					if ((bits[x / 8] & (0x80U >> (x % 8))) != 0) {
-						pixels[(y0 + y) * width + 8 + i * video->hud_width + x] = 0xf0f4f8;
+						pixels[(y0 + y) * width + x0 + i * video->hud_width + x] = 0x202020;
 					}
 				}
 			}
 		}
 	}
 
+	for (int button = 0; button < 3; button++) {
+		int left = width - state->border - (3 - button) * 32;
+
+		for (int x = left + 2; x < left + 30; x++) {
+			pixels[3 * width + x] = 0x505050;
+			pixels[23 * width + x] = 0x505050;
+		}
+
+		for (int y = 4; y < 23; y++) {
+			pixels[y * width + left + 2] = 0x505050;
+			pixels[y * width + left + 29] = 0x505050;
+		}
+	}
+
+	int min_x = width - state->border - 80;
+	int max_x = width - state->border - 48;
+	int close_x = width - state->border - 16;
+
 	for (int i = 0; i < 12; i++) {
-		pixels[(10 + i) * width + width - 24 + i] = 0xffffff;
-		pixels[(10 + i) * width + width - 13 - i] = 0xffffff;
-		pixels[10 * width + width - 56 + i] = 0xffffff;
-		pixels[21 * width + width - 56 + i] = 0xffffff;
-		pixels[(10 + i) * width + width - 56] = 0xffffff;
-		pixels[(10 + i) * width + width - 45] = 0xffffff;
+		pixels[17 * width + min_x - 6 + i] = 0x202020;
+		pixels[8 * width + max_x - 6 + i] = 0x202020;
+		pixels[19 * width + max_x - 6 + i] = 0x202020;
+		pixels[(8 + i) * width + max_x - 6] = 0x202020;
+		pixels[(8 + i) * width + max_x + 5] = 0x202020;
+		pixels[(8 + i) * width + close_x - 6 + i] = 0x202020;
+		pixels[(8 + i) * width + close_x + 5 - i] = 0x202020;
 	}
 }
 
@@ -1146,7 +1176,7 @@ static int syn_wl_present(SynapseVideo *video) {
 	Uint32 *frame = (Uint32 *)slot->pixels;
 
 	for (size_t i = 0; i < slot->length / 4; i++) {
-		frame[i] = 0x526579;
+		frame[i] = 0xcccccc;
 	}
 
 	for (int y = 0; y < video->h; y++) {
