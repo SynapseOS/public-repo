@@ -1,10 +1,11 @@
 {
   "name": "pcre2",
-  "version": "10.49.0-r1",
+  "version": "10.49.0-r3",
   "description": "PCRE2 Unicode regular expressions; static libraries and pcre2grep",
   "source": "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.49/pcre2-10.49.tar.gz",
   "sha256": "929f0b20e62879252a15886b06c89f1edef61a363cbd5826fb041080a5e557ae",
   "source_directory": "pcre2-10.49",
+  "cflags": ["-O2", "-D__synapse__", "-fPIC"],
   "configure": [
     "./configure",
     "--host=x86_64-linux-musl",
