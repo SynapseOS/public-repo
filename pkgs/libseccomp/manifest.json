@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "libseccomp",
+  "version": "2.6.1-r1",
+  "description": "Seccomp filter builder for Flatpak dependencies",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
