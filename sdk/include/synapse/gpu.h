@@ -6,7 +6,7 @@
     Описание: Запросы экрана и операций с изображением
     Подсистема: общий интерфейс ядра и приложений
     Первое изменение: 14.10.2026
-    Последнее изменение: 18.10.2026
+    Последнее изменение: 24.10.2026
 */
 
 #ifndef SYNAPSE_GPU_USER_H
@@ -60,6 +60,12 @@ struct syn_fb_display_v1 {
 	uint32_t width, height, pitch, format;
 	uint64_t buffer_bytes;
 	uint32_t source, reserved[3];
+};
+
+// Менять размер экрана может только владелец framebuffer без активных mmap
+struct syn_fb_mode_v1 {
+	uint32_t version, width, height, format;
+	uint32_t reserved[4];
 };
 
 #define SYN_FB_2D_FILL 1u

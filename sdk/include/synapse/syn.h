@@ -6,13 +6,58 @@
     Описание: Пользовательский интерфейс Orbit
     Подсистема: асинхронные запросы Orbit
     Первое изменение: 13.10.2026
-    Последнее изменение: 18.10.2026
+    Последнее изменение: 25.10.2026
+    Доступ: общедоступный
 */
 
 #ifndef SYNAPSE_SYN_H
 #define SYNAPSE_SYN_H
 
 #include <synapse/orbit.h>
+
+#define SYN_ABI_VERSION 2u
+#define SYN_ABI_CATALOG_CALLS 200u
+#define SYN_SYSCALL_NAME_MAX 64u
+#define SYN_FUTEX_SHARED 1u
+
+enum syn_feature {
+	SYN_FEATURE_ORBIT = 1,
+	SYN_FEATURE_PROCESS = 2,
+	SYN_FEATURE_VFS = 3,
+	SYN_FEATURE_FUTEX = 4,
+	SYN_FEATURE_NETWORK = 5,
+	SYN_FEATURE_RAW_NETWORK = 6,
+	SYN_FEATURE_HID = 7
+};
+
+struct syn_abi_info {
+	uint32_t version;
+	uint32_t structure_size;
+	uint32_t catalog_calls;
+	uint32_t available_calls;
+	uint32_t syscall_offset;
+	uint32_t syscall_limit;
+	uint64_t features;
+};
+
+struct syn_syscall_info {
+	uint32_t number;
+	uint32_t available;
+	char name[SYN_SYSCALL_NAME_MAX];
+};
+
+struct syn_memory_info {
+	uint64_t total_bytes;
+	uint64_t free_bytes;
+	uint64_t page_size;
+};
+
+struct syn_cpu_info {
+	uint32_t current_cpu;
+	uint32_t installed_cpus;
+	uint32_t lapic_id;
+	uint32_t reserved;
+};
 
 #ifdef __cplusplus
 extern "C" {
