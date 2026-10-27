@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "name": "appstream",
+  "version": "1.1.2-r1",
+  "description": "AppStream metadata library for Flatpak",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "glib-gio >= 2.84.4-r3",
+    "libcurl >= 8.22.0-r1",
+    "libxml2 >= 2.14.6-r1",
+    "libfyaml >= 0.9.6-r1",
+    "libxmlb >= 0.3.29-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}

@@ -1,0 +1,18 @@
+From: SynapseOS
+Subject: Skip AppStream metadata generation when cross-building the library
+
+The metainfo generator requires a native AppStream 1.1.2 installation.
+The SynapseOS package only exports the target library and headers.
+
+--- a/meson.build
++++ b/meson.build
+@@ -234,6 +234,8 @@
+ subdir('tools/')
+ subdir('po/')
+-subdir('data/')
++if not meson.is_cross_build()
++    subdir('data/')
++endif
+ subdir('contrib/')
+ subdir('docs/')
+ subdir('tests/')
