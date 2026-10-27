@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "mc",
-  "version": "4.8.33-r3",
+  "version": "4.8.33-r5",
   "description": "Midnight Commander local file manager, editor and diff viewer",
   "kind": "application",
   "arch": "x86_64",
@@ -13,6 +13,12 @@
   "files": [
     {
       "path": "bin/mc",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/mc.real",
       "type": "file",
       "mode": 493,
       "config": false

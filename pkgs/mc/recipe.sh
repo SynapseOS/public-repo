@@ -1,7 +1,7 @@
 # recipe.sh: Собрать Midnight Commander и его данные без VFS и фоновых операций
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 25.10.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -24,7 +24,53 @@ export PKG_CONFIG=pkg-config PKG_CONFIG_LIBDIR="$work/no-host-pkgconfig"
 
 make -C "$source" -j"$JOBS"
 make -C "$source" install DESTDIR="$work/install"
-copy "$source/src/mc" bin/mc
+copy "$source/src/mc" bin/mc.real
+
+cat >"$work/mc-launch.c" <<'C'
+/*
+    mc-launch.c: Запуск Midnight Commander в совместимом режиме терминала
+    Автор: Елчинян Арен Артурович, 2026
+    Архитектура: x86_64, ABI: synapse-x86_64-v1
+
+    Описание: Настройка терминала и прямая замена процесса на mc.real
+    Подсистема: пользовательские программы
+    Первое изменение: 25.10.2026
+    Последнее изменение: 25.10.2026
+    Доступ: общедоступный
+*/
+
+#define _POSIX_C_SOURCE 200809L
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+// Передать аргументы mc.real без промежуточного процесса оболочки
+int main(int argc, char **argv) {
+    if (setenv("TERM", "linux", 1) != 0) {
+        perror("mc: TERM");
+        return 1;
+    }
+
+    char **arguments = calloc((size_t)argc + 2, sizeof(*arguments));
+    if (arguments == NULL) {
+        perror("mc: arguments");
+        return 1;
+    }
+
+    arguments[0] = "/bin/mc.real";
+    arguments[1] = "-a";
+    for (int index = 1; index < argc; index++) {
+        arguments[index + 1] = argv[index];
+    }
+
+    execv(arguments[0], arguments);
+    perror("mc: execv");
+    free(arguments);
+    return 1;
+}
+C
+
+"$CC" -O2 -std=c11 -Wall -Wextra -Werror -Wl,--build-id=none "$work/mc-launch.c" -o "$payload/bin/mc"
 
 for directory in etc/mc usr/share/mc; do
 	while IFS= read -r -d '' file; do
