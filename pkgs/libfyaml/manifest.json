@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "libfyaml",
+  "version": "0.9.6-r1",
+  "description": "YAML parser for AppStream metadata",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
