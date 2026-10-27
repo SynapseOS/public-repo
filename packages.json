@@ -2,10 +2,6 @@
   "format": 2,
   "packages": [
     {
-      "name": "ayugram",
-      "upstream_license": "GPL-3.0-or-later WITH OpenSSL"
-    },
-    {
       "name": "bash",
       "upstream_license": "GPL-3.0-or-later"
     },
@@ -180,6 +176,10 @@
     {
       "name": "posix-bench",
       "upstream_license": null
+    },
+    {
+      "name": "pulseaudio-oss",
+      "upstream_license": "LGPL-2.1-or-later"
     },
     {
       "name": "python",
