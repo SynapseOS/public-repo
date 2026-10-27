@@ -1,0 +1,32 @@
+--- a/linux/LinuxProcessTable.c
++++ b/linux/LinuxProcessTable.c
+@@ -24,7 +24,9 @@
+ #include <string.h>
+ #include <syscall.h>
+ #include <unistd.h>
++#ifndef __synapse__
+ #include <linux/capability.h> // raw syscall, no libcap  // IWYU pragma: keep // IWYU pragma: no_include <sys/capability.h>
++#endif
+ #include <sys/stat.h>
+ 
+ #include "GPUMeter.h"
+@@ -1702,6 +1704,7 @@
+        */
+ 
+       /* Gather permitted capabilities (thread-specific data) for non-root process. */
++#ifndef __synapse__
+       if (proc->st_uid != 0 && proc->elevated_priv != TRI_OFF) {
+          struct __user_cap_header_struct header = { .version = _LINUX_CAPABILITY_VERSION_3, .pid = Process_getPid(proc) };
+          struct __user_cap_data_struct data;
+@@ -1713,6 +1716,11 @@
+             proc->elevated_priv = TRI_OFF;
+          }
+       }
++#else
++      if (proc->st_uid != 0) {
++         proc->elevated_priv = TRI_OFF;
++      }
++#endif
+ 
+       if (ss->flags & PROCESS_FLAG_LINUX_CGROUP)
+          LinuxProcessTable_readCGroupFile(lp, procFd);

@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "name": "htop",
+  "version": "3.5.3-r3",
+  "description": "Interactive process viewer",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.948-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/htop",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/htop/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/htop/ncurses-COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/htop/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
