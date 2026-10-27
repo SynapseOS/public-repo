@@ -1,0 +1,10 @@
+{
+  "name": "dbus",
+  "version": "1.16.2-r1",
+  "source": "https://dbus.freedesktop.org/releases/dbus/dbus-1.16.2.tar.xz",
+  "sha256": "0ba2a1a4b16afe7bceb2c07e9ce99a8c2c3508e5dec290dbb643384bd6beb7e2",
+  "source_directory": "dbus-1.16.2",
+  "patches": [],
+  "license": "AFL-2.1 OR GPL-2.0-or-later",
+  "build_system": "recipe"
+}
