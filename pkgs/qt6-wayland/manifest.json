@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "qt6-wayland",
-  "version": "6.11.1-r1",
+  "version": "6.11.1-r3",
   "description": "Qt Wayland client integration for SynapseOS Weston",
   "kind": "library",
   "arch": "x86_64",
