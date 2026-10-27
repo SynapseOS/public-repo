@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "glibc",
-  "version": "2.44.0-r3",
-  "description": "Experimental GNU C Library runtime for the Linux ABI",
+  "version": "2.44.0-r6",
+  "description": "GNU C Library runtime, NSS, character conversion and UTF-8 locales",
   "kind": "library",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
