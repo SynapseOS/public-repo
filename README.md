@@ -14,8 +14,6 @@ Python нужен upstream-проектам Meson, Mako и CPython, их шта�
 pkg-config, autoconf, automake, libtool, bison, flex, gperf, CMake, Ninja, Meson,
 Mako, Perl, NASM, zip/unzip, JDK 21 и заголовки host libpng
 Для подписи и её тестов нужны OpenSSL с заголовками libcrypto и OpenSSH client
-Для AyuGram нужны bubblewrap, пользовательские пространства имён и собственные
-реквизиты Telegram API, порядок подготовки описан в [README пакета](pkgs/ayugram/README.md)
 Рецепты рассчитаны на Meson 1.7.2. CI устанавливает эту версию отдельно
 Для сборки пакета CPython требуется host CPython 3.13, при его отсутствии рецепт
 собирает его из того же закреплённого исходного архива
@@ -24,9 +22,9 @@ Mako, Perl, NASM, zip/unzip, JDK 21 и заголовки host libpng
 
 ```sh
 sudo apt-get install build-essential musl-tools curl jq libarchive-tools patch pkg-config \
-  autoconf automake libtool bison flex gperf cmake ninja-build meson python3-mako \
-  python3-yaml python3-packaging perl nasm unzip zip libwayland-dev libpng-dev \
-  libgmp-dev libmpfr-dev libmpc-dev openjdk-21-jdk-headless libssl-dev openssl openssh-client bubblewrap
+  autoconf automake libtool bison flex gperf gettext cmake ninja-build meson python3-mako \
+  python3-yaml python3-packaging python3-pyparsing perl nasm unzip zip libwayland-dev libpng-dev \
+  libgmp-dev libmpfr-dev libmpc-dev openjdk-21-jdk-headless libssl-dev openssl openssh-client
 ```
 
 ## Сборка
@@ -34,19 +32,13 @@ sudo apt-get install build-essential musl-tools curl jq libarchive-tools patch p
 ```sh
 make check
 make all JOBS=4
+make native APPS="init/ sh/ ip/ qemu-ga/ monitoring/" JOBS=2
 make list
-make netsurf JOBS=4
 make -C pkgs/sqlite
 ```
 
-`make` по умолчанию собирает все пакеты. `JOBS` задаёт число процессов внутри одной
+`make` по умолчанию собирает все пакеты и нативные программы из `sdk/apps`. `JOBS` задаёт число процессов внутри одной
 сборки. Не задавайте одновременно большие значения `make -j` и `JOBS`
-Полная сборка включает AyuGram и требует локального файла реквизитов приложения
-Проверить его без компиляции можно при помощи инструкции пакета
-В CI реквизиты задаются секретами `TDESKTOP_API_ID` и `TDESKTOP_API_HASH`
-Без них CI собирает остальные пакеты и явно пропускает AyuGram
-Для сборок pull request эти секреты не передаются
-Окружению сборки AyuGram в контейнере разрешено создавать пользовательские пространства имён
 Пакет `musl-tools` предоставляет host-загрузчик для закреплённых инструментов LLVM
 SDK собирается автоматически из `sdk/`, закрытый репозиторий и SSH-ключи не нужны
 Для SDK, кэша и готовых архивов используются `.sdk`, `pkgs/.work` и `out`
