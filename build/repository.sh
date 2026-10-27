@@ -1,7 +1,7 @@
 #!/bin/bash
 # repository.sh: подготовить подписанный каталог пакетов
 # Автор: Елчинян Арен Артурович, 2026, архитектура хоста, ABI POSIX
-# Подсистема: выпуск пакетов, первое изменение: 18.10.2026, последнее изменение: 22.10.2026
+# Подсистема: выпуск пакетов, первое изменение: 18.10.2026, последнее изменение: 23.10.2026
 # Статус доступа: общедоступный
 
 set -euo pipefail
@@ -90,6 +90,10 @@ if [[ $# -eq 0 ]]; then
 		fi
 
 		name=$(jq -er '.name | strings | select(test("^[a-z0-9_.-]{1,63}$"))' "$stage/candidate.json")
+		if [[ ! -f $ROOT/pkgs/$name/manifest.json ]]; then
+			continue
+		fi
+
 		manifest="$OUT/$name.manifest.json"
 
 		if [[ ! -f $manifest ]]; then
@@ -110,6 +114,9 @@ if [[ $# -eq 0 ]]; then
 
 	for manifest in "${manifests[@]}"; do
 		name=$(basename "$manifest" .manifest.json)
+		if [[ ! -f $ROOT/pkgs/$name/manifest.json ]]; then
+			continue
+		fi
 
 		if [[ -z ${selected[$name]:-} ]]; then
 			fail "No archive matches the current manifest: $name"

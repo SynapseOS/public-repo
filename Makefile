@@ -1,14 +1,17 @@
 # Makefile: сборка публичных пакетов SynapseOS
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 25.10.2026
 # Статус доступа: общедоступный
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := all
 .DELETE_ON_ERROR:
+.SUFFIXES:
 JOBS ?= 4
+APPS ?=
+export PUBLIC_PACKAGES_ROOT := $(ROOT)
 BUILD_ROOT ?= $(ROOT)/pkgs/.work
 OUT ?= $(ROOT)/out
 SDK ?= $(ROOT)/.sdk
@@ -30,7 +33,7 @@ PACKAGES := $(sort $(notdir $(patsubst %/,%,$(dir $(wildcard $(ROOT)/pkgs/*/mani
 SDK_INPUTS := $(shell find $(ROOT)/sdk -type f)
 BUILD_INPUTS := $(filter-out $(ROOT)/build/repository.sh $(ROOT)/build/repository-test.sh,$(wildcard $(ROOT)/build/*.sh)) $(ROOT)/build/TrustStore.java
 .PHONY: all list check check-tools host-tools sdk clean repository publish check-signing signing-key $(PACKAGES)
-all: $(PACKAGES)
+all: native $(PACKAGES)
 list:
 	@printf '%s\n' $(PACKAGES)
 check-tools:
@@ -76,6 +79,28 @@ $(REPOSITORY_TOOL): $(ROOT)/build/repository.c
 
 define package_rule
 $(1): $(BUILD_ROOT)/$(1)/.built
+	@payload_dir="$(BUILD_ROOT)/$(1)/payload"; \
+	lock_dir="$(BUILD_ROOT)/$(1)"; \
+	if [ "$(1)" = wayland-client ]; then \
+		payload_dir="$(BUILD_ROOT)/weston/client-payload"; \
+		lock_dir="$(BUILD_ROOT)/weston"; \
+	elif [ "$(1)" = xkeyboard-config ]; then \
+		payload_dir="$(BUILD_ROOT)/weston/xkb-payload"; \
+		lock_dir="$(BUILD_ROOT)/weston"; \
+	fi; \
+	verify_payload() { \
+		( flock 9 && \
+			test -s "$(OUT)/$(1).manifest.json" && \
+			jq -er '.files[] | select(.type == "file") | "\(.sha256)  \(.path)"' \
+				"$(OUT)/$(1).manifest.json" | \
+				(cd "$$$$payload_dir" && sha256sum --check --status) \
+		) 9>"$$$$lock_dir/build.lock"; \
+	}; \
+	if ! verify_payload; then \
+		$(MAKE) --no-print-directory -W "$(ROOT)/pkgs/$(1)/port.json" \
+			"$(BUILD_ROOT)/$(1)/.built"; \
+		verify_payload; \
+	fi
 $(BUILD_ROOT)/$(1)/.built: $(shell find $(ROOT)/pkgs/$(1) -type f) $(BUILD_INPUTS) $(SDK)/.ready | host-tools
 	@mkdir -p "$(BUILD_ROOT)/$(1)"
 	@bash "$(ROOT)/build/package.sh" "$(1)"
@@ -83,3 +108,11 @@ $(BUILD_ROOT)/$(1)/.built: $(shell find $(ROOT)/pkgs/$(1) -type f) $(BUILD_INPUT
 endef
 $(foreach package,$(PACKAGES),$(eval $(call package_rule,$(package))))
 include $(ROOT)/build/dependencies.mk
+
+# Нативные приложения используют тот же открытый SDK, что и пакетные рецепты
+.PHONY: native native-libs
+native-libs: sdk
+	+$(MAKE) -C "$(SDK)/apps/synlibc" -j"$(JOBS)"
+	+$(MAKE) -C "$(SDK)/apps/libs" -j"$(JOBS)"
+native: native-libs
+	+flock "$(SDK)/native.lock" $(MAKE) -C "$(SDK)/apps/apps" -j"$(JOBS)" $(APPS)

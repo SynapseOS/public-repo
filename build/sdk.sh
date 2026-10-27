@@ -2,13 +2,13 @@
 # sdk.sh: подготовка открытого SDK и libc SynapseOS
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 22.10.2026
 # Статус доступа: общедоступный
 set -euo pipefail
 mkdir -p "$SDK"
 exec 9>"$SDK/build.lock"
 flock 9
-cp -au "$ROOT/sdk/." "$SDK/"
+cp -a "$ROOT/sdk/." "$SDK/"
 
 for directory in apps include assets; do
 	if [[ ! -e $ROOT/$directory ]]; then

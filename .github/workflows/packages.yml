@@ -11,17 +11,16 @@ jobs:
     runs-on: ubuntu-24.04
     container:
       image: debian:13-slim
-      options: --security-opt seccomp=unconfined --security-opt apparmor=unconfined
     timeout-minutes: 360
     steps:
       - name: Install host build tools
         run: |
           apt-get update
           apt-get install -y build-essential musl-tools git ca-certificates curl jq libarchive-tools patch pkg-config \
-            autoconf automake libtool bison flex gperf cmake ninja-build meson \
-            python3 python3-venv python3-mako python3-yaml python3-packaging perl nasm unzip zip \
+            autoconf automake libtool bison flex gperf gettext cmake ninja-build meson \
+            python3 python3-venv python3-mako python3-yaml python3-packaging python3-pyparsing perl nasm unzip zip \
             libwayland-dev libpng-dev libgmp-dev libmpfr-dev libmpc-dev openjdk-21-jdk-headless \
-            libssl-dev openssl openssh-client bubblewrap
+            libssl-dev openssl openssh-client
       - uses: actions/checkout@v4
       - name: Install pinned upstream Meson
         run: |
@@ -33,25 +32,10 @@ jobs:
         run: make check
       - name: Check repository signing with a temporary key
         run: make check-signing
-      - name: Build packages with available application credentials
-        env:
-          AYUGRAM_API_ID: ${{ github.event_name != 'pull_request' && secrets.TDESKTOP_API_ID || '' }}
-          AYUGRAM_API_HASH: ${{ github.event_name != 'pull_request' && secrets.TDESKTOP_API_HASH || '' }}
-        run: |
-          set -eu
-          if [ -n "$AYUGRAM_API_ID" ] && [ -n "$AYUGRAM_API_HASH" ]; then
-            umask 077
-            TELEGRAM_API_FILE=$(mktemp "$RUNNER_TEMP/synapse-telegram-api.XXXXXX")
-            export TELEGRAM_API_FILE
-            trap 'rm -f "$TELEGRAM_API_FILE"' EXIT
-            printf 'TDESKTOP_API_ID=%s\nTDESKTOP_API_HASH=%s\n' \
-              "$AYUGRAM_API_ID" "$AYUGRAM_API_HASH" > "$TELEGRAM_API_FILE"
-            make all JOBS=2
-          else
-            echo '::notice::AyuGram skipped: configure TDESKTOP_API_ID and TDESKTOP_API_HASH secrets for a full build'
-            packages=$(make --no-print-directory --silent list | sed '/^ayugram$/d')
-            make $packages JOBS=2
-          fi
+      - name: Build native applications from the public SDK
+        run: make native JOBS=2
+      - name: Build packages
+        run: make all JOBS=2
       - name: Upload packages and manifests
         if: always()
         uses: actions/upload-artifact@v4

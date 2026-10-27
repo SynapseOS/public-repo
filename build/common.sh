@@ -109,7 +109,7 @@ pack() {
 		[[ $rel != *$'\n'* && $rel != *'/../'* && $rel != /* ]]
 
 		case "$rel" in
-			bin/* | lib/* | etc/* | usr/share/* | usr/lib/* | usr/include/* | usr/libexec/*)
+			bin/* | lib/* | etc/* | usr/bin/* | usr/share/* | usr/lib/* | usr/include/* | usr/libexec/*)
 				;;
 			*)
 				return 1
