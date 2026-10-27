@@ -1,0 +1,10 @@
+{
+  "name": "libarchive",
+  "version": "3.8.10-r1",
+  "source": "https://github.com/libarchive/libarchive/releases/download/v3.8.10/libarchive-3.8.10.tar.xz",
+  "sha256": "56cad765459d5ee25a3b761f90c47d99379d28297fbfb72d908880d6b875fb96",
+  "source_directory": "libarchive-3.8.10",
+  "patches": [],
+  "license": "BSD-2-Clause",
+  "build_system": "recipe"
+}
