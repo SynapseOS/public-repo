@@ -1,0 +1,14 @@
+# Caddyfile: Тестовая HTTP-страница SynapseOS
+# Автор: Елчинян Арен Артурович, 2026, x86_64, Linux amd64 ABI
+# Подсистема: сетевые серверы, первое изменение: 22.10.2026, последнее изменение: 22.10.2026
+# Статус доступа: общедоступный
+
+{
+	admin off
+	auto_https off
+}
+:8080 {
+	header X-SynapseOS-Server "Caddy v2.11.7"
+	header Content-Type "text/html; charset=utf-8"
+	respond "<!doctype html><meta charset=utf-8><title>Caddy on SynapseOS</title><h1>Caddy v2.11.7</h1><p>Running inside SynapseOS in QEMU/KVM.</p><p>Built from source with Go 1.27.3.</p><p>HTTP is working.</p>"
+}
