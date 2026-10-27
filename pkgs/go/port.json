@@ -1,0 +1,9 @@
+{
+  "name": "go",
+  "version": "1.27.3-r1",
+  "source": "https://go.dev/dl/go1.27.3.src.tar.gz",
+  "sha256": "6e7749035cf360f06b2575d162ea79df9fda8ef671889e5c375f8e50777f26bb",
+  "source_directory": "go",
+  "patches": [],
+  "build_system": "recipe"
+}

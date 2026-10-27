@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "go",
+  "version": "1.27.3-r1",
+  "description": "Go compiler and tools for SynapseOS, Linux amd64 ABI, cgo disabled",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.948-r1",
+    "go-runtime = 1.27.3-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}
