@@ -1,0 +1,9 @@
+{
+  "name": "alertmanager",
+  "version": "0.34.1-r1",
+  "source": "https://github.com/prometheus/alertmanager/releases/download/v0.34.1/alertmanager-0.34.1.linux-amd64.tar.gz",
+  "sha256": "265b9d1e55ef0d5306a436018af6d2b686c2ce051f03d968f7464ecb1372a7e8",
+  "source_directory": "alertmanager-0.34.1.linux-amd64",
+  "patches": [],
+  "build_system": "recipe"
+}

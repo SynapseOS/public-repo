@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "name": "alertmanager",
+  "version": "0.34.1-r5",
+  "description": "Prometheus Alertmanager from the upstream static release",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.948-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/alertmanager",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/amtool",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/alertmanager-start",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/alertmanager/alertmanager.yml",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/services/alertmanager",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "usr/share/licenses/alertmanager/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
