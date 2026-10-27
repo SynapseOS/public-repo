@@ -1,0 +1,10 @@
+{
+  "name": "libassuan",
+  "version": "3.0.2-r1",
+  "source": "https://gnupg.org/ftp/gcrypt/libassuan/libassuan-3.0.2.tar.bz2",
+  "sha256": "d2931cdad266e633510f9970e1a2f346055e351bb19f9b78912475b8074c36f6",
+  "source_directory": "libassuan-3.0.2",
+  "patches": [],
+  "license": "LGPL-2.1-or-later",
+  "build_system": "recipe"
+}
