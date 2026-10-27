@@ -1,0 +1,55 @@
+--- a/src/util/anon_file.c
++++ b/src/util/anon_file.c
+@@ -36,6 +36,7 @@
+ #include <fcntl.h>
+ #include <errno.h>
+ #include <stdlib.h>
++#include <stdio.h>
+ 
+ #if defined(HAVE_MEMFD_CREATE) || defined(__FreeBSD__) || defined(__OpenBSD__)
+ #include <sys/mman.h>
+@@ -121,6 +122,44 @@
+    if (!debug_name)
+       debug_name = "mesa-shared";
+    fd = memfd_create(debug_name, MFD_CLOEXEC | MFD_ALLOW_SEALING);
++   // Keep software Wayland buffers available when the kernel lacks memfd_create
++   if (fd < 0 && errno == ENOSYS) {
++      const char *path = getenv("XDG_RUNTIME_DIR");
++      char *name;
++
++      if (!path) {
++         errno = ENOENT;
++         return -1;
++      }
++
++      if (asprintf(&name, "%s/mesa-shared-XXXXXX", path) < 0)
++         return -1;
++
++#ifdef HAVE_MKOSTEMP
++      fd = mkostemp(name, O_CLOEXEC);
++#else
++      fd = mkstemp(name);
++      if (fd >= 0 && fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
++         int error = errno;
++         close(fd);
++         unlink(name);
++         free(name);
++         errno = error;
++         return -1;
++      }
++#endif
++      if (fd >= 0 && unlink(name) < 0) {
++         int error = errno;
++         close(fd);
++         free(name);
++         errno = error;
++         return -1;
++      }
++
++      int error = errno;
++      free(name);
++      errno = error;
++   }
+ #elif DETECT_OS_ANDROID
+    if (!debug_name)
+       debug_name = "mesa-shared";

@@ -1,7 +1,7 @@
-# recipe.sh: Собрать программный OpenGL и LLVM для musl
+# recipe.sh: Собрать Mesa OpenGL, EGL/Wayland и LLVM для musl
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 24.10.2026
 # Статус доступа: общедоступный
 
 fetch "$(jq -r .source "$spec")" "$(jq -r .sha256 "$spec")" "$work/mesa.tar.xz"
@@ -15,7 +15,53 @@ if ! grep -q SYNAPSE_LLVMPIPE_WORKER "$source/src/gallium/drivers/llvmpipe/lp_ra
 	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/synapse-worker-metrics.patch"
 fi
 
-mkdir -p "$work/llvm/root" "$work/linux-headers" "$work/cxx-headers"
+if ! grep -q 'errno == ENOSYS' "$source/src/util/anon_file.c"; then
+	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/synapse-memfd-fallback.patch"
+fi
+
+mkdir -p "$work/llvm/root" "$work/linux-headers" "$work/cxx-headers" "$work/wayland-sdk"
+
+while IFS=$'\t' read -r filename url sha; do
+	fetch "$url" "$sha" "$work/wayland-sdk/downloads/$filename"
+	bsdtar --options=read_concatenated_archives -xf "$work/wayland-sdk/downloads/$filename" \
+		-C "$work/wayland-sdk" --include 'usr/*'
+done < <(jq -r '.[] | select(.name == "wayland-dev" or .name == "wayland-libs-client" or
+    .name == "wayland-libs-server" or .name == "wayland-libs-egl" or
+    .name == "wayland-protocols" or .name == "libdrm" or .name == "libdrm-dev" or
+    .name == "eudev-libs" or .name == "eudev-dev" or
+    .name == "libffi" or .name == "libffi-dev" or
+    .name == "libexpat" or .name == "libxml2" or .name == "xz-libs" or .name == "zlib") |
+    [.filename,.url,.sha256] | @tsv' "$ROOT/pkgs/weston/dependencies.json")
+
+scanner="$work/wayland-sdk/usr/bin/wayland-scanner"
+mv -f "$scanner" "$scanner.real"
+cat >"$scanner" <<SCANNER
+#!/bin/sh
+# wayland-scanner: Запуск сборочного сканера с библиотеками musl
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: x86_64, ABI: synapse-x86_64-v1
+# Подсистема: сборка Mesa
+# Первое изменение: 23.10.2026, последнее изменение: 23.10.2026
+# Статус доступа: общедоступный
+LD_LIBRARY_PATH='$work/wayland-sdk/usr/lib' exec '$scanner.real' "\$@"
+SCANNER
+chmod 755 "$scanner"
+
+alias="/tmp/synapse-public-mesa-$(printf '%s' "$ROOT" | sha256sum | cut -c1-16)"
+
+if [[ ! -e $alias ]]; then
+	ln -s "$work/wayland-sdk" "$alias"
+fi
+
+[[ $(realpath "$alias") == $(realpath "$work/wayland-sdk") ]]
+export PKG_CONFIG_SYSROOT_DIR="$alias"
+export PKG_CONFIG_LIBDIR="$alias/usr/lib/pkgconfig:$alias/usr/share/pkgconfig"
+
+if [[ ! -e /tmp/synapse-mesa-egl-sdk ]]; then
+	ln -s "$work/wayland-sdk" /tmp/synapse-mesa-egl-sdk
+fi
+
+[[ $(realpath /tmp/synapse-mesa-egl-sdk) == $(realpath "$work/wayland-sdk") ]]
 
 while IFS=$'\t' read -r filename url sha; do
 	fetch "$url" "$sha" "$work/llvm/downloads/$filename"
@@ -44,7 +90,7 @@ cpp = ['env', 'SYNAPSE_LINK_MODE=dynamic', '$work/cxx']
 ar = 'ar'
 strip = 'strip'
 llvm-config = '$work/llvm-config'
-pkg-config = 'false'
+pkg-config = 'pkg-config'
 [host_machine]
 system = 'linux'
 cpu_family = 'x86_64'
@@ -53,28 +99,39 @@ endian = 'little'
 [properties]
 needs_exe_wrapper = true
 CROSS
+
+if [[ ! -e /tmp/synapse-mesa-egl-cross.ini ]]; then
+	ln -s "$work/cross.ini" /tmp/synapse-mesa-egl-cross.ini
+fi
+
+[[ $(realpath /tmp/synapse-mesa-egl-cross.ini) == $(realpath "$work/cross.ini") ]]
 export LLVM_CONFIG="$work/llvm-config"
 c_args="-D_GNU_SOURCE -isystem $(gcc -print-file-name=include)"
 c_args+=" -idirafter $work/linux-headers/usr/include"
-options=(-Dbuildtype=release -Dplatforms= -Dgallium-drivers=softpipe,llvmpipe -Dvulkan-drivers= -Dglx=disabled
-	-Degl=disabled -Dgbm=disabled -Dosmesa=true -Dllvm=enabled -Dshared-llvm=enabled -Ddraw-use-llvm=true
+options=(-Dbuildtype=release -Dplatforms=wayland
+	-Dgallium-drivers=softpipe,llvmpipe,virgl -Dvulkan-drivers= -Dglx=disabled
+	-Degl=enabled -Dgbm=disabled -Dosmesa=true -Dllvm=enabled -Dshared-llvm=enabled -Ddraw-use-llvm=true
 	-Dshared-glapi=enabled -Dzlib=disabled -Dzstd=disabled -Dexpat=disabled -Dxmlconfig=disabled -Dvideo-codecs=
-	-Dgallium-va=disabled -Dgallium-vdpau=disabled -Dgallium-nine=false -Dgles1=disabled -Dgles2=disabled
+	-Dgallium-va=disabled -Dgallium-vdpau=disabled -Dgallium-nine=false -Dgles1=disabled -Dgles2=enabled
 	-Dshader-cache=disabled
 	"-Dc_args=$c_args"
 	"-Dcpp_args=-D_GNU_SOURCE -idirafter $work/linux-headers/usr/include")
 
-if [[ -f $work/build/build.ninja ]]; then
-	meson configure "$work/build" "${options[@]}"
+if [[ -f $work/egl-build/build.ninja ]]; then
+	meson configure "$work/egl-build" "${options[@]}"
 else
-	meson setup "$work/build" "$source" --cross-file "$work/cross.ini" --prefix=/usr --libdir=lib "${options[@]}"
+	meson setup "$work/egl-build" "$source" --cross-file "$work/cross.ini" --prefix=/usr --libdir=lib "${options[@]}"
 fi
 
-ninja -C "$work/build" -j"$JOBS"
-meson install -C "$work/build" --destdir "$work/stage"
+ninja -C "$work/egl-build" -j"$JOBS"
+meson install -C "$work/egl-build" --destdir "$work/stage"
 
-for file in libOSMesa.so.8 libglapi.so.0; do
+for file in libOSMesa.so.8 libglapi.so.0 libgallium-24.3.4.so libEGL.so.1 libGLESv2.so.2; do
 	copy "$work/stage/usr/lib/$file" "usr/lib/$file"
+done
+
+for file in libdrm.so.2 libudev.so.1 libwayland-server.so.0 libwayland-egl.so.1; do
+	copy "$work/wayland-sdk/usr/lib/$file" "usr/lib/$file"
 done
 
 for file in libgcc_s.so.1 libstdc++.so.6; do
@@ -90,6 +147,11 @@ copy "$BUILD_ROOT/openjdk/source/usr/lib/libz.so.1" usr/lib/libz.so.1
 
 for file in osmesa.h gl.h glext.h; do
 	copy "$source/include/GL/$file" "usr/include/GL/$file"
+done
+
+for directory in EGL GLES2 GLES3 KHR; do
+	mkdir -p "$payload/usr/include/$directory"
+	cp -rL "$work/stage/usr/include/$directory/." "$payload/usr/include/$directory/"
 done
 
 copy "$SDK/docs/user/opengl.md" usr/share/doc/mesa/README.md

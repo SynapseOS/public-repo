@@ -1,13 +1,14 @@
 {
   "format": 1,
   "name": "mesa",
-  "version": "24.3.4-r3",
-  "description": "Mesa software OpenGL / OSMesa llvmpipe and softpipe for SynapseOS",
+  "version": "24.3.4-r6",
+  "description": "Mesa OpenGL, EGL/Wayland, GLES, OSMesa and VirGL code for SynapseOS",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
-    "musl-runtime"
+    "musl-runtime",
+    "wayland-client"
   ],
   "conflicts": [],
   "files": [
