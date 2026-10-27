@@ -1,9 +1,12 @@
 // settings.h: Общие типы системных настроек
 // Автор: Елчинян Арен Артурович, 2026
+// Архитектура: x86_64, ABI: Linux (ELF64)
+//
 // Поля INI, результаты проверки и состояние редактора
 // Подсистема: пользовательские системные утилиты
-// Создан: 12.10.2026
-// Последнее изменение: 14.10.2026
+// Первое изменение в истории Git: 12.10.2026
+// Последнее изменение: 22.10.2026
+// Доступ: общедоступный
 
 #ifndef SYN_SETTINGS_H
 #define SYN_SETTINGS_H
@@ -11,23 +14,22 @@
 #include <stddef.h>
 #define SETTINGS_MAX 64
 #define SETTINGS_VALUE 256
-
 struct setting_spec {
-	const char *file, *section, *key, *en, *ru, *def, *choices, *effect;
-	int type, min, max;
+    const char *file, *section, *key, *en, *ru, *def, *choices, *effect;
+    int type, min, max;
 };
-
 enum { SET_TEXT, SET_BOOL, SET_CHOICE, SET_INT, SET_COLOR, SET_PATH };
 extern const struct setting_spec setting_specs[];
 extern const int setting_count;
-
+extern const int setting_public_count;
+#define DATA_CONSENT_VERSION "2026-10-20-v1"
+extern const char data_consent_text[];
 struct settings {
-	char root[512], values[SETTINGS_MAX][SETTINGS_VALUE];
-	unsigned long hashes[3];
-	bool exists[3], changed[SETTINGS_MAX], ru;
-	char error[256];
+    char root[512], values[SETTINGS_MAX][SETTINGS_VALUE];
+    unsigned long hashes[3];
+    bool exists[3], changed[SETTINGS_MAX], ru;
+    char error[256];
 };
-
 int settings_load(struct settings *s, const char *root);
 int settings_set(struct settings *s, int index, const char *value);
 int settings_save(struct settings *s);

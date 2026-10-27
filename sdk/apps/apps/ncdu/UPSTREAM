@@ -1,0 +1,4 @@
+ncdu 1.22
+Source: https://dev.yorhel.nl/download/ncdu-1.22.tar.gz
+License: see upstream/COPYING
+Static musl build with built-in ncurses terminal descriptions.

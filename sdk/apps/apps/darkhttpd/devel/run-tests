@@ -1,0 +1,268 @@
+#!/usr/bin/env bash
+#
+# Build a coverage-enabled darkhttpd, run unit tests and calculate coverage.
+#
+cd $(dirname $0)
+declare -r DIR=tmp.httpd.tests
+declare -r PORT=12346
+declare -r ADDR=127.0.0.1
+
+if [ ! -e test.py ]; then
+	echo "fatal: can't find test.py. are you in the right directory?" >&2
+	exit 1
+fi
+if [[ "$(id -u)" = 0 ]]; then
+	echo "fatal: tests cannot be run as root" >&2
+	exit 1
+fi
+if [[ -z "$CC" ]]; then
+  CC="$(which gcc)"
+fi
+if [[ -z "$CC" ]]; then
+  CC="$(which cc)"
+fi
+
+if [[ -z "$ASAN_OPTIONS" ]]; then
+  ASAN_OPTIONS="detect_leaks=1"
+fi
+
+if [[ -z "$PYTHON" ]]; then
+  PYTHON="python3"
+fi
+
+runtests() {
+  if [ -e $DIR ]; then
+    rm -rf $DIR || exit 1
+  fi
+  mkdir $DIR || exit 1
+  mkdir $DIR/\( || exit 1
+  mkdir $DIR/forbidden || exit 1
+  chmod 0 $DIR/forbidden || exit 1
+  mkdir $DIR/unreadable || exit 1
+  chmod 0100 $DIR/unreadable || exit 1
+  rm -f darkhttpd.gcda a-darkhttpd.gcda a-darkhttpd.gcno test.out.log test.out.stdout test.out.stderr
+
+  echo "===> run usage statement"
+  # Early exit if we can't even survive usage.
+  ./darkhttpd >/dev/null 2>>test.out.stderr || exit 1
+
+  echo "===> run test for binding to bogus address (IPv4)"
+  # Should exit immediately.
+  # Error is "Can't assign requested adddress" on FreeBSD and "Cannot assign requested address" on Linux.
+  ./darkhttpd $DIR --port $PORT --addr 8.8.8.8 2>&1 | grep -F "t assign requested address" > /dev/null || exit 1
+
+  echo "===> run test for binding to bogus address (IPv6)"
+  # Should exit immediately.
+  # Error is "Can't assign requested adddress" on FreeBSD and "Cannot assign requested address" on Linux.
+  ./darkhttpd $DIR --port $PORT --ipv6 --addr ::8888 2>&1 | grep -F "t assign requested address" > /dev/null || exit 1
+
+  echo "===> run test for binding to IPv4 when IPv6 requested"
+  # Should exit immediately.
+  ./darkhttpd $DIR --port $PORT --ipv6 --addr 127.0.0.1 2>&1 | grep -F "malformed --addr argument" > /dev/null || exit 1
+
+  echo "===> run tests against a basic instance (generates darkhttpd.gcda)"
+  ./darkhttpd $DIR --port $PORT --addr $ADDR --log test.out.log \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --log tests"
+  rm -f test_logging.log
+  ./darkhttpd $DIR --port $PORT --addr $ADDR --log test_logging.log \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_log.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --trusted-ip tests"
+  rm -f test_xff.log
+  ./darkhttpd $DIR --port $PORT --addr $ADDR --log test_xff.log --trusted-ip $ADDR \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_log_xff.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --forward tests"
+  ./darkhttpd $DIR --port $PORT --addr $ADDR \
+    --forward example.com http://www.example.com \
+    --forward secure.example.com https://www.example.com/secure \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_forward.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --forward-all tests"
+  ./darkhttpd $DIR --port $PORT --addr $ADDR \
+    --forward example.com http://www.example.com \
+    --forward-all http://catchall.example.com \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_forward_all.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --no-server-id tests"
+  ./darkhttpd $DIR --port $PORT --addr $ADDR --no-server-id \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_server_id.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run mimemap tests"
+  echo "test/type1 a1" > $DIR/mimemap
+  echo "test/this-gets-replaced  ap2" >> $DIR/mimemap
+  echo "# this is a comment" >> $DIR/mimemap
+  printf "test/type3\\tapp3\r\n" >> $DIR/mimemap
+  echo "test/type2  AP2" >> $DIR/mimemap
+  ./darkhttpd $DIR --port $PORT --addr $ADDR \
+    --mimetypes $DIR/mimemap \
+    --default-mimetype test/default \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_mimemap.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --no-listing tests"
+  ./darkhttpd $DIR --port $PORT --addr $ADDR --no-listing \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_no_listing.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --timeout tests"
+  ./darkhttpd $DIR --port $PORT --addr $ADDR --timeout 1 \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_timeout.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --auth tests"
+  # Wrong flags:
+  ./darkhttpd . --auth >/dev/null 2>/dev/null
+  ./darkhttpd . --auth missing_colon >/dev/null 2>/dev/null
+  # Correct flags:
+  ./darkhttpd $DIR --port $PORT --addr $ADDR --auth myuser:mypass \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_auth.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --header tests"
+  # Wrong flags:
+  ./darkhttpd . --header >/dev/null 2>/dev/null
+  ./darkhttpd . --header missing_colon >/dev/null 2>/dev/null
+  ./darkhttpd . --header $'X-Header: Abusive\r\n\r\nBody' >/dev/null 2>/dev/null
+  # Correct flags:
+  ./darkhttpd $DIR --port $PORT --addr $ADDR \
+    --header 'X-Header-A: First Value' --header 'X-Header-B: Second Value' \
+    --forward example.com http://www.example.com \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_custom_headers.py || exit 1
+  kill $PID
+  wait $PID
+
+  echo "===> run --forward-https tests"
+  ./darkhttpd $DIR --port $PORT --addr $ADDR --forward-https \
+    >>test.out.stdout 2>>test.out.stderr &
+  PID=$!
+  kill -0 $PID || exit 1
+  $PYTHON test_forward_https.py || exit 1
+  kill $PID
+  wait $PID
+
+  if [[ -s test.out.stderr ]]; then
+    echo "FAIL: stderr should have been empty."
+    exit 1
+  fi
+}
+
+# --- main ---
+
+# Unit tests.
+echo "===> test_make_safe_uri"
+if ./test_make_safe_uri | grep -E '^FAIL:'; then
+  echo test_make_safe_uri failed >&2
+  exit 1
+fi
+
+echo "===> test_password_equal"
+if ./test_password_equal | grep -E '^FAIL:'; then
+  echo test_password_equal failed >&2
+  exit 1
+fi
+
+echo "===> test_normalize_path"
+if ./test_normalize_path | grep -E '^FAIL:'; then
+  echo test_normalize_path failed >&2
+  exit 1
+fi
+
+echo "===> test_parse_field"
+if ./test_parse_field | grep ':FAIL:'; then
+  echo test_parse_field failed >&2
+  exit 1
+fi
+
+# Do coverage and sanitizers.
+# In the case of an error being found:
+# -fsanitize=undefined produces stderr.
+# -fsanitize=address produces stderr and crashes.
+# -fsanitize=memory produces stderr and crashes.
+
+# msan disabled due to issues with dlent.
+## if [[ -z "$CLANG" ]]; then
+##   CLANG="$(which clang)"
+## fi
+## if ! $CLANG -v 2>/dev/null; then
+##   echo "***WARNING*** Can't find clang."
+##   echo "Skipping memory sanitizer. Try setting the \$CLANG env var."
+## else
+##   echo "===> building a.out for msan"
+##   $CLANG -g -O2 -fsanitize=memory -DDEBUG -DAPBUF_INIT=1 \
+##     ../darkhttpd.c || exit 1
+##   (runtests) || {
+##     echo "FAILED! stderr was:"
+##     echo "---"
+##     cat test.out.stderr
+##     echo "---"
+##     exit 1
+##   }
+## fi
+
+# asan and coverage.
+(export ASAN_OPTIONS; runtests) || {
+  echo "FAILED! stderr was:"
+  echo "---"
+  cat test.out.stderr
+  echo "---"
+  exit 1
+}
+echo "===> generating report"
+gcov darkhttpd
+chmod 755 $DIR/forbidden
+chmod 755 $DIR/unreadable
+rm -rf $DIR
+echo "===> PASSED!"
+echo "===> read the report: less darkhttpd.c.gcov"

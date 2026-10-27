@@ -5,6 +5,6 @@ COMMON := ../common/settings
 all: $(OUTPUT_DIR)/settings
 $(OUTPUT_DIR)/settings: settings.c $(COMMON)/settings.c $(COMMON)/settings.h
 	mkdir -p $(OUTPUT_DIR)
-	$(CC) -O2 -Wall -Wextra settings.c $(COMMON)/settings.c -o $@
+	$(CC) -O2 -Wall -Wextra -Werror -I$(abspath ../../../include) settings.c $(COMMON)/settings.c -o $@
 clean:
 	rm -f $(OUTPUT_DIR)/settings

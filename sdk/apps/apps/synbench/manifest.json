@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "name": "synbench",
+  "version": "2.0.0-r2",
+  "description": "Host and guest resource measurements, HTTP/HTTPS transfers and Qwen3 CPU inference",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["kernel >= 0.1.726-r1", "curl >= 8.22.0-r4"],
+  "conflicts": [],
+  "files": [
+    {"path": "bin/synbench", "type": "file", "mode": 493, "config": false},
+    {"path": "bin/synbench-workload", "type": "file", "mode": 493, "config": false},
+    {"path": "bin/synbench-qwen", "type": "file", "mode": 493, "config": false},
+    {"path": "usr/share/synbench/host.py", "type": "file", "mode": 420, "config": false},
+    {"path": "usr/share/synbench/metrics.py", "type": "file", "mode": 420, "config": false},
+    {"path": "usr/share/synbench/recording.py", "type": "file", "mode": 420, "config": false},
+    {"path": "usr/share/licenses/synbench/qwen3-c-LICENSE", "type": "file", "mode": 420, "config": false},
+    {"path": "usr/share/licenses/synbench/musl-COPYRIGHT", "type": "file", "mode": 420, "config": false}
+  ]
+}

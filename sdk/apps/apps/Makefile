@@ -76,7 +76,7 @@ lua/: musl-shared
 .PHONY: tls
 tls:
 	$(MAKE) -C common/mbedtls
-https/ httpsd/ setup/ links/: tls
+https/ httpsd/ setup/ links/ monitoring/: tls
 
 $(APP_DIRS):
 	@echo "=== Building $@ ==="

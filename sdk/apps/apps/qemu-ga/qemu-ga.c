@@ -1,8 +1,14 @@
-// qemu-ga.c: Гостевой агент QEMU
-// Автор: Елчинян Арен Артурович, 2026
-// Подсистема: Гостевой агент QEMU в пользовательском пространстве
-// Создан: 11.10.2026
-// Последнее изменение: 14.10.2026
+/*
+    qemu-ga.c: Гостевой агент QEMU
+    Автор: Елчинян Арен Артурович 2026
+    Архитектура: x86_64, ABI: пользовательский Linux ABI
+
+    Описание: Обработка запросов QEMU через VirtIO или последовательный порт
+    Подсистема: гостевой агент
+    Первое изменение: 11.10.2026
+    Последнее изменение: 25.10.2026
+    Доступ: общедоступный
+*/
 
 #include "json.h"
 #include <errno.h>
@@ -899,6 +905,7 @@ static void handle_frame(size_t len) {
 	send_response( );
 }
 
+// Обслуживать команды хоста и вывод запущенных процессов
 int main(int argc, char **argv) {
 	const char *path = "/dev/virtio-ports/org.qemu.guest_agent.0", *method = "virtio-serial";
 	int stdio_mode = 0;
@@ -970,9 +977,31 @@ int main(int argc, char **argv) {
 	log_msg("%s ready", VERSION);
 	size_t len = 0;
 	int depth = 0, in_string = 0, escape = 0, discard = 0;
+	int transport_nonblocking = 1;
 
 	for (;;) {
 		pump_exec( );
+		int running = 0;
+
+		for (int j = 0; j < EXEC_MAX; ++j) {
+			if (processes[j].pid && !processes[j].exited) {
+				running = 1;
+				break;
+			}
+		}
+
+		if (running != transport_nonblocking) {
+			int flags = fcntl(transport_in, F_GETFL);
+
+			if (flags >= 0) {
+				int desired = running ? flags | O_NONBLOCK : flags & ~O_NONBLOCK;
+
+				if (fcntl(transport_in, F_SETFL, desired) == 0) {
+					transport_nonblocking = running;
+				}
+			}
+		}
+
 		unsigned char input[4096];
 		ssize_t n = read(transport_in, input, sizeof(input));
 
@@ -984,15 +1013,6 @@ int main(int argc, char **argv) {
 			if (n < 0 && errno != EAGAIN && errno != EINTR) {
 				log_msg("Read failed: %s", strerror(errno));
 				return 1;
-			}
-
-			int running = 0;
-
-			for (int j = 0; j < EXEC_MAX; ++j) {
-				if (processes[j].pid && !processes[j].exited) {
-					running = 1;
-					break;
-				}
 			}
 
 			usleep(running ? 10000 : 100000);

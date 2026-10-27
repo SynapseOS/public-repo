@@ -1,0 +1,12 @@
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR x86_64)
+get_filename_component(PORT_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(CMAKE_C_COMPILER "${PORT_ROOT}/common/musl-cc")
+# Only Linux UAPI headers are needed beyond musl; optional desktop libs are off.
+execute_process(COMMAND gcc -print-file-name=include OUTPUT_VARIABLE GCC_HEADERS OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(CMAKE_C_FLAGS "-isystem ${GCC_HEADERS} -D_GNU_SOURCE -idirafter /usr/include -idirafter /usr/include/x86_64-linux-gnu -Wno-error" CACHE STRING "SynapseOS musl flags" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-static -no-pie")
+set(CMAKE_FIND_ROOT_PATH "${PORT_ROOT}/../musl")
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)

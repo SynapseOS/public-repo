@@ -1,0 +1,5 @@
+nano 8.7
+Source: https://www.nano-editor.org/dist/v8/nano-8.7.tar.xz
+License: see upstream/COPYING
+Static musl build with built-in ncurses terminal descriptions.
+Linux virtual-console ioctls disabled for SynapseOS.

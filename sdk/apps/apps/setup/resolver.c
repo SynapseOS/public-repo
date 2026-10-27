@@ -5,7 +5,7 @@
 // Построение плана установки с учётом конфликтов и установленных версий
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 23.10.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -244,22 +244,23 @@ static int search(void) {
     }
 
     char missing[64] = "";
-    for (int i = 0; i < nrequest; i++) {
-        if (lookup(requests[i].name) < 0) {
-            strcpy(missing, requests[i].name);
-            break;
+    for (int i = 0; i < nselected && !*missing; i++) {
+        for (int d = 0; d < selected[i]->ndep; d++) {
+            char name[64];
+            const char *c;
+            dependency(selected[i]->dep[d], name, &c);
+            if (lookup(name) < 0) {
+                strcpy(missing, name);
+                break;
+            }
         }
     }
+
     if (!*missing) {
-        for (int i = 0; i < nselected && !*missing; i++) {
-            for (int d = 0; d < selected[i]->ndep; d++) {
-                char name[64];
-                const char *c;
-                dependency(selected[i]->dep[d], name, &c);
-                if (lookup(name) < 0) {
-                    strcpy(missing, name);
-                    break;
-                }
+        for (int i = 0; i < nrequest; i++) {
+            if (lookup(requests[i].name) < 0) {
+                strcpy(missing, requests[i].name);
+                break;
             }
         }
     }

@@ -5,7 +5,7 @@
 // Работа с путями, метаданными, JSON и контрольными суммами
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 27.10.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -414,7 +414,8 @@ struct package *parse_package(struct json *j, int t) {
         char type[32];
         jstr(j, k, "type", type, sizeof type);
         if (!safe_path(f->path) ||
-            (strncmp(f->path, "bin/", 4) && strncmp(f->path, "lib/", 4) &&
+            (strncmp(f->path, "bin/", 4) && strncmp(f->path, "usr/bin/", 8) &&
+             strncmp(f->path, "lib/", 4) &&
              strncmp(f->path, "usr/share/", 10) && strncmp(f->path, "usr/lib/", 8) &&
              strncmp(f->path, "usr/include/", 12) &&
              strncmp(f->path, "usr/libexec/", 12) && strncmp(f->path, "etc/", 4))) {
