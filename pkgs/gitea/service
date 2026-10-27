@@ -1,0 +1,6 @@
+# service: Запустить Gitea после явного включения администратором
+# Автор: Елчинян Арен Артурович, 2026, x86_64, Linux amd64 ABI
+# Подсистема: сервер Git
+# Первое изменение: 23.10.2026, последнее изменение: 23.10.2026
+# Статус доступа: общедоступный
+exec /bin/env GITEA_I_AM_BEING_UNSAFE_RUNNING_AS_ROOT=true /bin/gitea -w /var/lib/gitea -c /etc/gitea/app.ini

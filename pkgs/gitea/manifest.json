@@ -1,0 +1,34 @@
+{
+  "format": 1,
+  "name": "gitea",
+  "version": "28.2.0-r4",
+  "description": "Gitea Git server from the upstream static release",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.948-r1",
+    "git >= 2.56.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/gitea",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/gitea/app.ini",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/services/gitea",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    }
+  ]
+}

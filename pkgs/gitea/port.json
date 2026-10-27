@@ -1,0 +1,9 @@
+{
+  "name": "gitea",
+  "version": "28.2.0-r1",
+  "source": "https://github.com/go-gitea/gitea/archive/refs/tags/v28.2.0.tar.gz",
+  "sha256": "08f602f6c17c4e74747302aba860a8093f98f1e5310261ec362a5f1221a5da0f",
+  "source_directory": "gitea-28.2.0",
+  "patches": [],
+  "build_system": "recipe"
+}
