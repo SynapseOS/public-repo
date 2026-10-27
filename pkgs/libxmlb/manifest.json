@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "libxmlb",
+  "version": "0.3.29-r1",
+  "description": "Binary XML metadata library for AppStream",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "glib-gio >= 2.84.4-r3",
+    "liblzma >= 5.8.3-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}
