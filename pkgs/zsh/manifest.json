@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "name": "zsh",
+  "version": "5.9.2-r2",
+  "description": "Z shell with line editing, history and completion",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/zsh",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    }
+  ]
+}

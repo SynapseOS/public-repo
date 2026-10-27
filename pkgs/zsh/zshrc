@@ -1,0 +1,21 @@
+# zshrc: настройки интерактивной оболочки SynapseOS
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: x86_64, ABI: synapse-x86_64-v1
+# Описание: приглашение, история и дополнение команд
+# Подсистема: пользовательская оболочка
+# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Статус доступа: общедоступный
+
+if [[ -o interactive ]]; then
+    HISTFILE=${HOME:-/root}/.zsh_history
+    HISTSIZE=5000
+    SAVEHIST=5000
+
+    setopt APPEND_HISTORY HIST_IGNORE_DUPS AUTO_LIST CORRECT
+    bindkey -e
+
+    autoload -Uz compinit
+    compinit -D
+
+    PROMPT='%F{green}%~%f %# '
+fi
