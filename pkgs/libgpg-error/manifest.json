@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "libgpg-error",
+  "version": "1.61.0-r1",
+  "description": "GnuPG error code library for Flatpak signatures",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
