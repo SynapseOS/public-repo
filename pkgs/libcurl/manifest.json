@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "name": "libcurl",
+  "version": "8.22.0-r1",
+  "description": "HTTP client library for OSTree",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "openssl >= 3.5.9-r6"
+  ],
+  "conflicts": [],
+  "files": []
+}
