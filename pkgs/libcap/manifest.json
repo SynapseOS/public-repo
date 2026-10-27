@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "libcap",
+  "version": "2.78.0-r1",
+  "description": "Capability library for Bubblewrap",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}

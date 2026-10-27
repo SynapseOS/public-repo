@@ -1,0 +1,10 @@
+{
+  "name": "libcap",
+  "version": "2.78.0-r1",
+  "source": "https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-2.78.tar.xz",
+  "sha256": "0d621e562fd932ccf67b9660fb018e468a683d7b827541df27813228c996bb11",
+  "source_directory": "libcap-2.78",
+  "patches": [],
+  "license": "BSD-3-Clause OR GPL-2.0-only",
+  "build_system": "recipe"
+}
