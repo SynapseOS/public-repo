@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "liblzma",
+  "version": "5.8.3-r1",
+  "description": "LZMA and XZ compression library for OSTree",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
