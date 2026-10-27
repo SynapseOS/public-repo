@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "mindustry",
-  "version": "160.7.0-r7",
+  "version": "160.7.0-r8",
   "description": "Mindustry v160.7 server and desktop client",
   "kind": "application",
   "arch": "x86_64",

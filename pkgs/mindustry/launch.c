@@ -6,7 +6,7 @@
     Описание: Подготовка каталогов, Java и библиотек клиента SynapseOS
     Подсистема: пакет Mindustry
     Первое изменение: 17.10.2026
-    Последнее изменение: 17.10.2026
+    Последнее изменение: 23.10.2026
 */
 
 #define _GNU_SOURCE
@@ -72,7 +72,9 @@ int main(int argc, char **argv) {
 			args[n++] = "-XX:+UseSerialGC";
 		}
 
-		if (setenv("SDL_VIDEODRIVER", "synapse", 1) != 0 || setenv("LP_NUM_THREADS", "2", 0) != 0) {
+		if (setenv("SDL_VIDEODRIVER", "synapse", 1) != 0 ||
+		    setenv("LP_NUM_THREADS", "2", 0) != 0 ||
+		    setenv("SYNAPSE_HUD", "0", 0) != 0) {
 			perror("Mindustry environment");
 			free(args);
 			return 1;
