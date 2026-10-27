@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "libffi",
+  "version": "3.8.0-r1",
+  "description": "Foreign function interface library for GObject",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
