@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "name": "json-glib",
+  "version": "1.10.8-r1",
+  "description": "JSON library for Flatpak dependencies",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "glib-gio >= 2.84.4-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}

@@ -1,0 +1,10 @@
+{
+  "name": "json-glib",
+  "version": "1.10.8-r1",
+  "source": "https://download.gnome.org/sources/json-glib/1.10/json-glib-1.10.8.tar.xz",
+  "sha256": "55c5c141a564245b8f8fbe7698663c87a45a7333c2a2c56f06f811ab73b212dd",
+  "source_directory": "json-glib-1.10.8",
+  "patches": [],
+  "license": "LGPL-2.1-or-later",
+  "build_system": "recipe"
+}
