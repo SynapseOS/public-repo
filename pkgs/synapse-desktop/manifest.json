@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "name": "synapse-desktop",
+  "version": "0.1.0-r6",
+  "description": "SynapseOS application menu and graphical control center",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "dbus",
+    "qt6-base",
+    "qt6-wayland",
+    "weston",
+    "synapse-files"
+  ],
+  "conflicts": [],
+  "files": []
+}
