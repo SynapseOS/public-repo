@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "name": "pci-ids",
+  "version": "2025.06.09-r1",
+  "description": "PCI vendor and device names for hardware detection",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/share/hwdata/pci.ids",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/pci-ids/musl-COPYRIGHT",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

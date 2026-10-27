@@ -1,0 +1,8 @@
+{
+  "name": "pci-ids",
+  "upstream": "https://pci-ids.ucw.cz/",
+  "snapshot": "2025.06.09",
+  "sha256": "3b5b98dcbe3e42011c4c1a61897a8e82edde3865ce97f0da00b63e38324ce916",
+  "license": "GPL-2.0-or-later OR BSD-3-Clause",
+  "build_system": "recipe"
+}
