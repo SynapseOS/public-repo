@@ -1,0 +1,6 @@
+# service: Запустить Prometheus с постоянным хранилищем
+# Автор: Елчинян Арен Артурович, 2026, x86_64, Linux amd64 ABI
+# Подсистема: мониторинг
+# Первое изменение: 23.10.2026, последнее изменение: 23.10.2026
+# Статус доступа: общедоступный
+exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/var/lib/prometheus

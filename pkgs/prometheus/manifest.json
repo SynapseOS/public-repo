@@ -1,0 +1,34 @@
+{
+  "format": 1,
+  "name": "prometheus",
+  "version": "3.14.0-r3",
+  "description": "Prometheus server with embedded web interface from the upstream release",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.948-r1",
+    "synapse-exporter >= 1.0.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/prometheus",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/prometheus/prometheus.yml",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/services/prometheus",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    }
+  ]
+}

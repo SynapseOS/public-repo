@@ -1,0 +1,9 @@
+{
+  "name": "prometheus",
+  "version": "3.14.0-r1",
+  "source": "https://github.com/prometheus/prometheus/releases/download/v3.14.0/prometheus-3.14.0.linux-amd64.tar.gz",
+  "sha256": "f665c6da19eb7ba399c915d30c7d9793c9b417bf8a749b504bc470678631478d",
+  "source_directory": "prometheus-3.14.0.linux-amd64",
+  "patches": [],
+  "build_system": "recipe"
+}
