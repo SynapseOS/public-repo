@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "expat",
+  "version": "2.9.0-r1",
+  "description": "XML parser for the D-Bus message bus",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
