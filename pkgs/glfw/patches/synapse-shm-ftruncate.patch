@@ -1,0 +1,18 @@
+--- a/src/wl_window.c
++++ b/src/wl_window.c
+@@ -132,7 +132,14 @@ static int createAnonymousFile(off_t size)
+     // posix_fallocate does not work on SHM descriptors
+     ret = ftruncate(fd, size);
+ #else
+-    ret = posix_fallocate(fd, 0, size);
++    if (ftruncate(fd, size) == 0)
++    {
++        ret = 0;
++    }
++    else
++    {
++        ret = errno;
++    }
+ #endif
+     if (ret != 0)
+     {

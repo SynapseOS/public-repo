@@ -1,0 +1,10 @@
+{
+  "version": "3.4.0-r1",
+  "source": "https://codeload.github.com/glfw/glfw/tar.gz/refs/tags/3.4",
+  "sha256": "c038d34200234d071fae9345bc455e4a8f2f544ab60150765d7704e08f3dac01",
+  "source_directory": "glfw-3.4",
+  "patches": [
+    "patches/synapse-shm-ftruncate.patch"
+  ],
+  "build_system": "recipe"
+}
