@@ -1,0 +1,10 @@
+{
+  "name": "libpng",
+  "version": "1.6.59-r1",
+  "source": "https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.xz",
+  "sha256": "d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389",
+  "source_directory": "libpng-1.6.59",
+  "patches": [],
+  "license": "Libpng",
+  "build_system": "recipe"
+}
