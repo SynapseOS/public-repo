@@ -1,7 +1,7 @@
-// launch.c: подготовить окружение Qt и AyuGram для Weston
+// launch.c: подготовить окружение Qt для Weston
 // Автор: Елчинян Арен Артурович, 2026, архитектура x86_64, ABI musl и Linux
 // Подсистема: графические пакеты
-// Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+// Первое изменение: 18.10.2026, последнее изменение: 27.10.2026
 // Статус доступа: общедоступный, MIT
 #include <errno.h>
 #include <stdio.h>
@@ -47,14 +47,14 @@ int main(int argc, char **argv) {
 	}
 
 	if (setenv("LD_LIBRARY_PATH",
-	           "/usr/lib/ayugram/runtime:/usr/lib/qt6/runtime:"
+	           "/usr/lib/qt6/runtime:"
 	           "/usr/lib/qt6/llvm:/usr/lib/weston/runtime:/usr/lib",
 	           1) != 0 ||
 	    default_environment("QT_PLUGIN_PATH", "/usr/lib/qt6/plugins") != 0 ||
 	    default_environment("QT_QPA_PLATFORM", "wayland") != 0 ||
 	    default_environment("QT_QUICK_BACKEND", "software") != 0 ||
 	    default_environment("QT_OPENGL", "software") != 0 ||
-	    default_environment("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION", "shm") != 0 ||
+	    default_environment("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION", "wayland-egl") != 0 ||
 	    default_environment("WAYLAND_DISPLAY", "wayland-1") != 0 ||
 	    default_environment("XCURSOR_THEME", "breeze_cursors") != 0 ||
 	    default_environment("XCURSOR_SIZE", "32") != 0) {

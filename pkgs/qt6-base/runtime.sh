@@ -1,7 +1,7 @@
 # runtime.sh: загрузка закреплённых библиотек для первого этапа порта Qt
 # Автор: Елчинян Арен Артурович, 2026, архитектура x86_64, ABI musl и Linux
 # Подсистема: графические пакеты
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 23.10.2026
 # Статус доступа: общедоступный, MIT
 
 # Распаковать только данные пакетов, не выполняя установочные сценарии Alpine
@@ -45,6 +45,8 @@ qt_runtime_dependencies() {
 		"$work/stage/usr/lib/libproxy" "$work/stage/usr/lib/llvm20/lib" \
 		"$BUILD_ROOT/qt6-base/payload/usr/lib/qt6/runtime" \
 		"$BUILD_ROOT/qt6-llvm-runtime/payload/usr/lib/qt6/llvm" \
+		"$BUILD_ROOT/mesa/payload/usr/lib" \
+		"$BUILD_ROOT/opengl/payload/usr/lib" \
 		"$BUILD_ROOT/weston/payload/usr/lib/weston/runtime"
 }
 
@@ -64,6 +66,15 @@ qt_remove_provided() {
 			fi
 		fi
 	done < <(find "$directory" -maxdepth 1 -type f -print0)
+}
+
+# Использовать общую библиотеку окна Wayland
+qt_use_system_wayland_egl() {
+	local directory=$1
+
+	if [[ -f $directory/libwayland-egl.so.1 ]]; then
+		rm -- "$directory/libwayland-egl.so.1"
+	fi
 }
 
 # Сохранить сведения об источнике, лицензиях и сборке использованных APK

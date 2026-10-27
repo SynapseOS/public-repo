@@ -1,11 +1,14 @@
 // smoke.cpp: проверка окна, русского ввода и таймера Qt в SynapseOS
 // Автор: Елчинян Арен Артурович, 2026, архитектура x86_64, ABI musl и Linux
 // Подсистема: графические пакеты
-// Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+// Первое изменение: 18.10.2026, последнее изменение: 23.10.2026
 // Статус доступа: общедоступный, MIT
 #include <QApplication>
 #include <QLabel>
 #include <QLineEdit>
+#include <QOffscreenSurface>
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -44,13 +47,45 @@ int main(int argc, char **argv) {
 	window.setWindowTitle(QString::fromUtf8("SynapseOS Qt smoke test"));
 	window.resize(640, 260);
 	window.show( );
+	const bool egl_test = application.arguments( ).contains(QStringLiteral("--egl-test"));
+	std::atomic<bool> egl_ok{ false };
+
+	if (egl_test) {
+		QTimer::singleShot(300, &application, [&egl_ok]( ) {
+			QOpenGLContext context;
+			QOffscreenSurface surface;
+
+			surface.create( );
+
+			if (!surface.isValid( ) || !context.create( ) || !context.makeCurrent(&surface)) {
+				std::puts("QT_EGL_FAIL context");
+				std::fflush(stdout);
+				return;
+			}
+
+			const GLubyte *renderer = context.functions( )->glGetString(GL_RENDERER);
+
+			if (renderer == nullptr) {
+				std::puts("QT_EGL_FAIL renderer");
+				std::fflush(stdout);
+				context.doneCurrent( );
+				return;
+			}
+
+			std::printf("QT_EGL_PASS renderer=%s\n", reinterpret_cast<const char *>(renderer));
+			std::fflush(stdout);
+			egl_ok.store(true);
+			context.doneCurrent( );
+		});
+	}
+
 	std::printf("QT_SMOKE_STARTED Qt=%s platform=%s\n", qVersion( ),
 	            qPrintable(QGuiApplication::platformName( )));
 	std::fflush(stdout);
 
 	if (application.arguments( ).contains(QStringLiteral("--self-test"))) {
-		QTimer::singleShot(1500, &application, [&application]( ) {
-			if (painting_failed.load( )) {
+		QTimer::singleShot(1500, &application, [&application, &egl_ok, egl_test]( ) {
+			if (painting_failed.load( ) || (egl_test && !egl_ok.load( ))) {
 				std::puts("QT_SMOKE_FAIL");
 				application.exit(1);
 				return;

@@ -1,7 +1,7 @@
 # recipe.sh: подготовить musl Qt и собрать проверку Qt Widgets
 # Автор: Елчинян Арен Артурович, 2026, архитектура x86_64, ABI musl и Linux
 # Подсистема: графические пакеты
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 23.10.2026
 # Статус доступа: общедоступный, MIT
 
 source "$port/runtime.sh"
@@ -31,9 +31,11 @@ mkdir -p "$payload/usr/share/fonts"
 cp -rL "$work/stage/usr/share/fonts/opensans" "$payload/usr/share/fonts/"
 qt_runtime_dependencies usr/lib/qt6/runtime
 qt_remove_provided "$payload/usr/lib/qt6/runtime" "$BUILD_ROOT/qt6-llvm-runtime/payload/usr/lib/qt6/llvm"
+qt_use_system_wayland_egl "$payload/usr/lib/qt6/runtime"
 ln -sfn "$SDK/apps/musl/lib/libc.so" "$work/stage/usr/lib/libc.musl-x86_64.so.1"
 probe="$work/stage"
 cppflags=(-std=c++20 -O2 -Wall -Wextra -Werror
+	-I"$BUILD_ROOT/mesa/payload/usr/include"
 	-I"$probe/usr/include/qt6" -I"$probe/usr/include/qt6/QtWidgets"
 	-I"$probe/usr/include/qt6/QtGui" -I"$probe/usr/include/qt6/QtCore")
 linkpaths="$payload/usr/lib/qt6/runtime:$BUILD_ROOT/qt6-llvm-runtime/payload/usr/lib/qt6/llvm"
@@ -41,7 +43,7 @@ linkpaths+=":$probe/usr/lib:$probe/usr/lib/libproxy:$BUILD_ROOT/weston/payload/u
 mkdir -p "$payload/usr/libexec/qt6"
 bash "$ROOT/build/cxx-shared.sh" "${cppflags[@]}" "$port/smoke.cpp" \
 	-L"$probe/usr/lib" -Wl,-rpath-link,"$linkpaths" -Wl,--no-allow-shlib-undefined \
-	-lQt6Widgets -lQt6Gui -lQt6Core -lQt6DBus -o "$payload/usr/libexec/qt6/qt6-smoke"
+	-lQt6Widgets -lQt6Gui -lQt6OpenGL -lQt6Core -lQt6DBus -o "$payload/usr/libexec/qt6/qt6-smoke"
 "$CC" -O2 -Wall -Wextra -Werror -Wl,--build-id=none "$port/launch.c" -o "$payload/bin/qt6-smoke"
 
 for test in shm-probe local-socket-probe wait-probe; do
