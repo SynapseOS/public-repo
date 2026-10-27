@@ -1,0 +1,43 @@
+--- a/meson.build
++++ b/meson.build
+@@ -2233,7 +2233,7 @@
+ ]
+ 
+ # Pick up pcre from the system, or if "--force-fallback-for libpcre2-8" was specified
+-pcre2 = dependency('libpcre2-8', version: pcre2_req, required: false, default_options: pcre2_options)
++pcre2 = cc.find_library('pcre2-8')
+ if not pcre2.found()
+   if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
+   # MSVC: Search for the PCRE2 library by the configuration, which corresponds
+@@ -2275,9 +2275,9 @@
+ gvdb_dep = dependency('gvdb')
+ 
+ libm = cc.find_library('m', required : false)
+-libffi_dep = dependency('libffi', version : '>= 3.0.0')
++libffi_dep = cc.find_library('ffi')
+ 
+-libz_dep = dependency('zlib')
++libz_dep = cc.find_library('z')
+ 
+ libatomic_test_code = '''
+   int main (int argc, char ** argv) {
+@@ -2691,8 +2691,8 @@
+ subdir('gthread')
+ subdir('gmodule')
+ subdir('gio')
+-subdir('girepository')
+-subdir('fuzzing')
++# Synapse: omit girepository
++# Synapse: omit fuzzing
+ if get_option('tests')
+   subdir('tests')
+ endif
+@@ -2735,7 +2735,7 @@
+ rst2html5 = find_program('rst2html5', 'rst2html5.py', required: get_option('documentation'))
+ 
+ gnome = import('gnome')
+-subdir('docs/reference')
++# Synapse: omit docs/reference
+ 
+ summary({
+   'host cpu' : host_machine.cpu_family(),
