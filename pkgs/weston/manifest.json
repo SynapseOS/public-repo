@@ -1,18 +1,25 @@
 {
   "format": 1,
   "name": "weston",
-  "version": "13.0.3-r2",
+  "version": "13.0.3-r20",
   "description": "Weston compositor with SynapseOS framebuffer and input backend",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
     "musl-runtime",
+    "mesa",
     "kernel >= 0.1.907-r1",
     "xkeyboard-config >= 2.43.0-r1"
   ],
   "conflicts": [],
   "files": [
+    {
+      "path": "bin/weston-screenshooter",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
     {
       "path": "bin/weston",
       "type": "file",
@@ -270,6 +277,18 @@
       "type": "file",
       "mode": 420,
       "config": true
+    },
+    {
+      "path": "usr/lib/libdecor-0.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/libdecor/plugins-1/libdecor-cairo.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
     },
     {
       "path": "usr/lib/libweston-13/synapse-backend.so",
@@ -2859,6 +2878,12 @@
     },
     {
       "path": "usr/share/licenses/docbook-xsl/COPYING",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/libdecor/LICENSE",
       "type": "file",
       "mode": 420,
       "config": false

@@ -1,0 +1,43 @@
+--- a/clients/desktop-shell.c
++++ b/clients/desktop-shell.c
+@@ -767,6 +767,7 @@
+ 	return panel;
+ }
+ 
++// Загрузить значок панели и уменьшить крупное изображение
+ static cairo_surface_t *
+ load_icon_or_fallback(const char *icon)
+ {
+@@ -775,8 +776,31 @@
+ 	cairo_t *cr;
+ 
+ 	status = cairo_surface_status(surface);
+-	if (status == CAIRO_STATUS_SUCCESS)
++	if (status == CAIRO_STATUS_SUCCESS) {
++		int width = cairo_image_surface_get_width(surface);
++		int height = cairo_image_surface_get_height(surface);
++
++		if (width <= 24 && height <= 24) {
++			return surface;
++		}
++
++		cairo_surface_t *scaled = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 24, 24);
++
++		if (cairo_surface_status(scaled) == CAIRO_STATUS_SUCCESS) {
++			double ratio = width > height ? 24.0 / width : 24.0 / height;
++			cr = cairo_create(scaled);
++			cairo_translate(cr, (24.0 - width * ratio) / 2, (24.0 - height * ratio) / 2);
++			cairo_scale(cr, ratio, ratio);
++			cairo_set_source_surface(cr, surface, 0, 0);
++			cairo_paint(cr);
++			cairo_destroy(cr);
++			cairo_surface_destroy(surface);
++			return scaled;
++		}
++
++		cairo_surface_destroy(scaled);
+ 		return surface;
++	}
+ 
+ 	cairo_surface_destroy(surface);
+ 	fprintf(stderr, "ERROR loading icon from file '%s', error: '%s'\n",

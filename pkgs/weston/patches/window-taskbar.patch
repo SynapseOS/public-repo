@@ -1,0 +1,257 @@
+--- a/desktop-shell/shell.c
++++ b/desktop-shell/shell.c
+@@ -146,6 +146,7 @@
+ 	bool destroying;
+ 	bool minimized;
+ 	uint32_t task_id;
++	char *task_title;
+ 	struct wl_list link;	/** desktop_shell::shsurf_list */
+ };
+ 
+@@ -339,6 +340,7 @@
+ 		shsurf->output_destroy_listener.notify = NULL;
+ 	}
+ 
++	free(shsurf->task_title);
+ 	free(shsurf);
+ }
+ 
+@@ -1780,6 +1782,37 @@
+ 	}
+ }
+ 
++// Обновить название окна на панели только при его изменении
++static void
++shell_surface_publish_task(struct shell_surface *shsurf)
++{
++	const char *title;
++	char *copy;
++
++	if (!shsurf->shell->child.desktop_shell || !shsurf->desktop_surface) {
++		return;
++	}
++
++	title = weston_desktop_surface_get_title(shsurf->desktop_surface);
++	if (!title || !title[0]) {
++		title = "Window";
++	}
++
++	if (shsurf->task_title && strcmp(shsurf->task_title, title) == 0) {
++		return;
++	}
++
++	copy = strdup(title);
++	if (!copy) {
++		return;
++	}
++
++	free(shsurf->task_title);
++	shsurf->task_title = copy;
++	weston_desktop_shell_send_minimized(shsurf->shell->child.desktop_shell,
++					   shsurf->task_id, title);
++}
++
+ static void
+ set_minimized(struct weston_surface *surface)
+ {
+@@ -1808,11 +1841,6 @@
+ 
+ 	shell_surface_update_child_surface_layers(shsurf);
+ 	shsurf->minimized = true;
+-	if (shsurf->shell->child.desktop_shell) {
+-		const char *title = weston_desktop_surface_get_title(shsurf->desktop_surface);
+-		weston_desktop_shell_send_minimized(shsurf->shell->child.desktop_shell,
+-					   shsurf->task_id, title ? title : "Window");
+-	}
+ }
+ 
+ 
+@@ -2154,7 +2182,7 @@
+ 
+ 	if (!shsurf)
+ 		return;
+-	if (shsurf->minimized && shsurf->shell->child.desktop_shell) {
++	if (shsurf->shell->child.desktop_shell) {
+ 		weston_desktop_shell_send_unminimized(shsurf->shell->child.desktop_shell,
+ 					     shsurf->task_id);
+ 	}
+@@ -2345,6 +2373,7 @@
+ 
+ 	if (!weston_surface_is_mapped(surface)) {
+ 		map(shell, shsurf);
++		shell_surface_publish_task(shsurf);
+ 		/* as we need to survive the weston_surface destruction we'll
+ 		 * need to take another reference */
+ 		if (shsurf->shell->win_close_animation_type == ANIMATION_FADE) {
+@@ -2355,6 +2384,8 @@
+ 		return;
+ 	}
+ 
++	shell_surface_publish_task(shsurf);
++
+ 	if (buf_offset.c.x == 0 && buf_offset.c.y == 0 &&
+ 	    shsurf->last_width == surface->width &&
+ 	    shsurf->last_height == surface->height &&
+@@ -3123,7 +3154,7 @@
+ 	shell->panel_position = position;
+ }
+ 
+-// Передать панели текущий список свёрнутых окон
++// Передать панели текущий список окон
+ static void
+ desktop_shell_list_minimized(struct wl_client *client,
+ 			     struct wl_resource *resource)
+@@ -3132,7 +3163,8 @@
+ 	struct shell_surface *shsurf;
+ 
+ 	wl_list_for_each(shsurf, &shell->shsurf_list, link) {
+-		if (shsurf->minimized && shsurf->desktop_surface) {
++		if (shsurf->desktop_surface &&
++		    weston_surface_is_mapped(shsurf->view->surface)) {
+ 			const char *title = weston_desktop_surface_get_title(shsurf->desktop_surface);
+ 			weston_desktop_shell_send_minimized(resource, shsurf->task_id,
+ 						   title ? title : "Window");
+@@ -3155,12 +3187,15 @@
+ 	}
+ 
+ 	wl_list_for_each(shsurf, &shell->shsurf_list, link) {
+-		if (shsurf->task_id != id || !shsurf->minimized) {
++		if (shsurf->task_id != id || !shsurf->desktop_surface ||
++		    !weston_surface_is_mapped(shsurf->view->surface)) {
+ 			continue;
+ 		}
+ 
+-		ws = get_current_workspace(shell);
+-		weston_view_move_to_layer(shsurf->view, &ws->layer.view_list);
++		if (shsurf->minimized) {
++			ws = get_current_workspace(shell);
++			weston_view_move_to_layer(shsurf->view, &ws->layer.view_list);
++		}
+ 		seat = wl_container_of(shell->compositor->seat_list.next, seat, link);
+ 		activate(shell, shsurf->view, seat, WESTON_ACTIVATE_FLAG_CONFIGURE);
+ 		return;
+@@ -3675,10 +3710,6 @@
+ 	assert(shsurf);
+ 	if (shsurf->minimized) {
+ 		shsurf->minimized = false;
+-		if (shell->child.desktop_shell) {
+-			weston_desktop_shell_send_unminimized(shell->child.desktop_shell,
+-						     shsurf->task_id);
+-		}
+ 	}
+ 
+ 	shsurf_child = get_last_child(shsurf);
+--- a/clients/desktop-shell.c
++++ b/clients/desktop-shell.c
+@@ -73,7 +73,7 @@
+ 	struct unlock_dialog *unlock_dialog;
+ 	struct task unlock_task;
+ 	struct wl_list outputs;
+-	struct wl_list minimized_tasks;
++	struct wl_list window_tasks;
+ 
+ 	int want_panel;
+ 	enum weston_desktop_shell_panel_position panel_position;
+@@ -326,7 +326,7 @@
+ 		cairo_select_font_face(cr, "sans", CAIRO_FONT_SLANT_NORMAL,
+ 				       CAIRO_FONT_WEIGHT_NORMAL);
+ 		cairo_set_font_size(cr, 12);
+-		wl_list_for_each(task, &panel->desktop->minimized_tasks, link) {
++		wl_list_for_each(task, &panel->desktop->window_tasks, link) {
+ 			if (x + 110 > right) {
+ 				break;
+ 			}
+@@ -352,7 +352,7 @@
+ 	check_desktop_ready(panel->window);
+ }
+ 
+-// Восстановить окно при нажатии на его название на панели
++// Поднять окно при нажатии на его название на панели
+ static void
+ panel_button_handler(struct widget *widget, struct input *input,
+ 		     uint32_t time, uint32_t button,
+@@ -376,7 +376,7 @@
+ 	}
+ 
+ 	position = panel->task_start;
+-	wl_list_for_each(task, &panel->desktop->minimized_tasks, link) {
++	wl_list_for_each(task, &panel->desktop->window_tasks, link) {
+ 		if (x >= position && x < position + 110) {
+ 			weston_desktop_shell_restore_minimized(panel->desktop->shell, task->id);
+ 			return;
+@@ -1262,15 +1262,15 @@
+ 	}
+ }
+ 
+-// Добавить свёрнутое окно на панели
++// Добавить открытое окно на панель
+ static void
+-desktop_shell_minimized(void *data, struct weston_desktop_shell *shell,
++desktop_shell_window_added(void *data, struct weston_desktop_shell *shell,
+ 			uint32_t id, const char *title)
+ {
+ 	struct desktop *desktop = data;
+ 	struct desktop_task *task;
+ 
+-	wl_list_for_each(task, &desktop->minimized_tasks, link) {
++	wl_list_for_each(task, &desktop->window_tasks, link) {
+ 		if (task->id == id) {
+ 			free(task->title);
+ 			task->title = xstrdup(title);
+@@ -1282,20 +1282,20 @@
+ 	task = xzalloc(sizeof *task);
+ 	task->id = id;
+ 	task->title = xstrdup(title);
+-	wl_list_insert(desktop->minimized_tasks.prev, &task->link);
++	wl_list_insert(desktop->window_tasks.prev, &task->link);
+ 	desktop_redraw_panels(desktop);
+ }
+ 
+-// Убрать восстановленное или закрытое окно с панели
++// Убрать закрытое окно с панели
+ static void
+-desktop_shell_unminimized(void *data, struct weston_desktop_shell *shell,
++desktop_shell_window_removed(void *data, struct weston_desktop_shell *shell,
+ 			  uint32_t id)
+ {
+ 	struct desktop *desktop = data;
+ 	struct desktop_task *task;
+ 	struct desktop_task *next;
+ 
+-	wl_list_for_each_safe(task, next, &desktop->minimized_tasks, link) {
++	wl_list_for_each_safe(task, next, &desktop->window_tasks, link) {
+ 		if (task->id == id) {
+ 			wl_list_remove(&task->link);
+ 			free(task->title);
+@@ -1310,8 +1310,8 @@
+ 	desktop_shell_configure,
+ 	desktop_shell_prepare_lock_surface,
+ 	desktop_shell_grab_cursor,
+-	desktop_shell_minimized,
+-	desktop_shell_unminimized
++	desktop_shell_window_added,
++	desktop_shell_window_removed
+ };
+ 
+ static void
+@@ -1720,7 +1720,7 @@
+ 
+ 	desktop.unlock_task.run = unlock_dialog_finish;
+ 	wl_list_init(&desktop.outputs);
+-	wl_list_init(&desktop.minimized_tasks);
++	wl_list_init(&desktop.window_tasks);
+ 
+ 	config_file = weston_config_get_name_from_env();
+ 	desktop.config = weston_config_parse(config_file);
+@@ -1759,9 +1759,9 @@
+ 	/* Cleanup */
+ 	grab_surface_destroy(&desktop);
+ 	desktop_destroy_outputs(&desktop);
+-	while (!wl_list_empty(&desktop.minimized_tasks)) {
++	while (!wl_list_empty(&desktop.window_tasks)) {
+ 		struct desktop_task *task =
+-			wl_container_of(desktop.minimized_tasks.next, task, link);
++			wl_container_of(desktop.window_tasks.next, task, link);
+ 		wl_list_remove(&task->link);
+ 		free(task->title);
+ 		free(task);

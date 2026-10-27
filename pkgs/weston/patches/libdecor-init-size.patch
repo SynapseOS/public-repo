@@ -1,0 +1,16 @@
+--- a/src/plugins/cairo/libdecor-cairo.c
++++ b/src/plugins/cairo/libdecor-cairo.c
+@@ -1566,10 +1566,10 @@ draw_border_component(struct libdecor_frame_cairo *frame_cairo,
+ 	enum component component = border_component->type;
+ 	struct buffer *buffer;
+ 	cairo_t *cr;
+-	int component_x;
+-	int component_y;
+-	int component_width;
+-	int component_height;
++	int component_x = 0;
++	int component_y = 0;
++	int component_width = 0;
++	int component_height = 0;
+ 	int scale;
+ 	struct border_component *child_component;
