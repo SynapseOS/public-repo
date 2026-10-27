@@ -1,0 +1,10 @@
+{
+  "name": "libksba",
+  "version": "1.8.1-r1",
+  "source": "https://gnupg.org/ftp/gcrypt/libksba/libksba-1.8.1.tar.bz2",
+  "sha256": "c2f84393011827219ae117131dba8e7684c2bed0961eed11b0642c2acba440b5",
+  "source_directory": "libksba-1.8.1",
+  "patches": [],
+  "license": "GPL-2.0-or-later OR LGPL-3.0-or-later",
+  "build_system": "recipe"
+}

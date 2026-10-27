@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "libksba",
+  "version": "1.8.1-r1",
+  "description": "X.509 and CMS library for GnuPG",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["libgpg-error >= 1.61.0-r1"],
+  "conflicts": [],
+  "files": []
+}
