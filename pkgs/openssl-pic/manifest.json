@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "openssl-pic",
+  "version": "3.5.9-r1",
+  "description": "PIC OpenSSL static libraries for PIE applications",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
