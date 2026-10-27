@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "fuse3",
+  "version": "3.18.3-r1",
+  "description": "FUSE 3 user library for Flatpak build dependency",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
