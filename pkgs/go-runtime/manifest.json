@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "name": "go-runtime",
+  "version": "1.27.3-r1",
+  "description": "Go standard library sources for Linux amd64 without cgo",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.948-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}
