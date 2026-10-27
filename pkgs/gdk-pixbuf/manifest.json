@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "gdk-pixbuf",
+  "version": "2.44.8-r1",
+  "description": "Image decoding for Flatpak icon validation",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "glib-gio >= 2.84.4-r1",
+    "libpng >= 1.6.59-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}
