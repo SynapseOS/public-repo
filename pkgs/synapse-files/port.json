@@ -1,0 +1,8 @@
+{
+  "name": "synapse-files",
+  "version": "0.1.0-r1",
+  "description": "Graphical file manager for SynapseOS Desktop",
+  "build_system": "recipe",
+  "status": "experimental",
+  "upstream_license": "NOASSERTION"
+}

@@ -1,0 +1,29 @@
+# recipe.sh: Собрать файловый менеджер на Qt Widgets
+# Автор: Елчинян Арен Артурович, 2026, архитектура x86_64, ABI synapse-x86_64-v1
+# Подсистема: графические пакеты
+# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Статус доступа: общедоступный
+
+probe="$BUILD_ROOT/qt6-base/stage"
+linkpaths="$BUILD_ROOT/qt6-base/payload/usr/lib/qt6/runtime"
+linkpaths+=":$BUILD_ROOT/qt6-llvm-runtime/payload/usr/lib/qt6/llvm"
+linkpaths+=":$probe/usr/lib:$BUILD_ROOT/weston/payload/usr/lib/weston/runtime"
+
+mkdir -p "$payload/usr/libexec/qt6"
+
+bash "$ROOT/build/cxx-shared.sh" \
+	-std=c++20 -O2 -Wall -Wextra -Werror \
+	-I"$probe/usr/include/qt6" \
+	-I"$probe/usr/include/qt6/QtWidgets" \
+	-I"$probe/usr/include/qt6/QtGui" \
+	-I"$probe/usr/include/qt6/QtCore" \
+	"$port/main.cpp" -L"$probe/usr/lib" \
+	-Wl,-rpath-link,"$linkpaths" -Wl,--no-allow-shlib-undefined \
+	-lQt6Widgets -lQt6Gui -lQt6Core -lQt6DBus \
+	-o "$payload/usr/libexec/qt6/synapse-files"
+
+"$CC" -O2 -Wall -Wextra -Werror -Wl,--build-id=none \
+	"-DAPPLICATION_PATH=\"/usr/libexec/qt6/synapse-files\"" \
+	"$ROOT/pkgs/qt6-base/launch.c" -o "$payload/bin/synapse-files"
+
+pack
