@@ -1,0 +1,10 @@
+--- a/src/libostree/ostree-core.c
++++ b/src/libostree/ostree-core.c
+@@ -2353,7 +2353,6 @@ _ostree_validate_structureof_xattrs (GVariant *xattrs, GError **error)
+                                previous, name, i);
+         }
+       previous = name;
+-      i++;
+     }
+   return TRUE;
+ }

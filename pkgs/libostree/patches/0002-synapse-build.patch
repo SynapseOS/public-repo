@@ -1,0 +1,20 @@
+--- a/src/libostree/ostree-bootloader-aboot.c
++++ b/src/libostree/ostree-bootloader-aboot.c
+@@ -23,6 +23,7 @@
+ #include "ostree-sysroot-private.h"
+ #include "otutil.h"
+ #include <sys/mount.h>
++#include <stdint.h>
+ 
+ #include <string.h>
+ 
+--- a/src/ostree/parse-datetime.y
++++ b/src/ostree/parse-datetime.y
+@@ -299,7 +299,7 @@
+ 
+ /* We want a reentrant parser, even if the TZ manipulation and the calls to
+    localtime and gmtime are not reentrant.  */
+-%pure-parser
++%define api.pure
+ %parse-param { parser_control *pc }
+ %lex-param { parser_control *pc }
