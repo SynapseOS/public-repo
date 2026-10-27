@@ -1,0 +1,9 @@
+{
+  "name": "restic",
+  "version": "0.19.1-r1",
+  "source": "https://github.com/restic/restic/releases/download/v0.19.1/restic-0.19.1.tar.gz",
+  "sha256": "bb9b1a19040744d26d8a79be029d4e6b189c45ccc9d8831d7fe367d3c33df725",
+  "source_directory": "restic-0.19.1",
+  "patches": [],
+  "build_system": "recipe"
+}

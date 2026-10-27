@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "name": "restic",
+  "version": "0.19.1-r1",
+  "description": "Encrypted backups with restic from the upstream static release",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.948-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/restic",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/restic/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
