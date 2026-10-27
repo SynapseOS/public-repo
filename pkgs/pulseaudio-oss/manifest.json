@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "pulseaudio-oss",
+  "version": "17.0.0-r1",
+  "description": "PulseAudio server and client libraries with OSS output for SynapseOS",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["musl-runtime"],
+  "conflicts": [],
+  "files": []
+}
