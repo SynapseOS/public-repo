@@ -1,17 +1,16 @@
 {
   "format": 1,
   "name": "mindustry-desktop",
-  "version": "160.7.0-r6",
+  "version": "160.7.0-r8",
   "description": "Mindustry SDL/Mesa/SoLoud desktop natives for Synapse musl",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
-    "mindustry >= 160.7.0-r7",
+    "mindustry >= 160.7.0-r8",
     "openjdk >= 21.0.11-r6",
     "opengl >= 24.3.4-r2",
-    "sdl2 >= 2.30.11-r5",
-    "audio-hda >= 0.1.0-r1"
+    "sdl2 >= 2.30.11-r5"
   ],
   "conflicts": [],
   "files": [

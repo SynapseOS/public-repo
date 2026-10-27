@@ -495,7 +495,36 @@ static int swap(_THIS, SDL_Window *w) {
 	}
 
 	if (s->wayland != NULL) {
-		return syn_wl_present(s);
+		int result = syn_wl_present(s);
+		if (result != 0) {
+			return result;
+		}
+
+		if (SDL_getenv("SYNAPSE_GL_METRICS") != NULL) {
+			Uint64 completed = SDL_GetPerformanceCounter( );
+			Uint32 now = SDL_GetTicks( );
+			s->metric_render += completed - t0;
+			s->metric_frames++;
+
+			if (s->metric_start == 0) {
+				s->metric_start = now;
+			}
+
+			if (now - s->metric_start >= 1000) {
+				fprintf(stderr,
+				        "SYNAPSE_WL_FRAME_METRIC frames=%u elapsed_ms=%u fps=%.2f swap_ms=%.2f\n",
+				        s->metric_frames, now - s->metric_start,
+				        s->metric_frames * 1000.0 / (now - s->metric_start),
+				        s->metric_render * 1000.0 / SDL_GetPerformanceFrequency( ) /
+				            s->metric_frames);
+				fflush(stderr);
+				s->metric_render = 0;
+				s->metric_frames = 0;
+				s->metric_start = now;
+			}
+		}
+
+		return 0;
 	}
 
 	t1 = SDL_GetPerformanceCounter( );
