@@ -1,7 +1,7 @@
 #!/bin/bash
 # repository.sh: подготовить подписанный каталог пакетов
 # Автор: Елчинян Арен Артурович, 2026, архитектура хоста, ABI POSIX
-# Подсистема: выпуск пакетов, первое изменение: 18.10.2026, последнее изменение: 23.10.2026
+# Подсистема: выпуск пакетов, первое изменение: 18.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 set -euo pipefail
@@ -90,7 +90,7 @@ if [[ $# -eq 0 ]]; then
 		fi
 
 		name=$(jq -er '.name | strings | select(test("^[a-z0-9_.-]{1,63}$"))' "$stage/candidate.json")
-		if [[ ! -f $ROOT/pkgs/$name/manifest.json ]]; then
+		if [[ $REPO_ID == official && ! -f $ROOT/pkgs/$name/manifest.json ]]; then
 			continue
 		fi
 
@@ -114,7 +114,7 @@ if [[ $# -eq 0 ]]; then
 
 	for manifest in "${manifests[@]}"; do
 		name=$(basename "$manifest" .manifest.json)
-		if [[ ! -f $ROOT/pkgs/$name/manifest.json ]]; then
+		if [[ $REPO_ID == official && ! -f $ROOT/pkgs/$name/manifest.json ]]; then
 			continue
 		fi
 
@@ -148,7 +148,7 @@ for package in "$@"; do
 			type == "string" and length < 512 and
 			test("^[!-~]+$") and (contains("\\") | not) and (contains("\"") | not) and
 			(split("/") | all(. != "" and . != "." and . != "..")) and
-			test("^(bin/|lib/|etc/|usr/share/|usr/lib/|usr/include/|usr/libexec/)") and
+			test("^(bin/|lib/|etc/|usr/bin/|usr/share/|usr/lib/|usr/include/|usr/libexec/)") and
 			(test("^etc/(setup/|dropbear/|settings\\.ini$|shadow$|passwd$)") | not);
 		def integer: type == "number" and . >= 0 and . == floor;
 		.manifest as $m |
