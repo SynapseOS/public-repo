@@ -1,0 +1,8 @@
+# sources.list: закреплённый Debian trixie с проверкой подписи
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: x86_64, ABI: synapse-x86_64-v1
+# Подсистема: менеджер Debian-пакетов
+# Первое изменение: 01.11.2026, последнее изменение: 01.11.2026
+# Статус доступа: общедоступный
+
+deb [arch=amd64 signed-by=/usr/share/keyrings/debian-archive-keyring.pgp] http://deb.debian.org/debian trixie main

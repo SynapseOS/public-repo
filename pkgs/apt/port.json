@@ -1,0 +1,10 @@
+{
+  "name": "apt",
+  "version": "3.0.3-r4",
+  "source": "https://deb.debian.org/debian/pool/main/a/apt/apt_3.0.3.tar.xz",
+  "sha256": "5b5f6f6d26121742a83aa80d4ed0eb0c6ce9bea259518db412edefd95760e4ef",
+  "source_directory": "apt-3.0.3",
+  "patches": ["patches/static-build.patch"],
+  "license": "GPL-2.0-or-later",
+  "build_system": "recipe"
+}

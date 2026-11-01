@@ -1,0 +1,75 @@
+# static-build.patch: статическая сборка APT для SynapseOS
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: x86_64, ABI: synapse-x86_64-v1
+# Подсистема: сборка пакетов
+# Первое изменение: 01.11.2026, последнее изменение: 01.11.2026
+# Статус доступа: общедоступный
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -88,7 +88,7 @@
+ add_optional_compile_options(Werror=return-type)
+ add_optional_compile_options(Wp,-D_GLIBCXX_ASSERTIONS)
+ # apt-ftparchive dependencies
+-find_package(Berkeley REQUIRED)
++find_package(Berkeley)
+ if (BERKELEY_FOUND)
+   set(HAVE_BDB 1)
+ endif()
+@@ -253,7 +253,9 @@
+ add_subdirectory(completions)
+ add_subdirectory(doc)
+ add_subdirectory(dselect)
++if (BERKELEY_FOUND)
+ add_subdirectory(ftparchive)
++endif()
+ add_subdirectory(methods)
+ add_subdirectory(test)
+ 
+--- a/apt-pkg/CMakeLists.txt
++++ b/apt-pkg/CMakeLists.txt
+@@ -45,7 +45,7 @@
+ file(GLOB_RECURSE headers "*.h")
+ 
+ # Create a library using the C++ files
+-add_library(apt-pkg SHARED ${library})
++add_library(apt-pkg STATIC ${library})
+ # Link the library and set the SONAME
+ target_include_directories(apt-pkg
+                            PRIVATE ${ZLIB_INCLUDE_DIRS}
+@@ -77,7 +77,6 @@
+ set_target_properties(apt-pkg PROPERTIES VERSION ${MAJOR}.${MINOR})
+ set_target_properties(apt-pkg PROPERTIES SOVERSION ${MAJOR})
+ set_target_properties(apt-pkg PROPERTIES CXX_VISIBILITY_PRESET hidden)
+-target_link_libraries(apt-pkg PRIVATE -Wl,-version-script="${CMAKE_CURRENT_BINARY_DIR}/versionscript")
+ 
+ # Install the library and the header files
+ install(TARGETS apt-pkg LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+--- a/apt-private/CMakeLists.txt
++++ b/apt-private/CMakeLists.txt
+@@ -9,14 +9,13 @@
+ file(GLOB_RECURSE headers "*.h")
+ 
+ # Create a library using the C++ files
+-add_library(apt-private SHARED ${library})
++add_library(apt-private STATIC ${library})
+ 
+ # Link the library and set the SONAME
+ target_link_libraries(apt-private PUBLIC apt-pkg)
+ set_target_properties(apt-private PROPERTIES VERSION ${MAJOR}.${MINOR})
+ set_target_properties(apt-private PROPERTIES SOVERSION ${MAJOR})
+ set_target_properties(apt-private PROPERTIES CXX_VISIBILITY_PRESET hidden)
+-add_version_script(apt-private)
+ 
+ # Install the library and the headers
+ install(TARGETS apt-private
+--- a/CMake/apti18n.h.in
++++ b/CMake/apti18n.h.in
+@@ -22,7 +22,7 @@
+ # define N_(x) x
+ #else
+ // apt will not use any gettext
+-extern "C" inline char* setlocale(int, const char*) throw() { return nullptr; }
++#include <locale.h>
+ extern "C" inline char* textdomain(const char*) throw() { return nullptr; }
+ extern "C" inline char* bindtextdomain(const char*, const char*) throw() { return nullptr; }
+ extern "C" inline char* dgettext(const char*, const char* msg) throw() { return const_cast<char*>(msg); }
