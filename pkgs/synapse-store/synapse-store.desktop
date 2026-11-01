@@ -1,0 +1,16 @@
+# synapse-store.desktop: запись графического магазина программ
+# Автор: Елчинян Арен Артурович, 2026, архитектура x86_64, ABI synapse-x86_64-v1
+# Подсистема: графические пакеты
+# Первое изменение: 01.11.2026, последнее изменение: 01.11.2026
+# Статус доступа: общедоступный
+
+[Desktop Entry]
+Type=Application
+Name=SynapseOS Software
+Name[ru]=Магазин программ
+Comment=Install applications from SynapseOS and Flathub
+Comment[ru]=Установка программ SynapseOS и Flathub
+Exec=synapse-store
+Icon=/usr/share/weston/synapse-logo.png
+Terminal=false
+Categories=System;PackageManager;

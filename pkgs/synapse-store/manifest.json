@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "name": "synapse-store",
+  "version": "0.1.0-r5",
+  "description": "Graphical software manager for SynapseOS, Flathub and Debian",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "qt6-base",
+    "qt6-wayland",
+    "setup"
+  ],
+  "conflicts": [],
+  "files": []
+}
