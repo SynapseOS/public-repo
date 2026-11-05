@@ -1,9 +1,9 @@
 # recipe.sh: собрать D-Bus для рабочего стола SynapseOS
 # Автор: Елчинян Арен Артурович, 2026
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
-# Описание: сеансовая шина без системных служб Linux
+# Описание: сеансовая и системная шины сообщений
 # Подсистема: сборка пакетов
-# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Первое изменение: 25.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -12,7 +12,7 @@ export SYNAPSE_LINK_MODE=dynamic
 expat="$BUILD_ROOT/expat/payload/usr"
 [[ -f $expat/lib/libexpat.a ]]
 
-sysroot=$(mktemp -d /tmp/synapse-dbus-sysroot.XXXXXX)
+sysroot=$(mktemp -d "${TMPDIR:-/tmp}/synapse-dbus-sysroot.XXXXXX")
 trap 'rm -rf -- "$sysroot"' EXIT
 mkdir -p "$sysroot/usr/include" "$sysroot/usr/lib/pkgconfig"
 cp "$expat/include/expat.h" "$expat/include/expat_external.h" "$sysroot/usr/include/"
@@ -46,6 +46,8 @@ export PKG_CONFIG_SYSROOT_DIR="$sysroot"
 rm -rf -- "$work/build"
 meson setup "$work/build" "$source" --cross-file "$work/cross.ini" \
 	--prefix=/usr --bindir=/bin --libdir=lib --buildtype=release \
+	-Ddbus_user=root -Dsystem_socket=/var/run/dbus/system_bus_socket \
+	-Dsystem_pid_file=/var/run/dbus/pid \
 	-Ddefault_library=static -Dmessage_bus=true -Dmodular_tests=disabled \
 	-Dasserts=true -Dchecks=true \
 	-Dapparmor=disabled -Dselinux=disabled -Dlibaudit=disabled \
@@ -54,9 +56,12 @@ meson setup "$work/build" "$source" --cross-file "$work/cross.ini" \
 	-Dxml_docs=disabled -Ddoxygen_docs=disabled -Dducktype_docs=disabled \
 	-Dqt_help=disabled -Dinstalled_tests=false -Dtools=true
 
-ninja -C "$work/build" -j"$JOBS" bus/dbus-daemon tools/dbus-run-session tools/dbus-uuidgen
+ninja -C "$work/build" -j"$JOBS" bus/dbus-daemon tools/dbus-run-session \
+	tools/dbus-update-activation-environment tools/dbus-uuidgen
 copy "$work/build/bus/dbus-daemon" bin/dbus-daemon
 copy "$work/build/tools/dbus-run-session" bin/dbus-run-session
+copy "$work/build/tools/dbus-update-activation-environment" bin/dbus-update-activation-environment
 copy "$work/build/tools/dbus-uuidgen" bin/dbus-uuidgen
 copy "$work/build/bus/session.conf" usr/share/dbus-1/session.conf
+copy "$work/build/bus/system.conf" usr/share/dbus-1/system.conf
 copy "$source/COPYING" usr/share/licenses/dbus/COPYING

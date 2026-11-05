@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "dbus",
-  "version": "1.16.2-r1",
-  "description": "Session message bus for desktop services",
+  "version": "1.16.2-r3",
+  "description": "Session and system message buses for desktop services",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
@@ -22,6 +22,12 @@
       "config": false
     },
     {
+      "path": "bin/dbus-update-activation-environment",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
       "path": "bin/dbus-uuidgen",
       "type": "file",
       "mode": 493,
@@ -29,6 +35,12 @@
     },
     {
       "path": "usr/share/dbus-1/session.conf",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/dbus-1/system.conf",
       "type": "file",
       "mode": 420,
       "config": false
