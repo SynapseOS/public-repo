@@ -6,11 +6,14 @@
     Описание: Обработка запросов QEMU через VirtIO или последовательный порт
     Подсистема: гостевой агент
     Первое изменение: 11.10.2026
-    Последнее изменение: 25.10.2026
+    Последнее изменение: 03.11.2026
     Доступ: общедоступный
 */
 
 #include "json.h"
+#include <arpa/inet.h>
+#include <ctype.h>
+#include <crypt.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -22,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/reboot.h>
+#include <sys/random.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -40,6 +44,10 @@
 #define LOG_PATH "/var/log/qga.log"
 #define LOG_MAX_SIZE (10 * 1024 * 1024)
 #define LOG_KEEP 3
+#define NET_COUNT 106000
+#define NET_NAME 106001
+#define NET_IPV4 106002
+#define NET_MAC 106009
 
 static char frame[FRAME_MAX + 1], response[RESPONSE_MAX];
 static size_t response_len;
@@ -244,7 +252,8 @@ static const char *const commands[] = {
 	"guest-sync",          "guest-sync-delimited", "guest-ping",        "guest-info",
 	"guest-get-host-name", "guest-get-osinfo",     "guest-get-time",    "guest-file-open",
 	"guest-file-close",    "guest-file-read",      "guest-file-write",  "guest-file-seek",
-	"guest-file-flush",    "guest-exec",           "guest-exec-status", "guest-shutdown"
+	"guest-file-flush",    "guest-exec",           "guest-exec-status", "guest-shutdown",
+	"guest-network-get-interfaces", "guest-set-user-password"
 };
 
 static void info(void) {
@@ -749,6 +758,254 @@ static void exec_status(int args) {
 	append("}");
 }
 
+// Прочитать маску IPv4 из снимка сетевых интерфейсов ядра
+static int network_prefix(int index, const char *address) {
+	FILE *snapshot = fopen("/proc/net-interfaces", "r");
+	if (!snapshot) {
+		return -1;
+	}
+
+	char line[128];
+	int prefix = -1;
+	while (fgets(line, sizeof(line), snapshot)) {
+		int current;
+		char ip[16], mask[16], gateway[16];
+		if (sscanf(line, "%d %15s %15s %15s", &current, ip, mask, gateway) != 4 ||
+		    current != index || strcmp(ip, address)) {
+			continue;
+		}
+
+		struct in_addr netmask;
+		if (inet_pton(AF_INET, mask, &netmask) != 1) {
+			break;
+		}
+
+		uint32_t bits = ntohl(netmask.s_addr);
+		uint32_t inverse = ~bits;
+		if (inverse & (inverse + 1U)) {
+			break;
+		}
+
+		prefix = 0;
+		while (bits) {
+			prefix++;
+			bits <<= 1;
+		}
+		break;
+	}
+
+	fclose(snapshot);
+	return prefix;
+}
+
+// Вернуть QGA список сетевых интерфейсов без изменения их состояния
+static void network_interfaces(void) {
+	long count = syscall(NET_COUNT);
+	if (count < 0 || count > 64) {
+		fail("Cannot read network interfaces");
+		return;
+	}
+
+	append("[");
+	for (long index = 0; index < count; index++) {
+		char name[64] = {0}, address[16] = {0}, hardware[18];
+		unsigned char mac[6] = {0};
+		if (syscall(NET_NAME, index, name, sizeof(name)) < 0 || !name[0] ||
+		    syscall(NET_IPV4, index, address, sizeof(address)) < 0) {
+			fail("Cannot read network interface");
+			return;
+		}
+
+		if (index) {
+			append(",");
+		}
+		append("{\"name\":");
+		quote(name);
+
+		if (syscall(NET_MAC, index, mac, sizeof(mac)) >= 0) {
+			snprintf(hardware, sizeof(hardware), "%02x:%02x:%02x:%02x:%02x:%02x",
+			         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+			append(",\"hardware-address\":");
+			quote(hardware);
+		}
+
+		append(",\"ip-addresses\":[");
+		struct in_addr ipv4;
+		int prefix = network_prefix((int)index, address);
+		if (prefix >= 0 && inet_pton(AF_INET, address, &ipv4) == 1 && ipv4.s_addr) {
+			append("{\"ip-address\":");
+			quote(address);
+			append(",\"ip-address-type\":\"ipv4\",\"prefix\":%d}", prefix);
+		}
+		append("]}");
+	}
+	append("]");
+}
+
+// Заменить хеш root в shadow с записью во временный файл
+static int replace_root_password(const char *hash) {
+	int source_fd = open("/etc/shadow", O_RDONLY | O_NOFOLLOW);
+	if (source_fd < 0) {
+		return -1;
+	}
+
+	struct stat source_info;
+	if (fstat(source_fd, &source_info) || !S_ISREG(source_info.st_mode) || source_info.st_uid != 0) {
+		close(source_fd);
+		errno = EINVAL;
+		return -1;
+	}
+
+	FILE *source = fdopen(source_fd, "r");
+	if (!source) {
+		close(source_fd);
+		return -1;
+	}
+
+	char temporary[] = "/etc/.shadow-qga-XXXXXX";
+	int target_fd = mkstemp(temporary);
+	if (target_fd < 0) {
+		fclose(source);
+		return -1;
+	}
+
+	int result = -1;
+	int saved_errno;
+	FILE *target = fdopen(target_fd, "w");
+	if (!target) {
+		close(target_fd);
+		goto done;
+	}
+
+	char line[4096];
+	int found = 0;
+	int valid = 1;
+	while (fgets(line, sizeof(line), source)) {
+		if (!strchr(line, '\n') && !feof(source)) {
+			errno = EOVERFLOW;
+			valid = 0;
+			break;
+		}
+
+		if (!strncmp(line, "root:", 5)) {
+			char *rest = strchr(line + 5, ':');
+			if (!rest || found++) {
+				errno = EINVAL;
+				valid = 0;
+				break;
+			}
+			if (fprintf(target, "root:%s%s", hash, rest) < 0) {
+				valid = 0;
+				break;
+			}
+		} else if (fputs(line, target) == EOF) {
+			valid = 0;
+			break;
+		}
+	}
+
+	int written = valid && found == 1 && !ferror(source) && !ferror(target) &&
+	              fflush(target) == 0 && fsync(fileno(target)) == 0;
+	if (found != 1 && valid) {
+		errno = EINVAL;
+	}
+	if (fclose(target)) {
+		written = 0;
+	}
+	if (written) {
+		if (rename(temporary, "/etc/shadow") == 0) {
+			result = 0;
+		}
+	}
+
+done:
+	saved_errno = errno;
+	fclose(source);
+	if (result) {
+		unlink(temporary);
+		errno = saved_errno;
+	}
+	return result;
+}
+
+// Установить пароль root по запросу панели виртуализации
+static void set_user_password(int args) {
+	char username[64], encoded[1024], hash[256];
+	unsigned char decoded[256];
+	size_t length = 0;
+	int crypted;
+	if (string(args, "username", username, sizeof(username)) ||
+	    string(args, "password", encoded, sizeof(encoded)) ||
+	    json_boolean(&request, json_get(&request, args, "crypted"), &crypted)) {
+		fail("Missing or invalid password arguments");
+		return;
+	}
+
+	if (strcmp(username, "root")) {
+		fail("Only the root account is supported");
+		return;
+	}
+	if (decode64(encoded, decoded, sizeof(decoded) - 1, &length) || length == 0 ||
+	    memchr(decoded, 0, length) || memchr(decoded, '\n', length) ||
+	    memchr(decoded, ':', length)) {
+		fail("Invalid encoded password");
+		return;
+	}
+	decoded[length] = 0;
+
+	if (crypted) {
+		if (strncmp((char *)decoded, "$6$", 3) || length >= sizeof(hash)) {
+			fail("Only SHA-512 crypt hashes are supported");
+			return;
+		}
+		for (size_t i = 0; i < length; i++) {
+			if (!isalnum(decoded[i]) && !strchr("$./=", decoded[i])) {
+				fail("Invalid SHA-512 crypt hash");
+				return;
+			}
+		}
+		memcpy(hash, decoded, length + 1);
+	} else {
+		unsigned char random[16];
+		size_t received = 0;
+		while (received < sizeof(random)) {
+			ssize_t n = getrandom(random + received, sizeof(random) - received, 0);
+			if (n < 0 && errno == EINTR) {
+				continue;
+			}
+			if (n <= 0) {
+				fail_errno("getrandom");
+				return;
+			}
+			received += (size_t)n;
+		}
+
+		char salt[64] = "$6$rounds=10000$";
+		size_t offset = strlen(salt);
+		for (size_t i = 0; i < sizeof(random); i++) {
+			snprintf(salt + offset + i * 2, sizeof(salt) - offset - i * 2,
+			         "%02x", random[i]);
+		}
+		strcat(salt, "$");
+
+		char *value = crypt((char *)decoded, salt);
+		if (!value || strlen(value) >= sizeof(hash)) {
+			fail("Password hashing failed");
+			return;
+		}
+		strcpy(hash, value);
+	}
+
+	if (replace_root_password(hash)) {
+		fail_errno("update root password");
+		return;
+	}
+
+	memset(decoded, 0, sizeof(decoded));
+	memset(hash, 0, sizeof(hash));
+	append("{}");
+}
+
 static int dispatch(const char *command, int args) {
 	if (!strcmp(command, "guest-ping")) {
 		append("{}");
@@ -760,6 +1017,10 @@ static int dispatch(const char *command, int args) {
 		}
 	} else if (!strcmp(command, "guest-info")) {
 		info( );
+	} else if (!strcmp(command, "guest-network-get-interfaces")) {
+		network_interfaces( );
+	} else if (!strcmp(command, "guest-set-user-password")) {
+		set_user_password(args);
 	} else if (!strcmp(command, "guest-get-time")) {
 		struct timespec now;
 
@@ -808,15 +1069,24 @@ static int dispatch(const char *command, int args) {
 			return 0;
 		}
 
-		if (strcmp(mode, "powerdown")) {
-			fail("Only powerdown is supported");
+		// Передать режим QEMU штатному вызову Linux ABI
+		int action;
+
+		if (!strcmp(mode, "powerdown")) {
+			action = RB_POWER_OFF;
+		} else if (!strcmp(mode, "reboot")) {
+			action = RB_AUTOBOOT;
+		} else if (!strcmp(mode, "halt")) {
+			action = RB_HALT_SYSTEM;
+		} else {
+			fail("Invalid shutdown mode");
 			return 0;
 		}
 
 		sync( );
 
-		if (reboot(RB_POWER_OFF)) {
-			fail_errno("powerdown");
+		if (reboot(action)) {
+			fail_errno(mode);
 		} else {
 			return 1;
 		}

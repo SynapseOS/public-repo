@@ -3,7 +3,8 @@
 // Проверка сообщений с ограниченным числом токенов
 // Подсистема: пользовательские системные утилиты
 // Создан: 11.10.2026
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 28.10.2026
+// Доступ: общедоступный
 
 // JSON-парсер хранит смещения токенов, чтобы передавать QMP id без преобразования
 #include "json.h"
@@ -43,7 +44,11 @@ static int hex4(const char *p, unsigned *v) {
 static int value(struct json *j, unsigned depth) {
 	whitespace(j);
 
+#ifdef JSON_DYNAMIC_TOKENS
+	if (depth > 32 || j->pos == j->len || j->count == j->capacity) {
+#else
 	if (depth > 32 || j->pos == j->len || j->count == JSON_TOKENS) {
+#endif
 		return -1;
 	}
 
@@ -234,7 +239,18 @@ static int value(struct json *j, unsigned depth) {
 }
 
 int json_parse(struct json *j, const char *text, size_t len) {
+#ifdef JSON_DYNAMIC_TOKENS
+	struct json_token *tokens = j->t;
+	int capacity = j->capacity;
+	if (tokens == NULL || capacity <= 0) {
+		return -1;
+	}
+#endif
 	memset(j, 0, sizeof(*j));
+#ifdef JSON_DYNAMIC_TOKENS
+	j->t = tokens;
+	j->capacity = capacity;
+#endif
 	j->text = text;
 	j->len = len;
 

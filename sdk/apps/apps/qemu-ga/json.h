@@ -3,7 +3,8 @@
 // Типы токенов, поиск полей и извлечение строк
 // Подсистема: пользовательские системные утилиты
 // Создан: 11.10.2026
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 28.10.2026
+// Доступ: общедоступный
 
 #ifndef QGA_JSON_H
 #define QGA_JSON_H
@@ -25,7 +26,12 @@ struct json {
 	const char *text;
 	size_t len, pos;
 	int count;
+#ifdef JSON_DYNAMIC_TOKENS
+	int capacity;
+	struct json_token *t;
+#else
 	struct json_token t[JSON_TOKENS];
+#endif
 };
 
 int json_parse(struct json *j, const char *text, size_t len);
