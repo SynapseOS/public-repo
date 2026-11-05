@@ -1,0 +1,7 @@
+{
+  "name": "lspci",
+  "version": "0.1.0-r1",
+  "description": "PCI device list from SynapseOS sysfs",
+  "build_system": "recipe",
+  "upstream_license": "NOASSERTION"
+}

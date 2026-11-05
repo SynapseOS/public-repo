@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "lspci",
+  "version": "0.1.0-r1",
+  "description": "PCI device list from SynapseOS sysfs",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["musl-runtime", "pci-ids"],
+  "conflicts": [],
+  "files": []
+}
