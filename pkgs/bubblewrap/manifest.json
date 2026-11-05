@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "bubblewrap",
-  "version": "0.13.0-r2",
+  "version": "0.13.0-r7",
   "description": "Sandbox launcher for future Flatpak support",
   "kind": "tool",
   "arch": "x86_64",
@@ -10,7 +10,7 @@
   "conflicts": [],
   "files": [
     {
-      "path": "usr/bin/bwrap",
+      "path": "bin/bwrap",
       "type": "file",
       "mode": 493,
       "config": false

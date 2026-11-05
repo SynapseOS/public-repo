@@ -1,6 +1,6 @@
 {
   "name": "bubblewrap",
-  "version": "0.13.0-r2",
+  "version": "0.13.0-r7",
   "source": "https://github.com/containers/bubblewrap/releases/download/v0.13.0/bubblewrap-0.13.0.tar.xz",
   "sha256": "4734237473c0e5d695e4e9034a34e43b2dbf5164655bd13fa59ae376b2b7a765",
   "linux_headers_source": "https://deb.debian.org/debian/pool/main/l/linux/linux-libc-dev_6.12.107-1_all.deb",
