@@ -5,7 +5,7 @@
 // Настройка аккаунтов, терминалов, сети и запуск служб
 // Подсистема: init
 // Первое изменение в истории Git: 09.10.2026
-// Последнее изменение: 25.10.2026
+// Последнее изменение: 03.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -95,6 +95,7 @@ typedef struct {
     int ftp_passive_min;
     int ftp_passive_max;
     int desktop_enabled;
+    int desktop_login_manager;
     char desktop_path[256];
     int setup_check_updates;
     int qga_enabled;
@@ -242,6 +243,9 @@ static int synapse_config_handler(void *user, const char *section, const char *k
     } else if (strcmp(section, "Desktop") == 0) {
         if (strcmp(key, "Enabled") == 0) {
             cfg->desktop_enabled =
+                strcmp(value, "1") == 0 || strcasecmp(value, "true") == 0;
+        } else if (strcmp(key, "LoginManager") == 0) {
+            cfg->desktop_login_manager =
                 strcmp(value, "1") == 0 || strcasecmp(value, "true") == 0;
         } else if (strcmp(key, "Path") == 0) {
             strncpy(cfg->desktop_path, value, sizeof(cfg->desktop_path) - 1);
@@ -462,7 +466,6 @@ static void parse_setup(syn_cfg_t *cfg) {
     cfg->ssh_valid = 1;
     cfg->ssh_port = 22;
     strcpy(cfg->ssh_login, "root");
-    strcpy(cfg->ssh_password, "shrimp123");
     cfg->setup_check_updates = 1;
     cfg->qga_enabled = 1;
     strcpy(cfg->qga_path, "/dev/virtio-ports/org.qemu.guest_agent.0");
@@ -550,6 +553,85 @@ static int write_private_file(const char *path, const char *content, mode_t mode
     return ok;
 }
 
+// Обновить системную учётную запись без удаления других пользователей
+static int write_managed_accounts(const char *path, const char *managed, mode_t mode,
+                                  const char *login, const char *previous_login) {
+    char staged[256];
+    if (snprintf(staged, sizeof(staged), "%s.new", path) >= (int)sizeof(staged)) {
+        return 0;
+    }
+
+    FILE *source = fopen(path, "r");
+    if (source == NULL && errno != ENOENT) {
+        return 0;
+    }
+
+    int fd = open(staged, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+    if (fd < 0) {
+        if (source != NULL) {
+            fclose(source);
+        }
+        return 0;
+    }
+
+    FILE *target = fdopen(fd, "w");
+    if (target == NULL) {
+        close(fd);
+        unlink(staged);
+        if (source != NULL) {
+            fclose(source);
+        }
+        return 0;
+    }
+
+    int ok = fputs(managed, target) >= 0;
+    char *line = NULL;
+    size_t capacity = 0;
+    if (source != NULL) {
+        while (ok && getline(&line, &capacity, source) >= 0) {
+            char *separator = strchr(line, ':');
+            if (separator == NULL) {
+                ok = 0;
+                break;
+            }
+
+            size_t length = (size_t)(separator - line);
+            bool managed_login = strlen(login) == length && strncmp(line, login, length) == 0;
+            bool old_login = previous_login[0] != 0 && strlen(previous_login) == length &&
+                             strncmp(line, previous_login, length) == 0;
+            if ((length == 4 && strncmp(line, "root", 4) == 0) || managed_login || old_login) {
+                continue;
+            }
+
+            ok = fputs(line, target) >= 0;
+        }
+
+        if (ferror(source)) {
+            ok = 0;
+        }
+    }
+
+    free(line);
+    if (source != NULL) {
+        fclose(source);
+    }
+
+    if (fflush(target) != 0 || fchmod(fd, mode) != 0 || fsync(fd) != 0) {
+        ok = 0;
+    }
+
+    if (fclose(target) != 0) {
+        ok = 0;
+    }
+
+    if (ok && rename(staged, path) == 0) {
+        return 1;
+    }
+
+    unlink(staged);
+    return 0;
+}
+
 static void setup_dropbear_links(void) {
     const char *names[] = {"dropbear",    "dbclient",   "ssh",
                            "dropbearkey", "ssh-keygen", "dropbearconvert"};
@@ -591,6 +673,7 @@ static int setup_ssh_account(syn_cfg_t *cfg) {
         }
     }
 
+    int input_password = cfg->ssh_password[0] != '\0' || cfg->ssh_password_hash[0] != '\0';
     char hash[256] = "*";
     char *same = cfg->ssh_password[0] && !cfg->ssh_password_hash[0] &&
                          !strcmp(prior_login, cfg->ssh_login) && prior_hash[0] == '$'
@@ -638,6 +721,18 @@ static int setup_ssh_account(syn_cfg_t *cfg) {
     // Сохранённый хеш относится к входным настройкам аккаунта
     // Локальную смену пароля сохраняем, пока эти настройки не изменятся
     struct spwd *current = getspnam(cfg->ssh_login);
+    if (!input_password && current != NULL && current->sp_pwdp != NULL &&
+        current->sp_pwdp[0] != '\0' && current->sp_pwdp[0] != '!' && current->sp_pwdp[0] != '*' &&
+        getpwnam(cfg->ssh_login) != NULL) {
+        // Пароль владельца не становится пустым из-за отсутствующей настройки SSH
+        // Совпадающий прежний управляемый хеш можно отозвать удалением входных реквизитов
+        int managed_password = strcmp(prior_login, cfg->ssh_login) == 0 &&
+                               prior_hash[0] == '$' && strcmp(prior_hash, current->sp_pwdp) == 0;
+        if (!managed_password) {
+            snprintf(previous, sizeof(previous), "%s:*\n", cfg->ssh_login);
+            return write_private_file("/etc/dropbear/account.state", previous, 0600);
+        }
+    }
     if (!strcmp(prior_login, cfg->ssh_login) && !strcmp(prior_hash, hash) && current &&
         current->sp_pwdp && getpwnam(cfg->ssh_login)) {
         printf("[init] preserving locally managed account password\n");
@@ -657,9 +752,58 @@ static int setup_ssh_account(syn_cfg_t *cfg) {
                  cfg->ssh_login, hash);
     }
     snprintf(previous, sizeof(previous), "%s:%s\n", cfg->ssh_login, hash);
-    return write_private_file("/etc/passwd", passwd, 0644) &&
-           write_private_file("/etc/shadow", shadow, 0600) &&
+    return write_managed_accounts("/etc/passwd", passwd, 0644, cfg->ssh_login, prior_login) &&
+           write_managed_accounts("/etc/shadow", shadow, 0600, cfg->ssh_login, prior_login) &&
            write_private_file("/etc/dropbear/account.state", previous, 0600);
+}
+
+// Проверить, что у административной учётной записи есть способ входа по SSH
+static int ssh_access_ready(const char *login) {
+    struct spwd *account = getspnam(login);
+    if (account && account->sp_pwdp && !strncmp(account->sp_pwdp, "$6$", 3)) {
+        return 1;
+    }
+
+    FILE *keys = fopen("/root/.ssh/authorized_keys", "r");
+    if (!keys) {
+        return 0;
+    }
+
+    char line[4096];
+    int ready = 0;
+    while (fgets(line, sizeof(line), keys)) {
+        char *key = line;
+        while (isspace((unsigned char)*key)) {
+            key++;
+        }
+
+        if (!strncmp(key, "ssh-ed25519 ", 12) || !strncmp(key, "ssh-rsa ", 8) ||
+            !strncmp(key, "ecdsa-sha2-", 12)) {
+            char *material = strchr(key, ' ');
+            while (material && *material == ' ') {
+                material++;
+            }
+
+            if (material && strspn(material, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+                                           "0123456789+/=") >= 32) {
+                ready = 1;
+                break;
+            }
+        }
+    }
+
+    fclose(keys);
+    return ready;
+}
+
+// Отделить ожидание первого ключа от отказа уже настроенной службы
+static int cloud_ssh_health_ready(int enabled, int credentials_pending, int account_ready,
+                                  time_t stable_since, time_t now) {
+    if (!enabled || credentials_pending) {
+        return 1;
+    }
+
+    return account_ready && stable_since != 0 && now >= stable_since && now - stable_since >= 5;
 }
 
 static void generate_etc_files(const syn_cfg_t *cfg) {
@@ -690,7 +834,10 @@ static void generate_etc_files(const syn_cfg_t *cfg) {
                         cfg->dns_servers[i]);
     }
     create_file("/etc/resolv.conf", resolv);
-    create_file("/etc/group", "root:x:0:\n");
+    // Не стирать группы пользователей при следующей загрузке
+    if (access("/etc/group", F_OK) != 0) {
+        create_file("/etc/group", "root:x:0:\n");
+    }
 }
 
 static void service_quote(FILE *f, const char *arg) {
@@ -802,6 +949,38 @@ static pid_t spawn_process(const char *path, char *const argv[], char *const env
         _exit(127);
     }
     return pid;
+}
+
+// Запустить системную шину сообщений только при установленном пакете D-Bus
+static void start_system_bus(void) {
+    static const char socket_path[] = "/var/run/dbus/system_bus_socket";
+    struct stat socket_status;
+
+    if (access("/bin/dbus-daemon", X_OK) != 0 ||
+        access("/usr/share/dbus-1/system.conf", R_OK) != 0) {
+        return;
+    }
+
+    if (!ensure_dir("/var/run/dbus", 0755)) {
+        return;
+    }
+
+    char *const argv[] = {"/bin/dbus-daemon", "--system", "--nofork", NULL};
+    pid_t pid = spawn_process("/bin/dbus-daemon", argv, environ, SPAWN_MANAGED);
+    if (pid <= 0) {
+        return;
+    }
+
+    for (unsigned attempt = 0; attempt < 50; attempt++) {
+        if (stat(socket_path, &socket_status) == 0 && S_ISSOCK(socket_status.st_mode)) {
+            printf("[init] system D-Bus ready (pid=%d)\n", (int)pid);
+            return;
+        }
+
+        usleep(20000);
+    }
+
+    fprintf(stderr, "[init] system D-Bus socket unavailable\n");
 }
 
 static void spawn_setup_check(const syn_cfg_t *cfg) {
@@ -1276,8 +1455,12 @@ static void reap_children(struct tracked_console *consoles, size_t count,
             *ssh_exited = 1;
             *ssh_supervisor = -1;
             *ssh_retry_at = retry_at;
-            fprintf(stderr, "[init] SSH process exited; restart scheduled\n");
-            report_necromant("F ssh process exited");
+            int code = WIFEXITED(status) ? WEXITSTATUS(status) :
+                WIFSIGNALED(status) ? 128 + WTERMSIG(status) : -1;
+            fprintf(stderr, "[init] SSH process exited (code=%d), restart scheduled\n", code);
+            char report[96];
+            snprintf(report, sizeof(report), "F ssh process exited code=%d", code);
+            report_necromant(report);
         }
 
         for (size_t i = 0; i < count; i++) {
@@ -1456,7 +1639,8 @@ static void load_firewall_config(void) {
 
 // При завершении графической сессии запускаем консоль на том же терминале
 static int start_desktop_session(const syn_cfg_t *cfg, const char *shell) {
-    const char *program = cfg->desktop_path[0] ? cfg->desktop_path : "/bin/desktop";
+    const char *program = cfg->desktop_login_manager ? "/bin/synapse-session-manager" :
+        (cfg->desktop_path[0] ? cfg->desktop_path : "/bin/desktop");
     if (!cfg->desktop_enabled || access(program, X_OK) != 0) {
         return 0;
     }
@@ -1491,6 +1675,10 @@ static int start_desktop_session(const syn_cfg_t *cfg, const char *shell) {
             sleep(3);
         }
         fprintf(stderr, "[init] desktop stopped; returning to local console\n");
+        if (cfg->desktop_login_manager) {
+            syscall(102005L, (unsigned long)UINT32_MAX);
+        }
+
         char *const argv[] = {(char *)shell, NULL};
         spawn_tty_shell("/dev/tty0", shell, argv);
         _exit(0);
@@ -1537,10 +1725,23 @@ static int run_first_boot_setup(void) {
     }
 
     int status = 0;
-    pid_t waited;
-    do {
-        waited = waitpid(child, &status, 0);
-    } while (waited < 0 && errno == EINTR);
+    pid_t waited = 0;
+    unsigned heartbeat_tick = 0;
+    while (waited == 0) {
+        waited = waitpid(child, &status, WNOHANG);
+        if (waited < 0 && errno == EINTR) {
+            waited = 0;
+            continue;
+        }
+
+        if (waited == 0) {
+            if (heartbeat_tick++ % 5U == 0U) {
+                report_necromant("P init waiting for first-boot setup");
+            }
+
+            sleep(1);
+        }
+    }
     if (waited == child && WIFEXITED(status) && WEXITSTATUS(status) == 0 &&
         access("/var/lib/hi/complete", F_OK) == 0) {
         printf("[init] HI first-boot setup completed\n");
@@ -1888,6 +2089,8 @@ int main(int argc, char **argv, char **envp) {
         }
     }
 
+    start_system_bus();
+
     int cloud_ready = !cloud_required;
     int cloud_metadata_degraded = 0;
 
@@ -1984,7 +2187,7 @@ int main(int argc, char **argv, char **envp) {
     apply_boot_session(&config);
     generate_etc_files(&config);
 
-    desktop_ready = config.desktop_enabled &&
+    desktop_ready = first_boot_result >= 0 && config.desktop_enabled &&
                     access(config.desktop_path[0] ? config.desktop_path : "/bin/desktop", X_OK) == 0;
     int desktop_started = 0;
     if (desktop_ready) {
@@ -2006,6 +2209,13 @@ int main(int argc, char **argv, char **envp) {
     }
 
     int ssh_ready = setup_ssh_account(&config);
+    int ssh_credentials_pending = 0;
+    if (ssh_ready && !ssh_access_ready(config.ssh_login)) {
+        fprintf(stderr, "[init] SSH disabled: provide a unique key through cloud-init or set a local password\n");
+        report_necromant("P cloud waiting for administrator credentials");
+        ssh_credentials_pending = 1;
+        ssh_ready = 0;
+    }
     load_firewall_config();
 
     // Клиент сам проверяет согласие и повторяет ожидающий отзыв даже при stats=0
@@ -2042,6 +2252,7 @@ int main(int argc, char **argv, char **envp) {
     time_t ssh_retry_at = 0;
     time_t ssh_recovery_at = 0;
     time_t ssh_stable_since = 0;
+    time_t ssh_credentials_probe_at = 0;
     unsigned ssh_recovery_attempts = 0;
     time_t init_loop_started = 0;
     time_t cloud_unavailable_since = 0;
@@ -2159,6 +2370,17 @@ int main(int argc, char **argv, char **envp) {
         if (init_loop_started == 0) {
             init_loop_started = recovery_now;
         }
+
+        // Пароль или ключ можно добавить через локальную консоль и QGA без перезагрузки
+        if (config.ssh_enabled && ssh_credentials_pending && recovery_now >= ssh_credentials_probe_at) {
+            ssh_credentials_probe_at = recovery_now + 5;
+            if (ssh_access_ready(config.ssh_login)) {
+                ssh_credentials_pending = 0;
+                ssh_ready = 1;
+                report_necromant("R cloud administrator credentials configured");
+            }
+        }
+
         int ssh_state = 0;
         if (cloud_required && config.ssh_enabled && ssh_ready && ssh_supervisor > 0) {
             if (recovery_now >= ssh_direct_probe_at) {
@@ -2186,8 +2408,9 @@ int main(int argc, char **argv, char **envp) {
                 ssh_unhealthy_since = recovery_now;
             }
         }
-        int cloud_service_ready = cloud_required && cloud_ready && config.ssh_enabled &&
-            ssh_ready && ssh_stable_since != 0 && recovery_now - ssh_stable_since >= 5 &&
+        int cloud_service_ready = cloud_required && cloud_ready &&
+            cloud_ssh_health_ready(config.ssh_enabled, ssh_credentials_pending, ssh_ready,
+                                   ssh_stable_since, recovery_now) &&
             cloud_binary_ready("/bin/sh") && cloud_binary_ready("/bin/cloud-init") &&
             cloud_binary_ready("/bin/dropbear");
         if (cloud_required && !cloud_service_ready && !init_health_reported &&
@@ -2204,8 +2427,14 @@ int main(int argc, char **argv, char **envp) {
         if (!init_health_reported &&
             ((!cloud_required && access(shell, X_OK) == 0 &&
               recovery_now - init_loop_started >= 5) || cloud_service_ready)) {
-            init_health_reported = report_necromant(cloud_metadata_degraded ?
-                "H init local services ready, metadata unavailable" : "H init services ready");
+            const char *health = "H init services ready";
+            if (cloud_required && config.ssh_enabled && ssh_credentials_pending) {
+                health = "H init local services ready, administrator credentials pending";
+            } else if (cloud_metadata_degraded) {
+                health = "H init local services ready, metadata unavailable";
+            }
+
+            init_health_reported = report_necromant(health);
         }
         if (cloud_required) {
             if (cloud_service_ready) {
@@ -2240,10 +2469,12 @@ int main(int argc, char **argv, char **envp) {
                 recover_ssh();
             } else {
                 ssh_force_direct = 1;
-                report_necromant("F cloud SSH manager unresponsive, using direct SSH");
+                report_necromant("F cloud SSH manager stopping before direct SSH");
                 kill(ssh_supervisor, SIGTERM);
             }
         }
+
+        // Новый listener запускается только после waitpid супервизора и остановки его ребёнка
         if (config.ssh_enabled && ssh_ready && ssh_supervisor <= 0 && now >= ssh_retry_at &&
             access("/bin/dropbear", X_OK) == 0) {
             if (cloud_required && !ssh_force_direct && !cloud_binary_ready("/bin/service")) {
