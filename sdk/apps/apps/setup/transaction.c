@@ -5,7 +5,7 @@
 // Журналирование изменений файлов и подготовка загрузочных записей
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 21.10.2026
+// Последнее изменение: 03.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -200,8 +200,26 @@ static struct operation *add(const char *relative) {
     }
     return o;
 }
+// Открыть приватные данные до записи, независимо от umask вызывающей службы
+static FILE *private_output(const char *dest) {
+    int fd = open(dest, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600);
+    if (fd < 0) {
+        fail("create private package metadata");
+    }
+    if (fchmod(fd, 0600) != 0) {
+        close(fd);
+        fail("protect private package metadata");
+    }
+    FILE *stream = fdopen(fd, "wb");
+    if (stream == NULL) {
+        close(fd);
+        fail("open private package metadata stream");
+    }
+    return stream;
+}
+
 static void db(const char *dest, struct package **items, int count) {
-    FILE *f = fopen(dest, "wb");
+    FILE *f = private_output(dest);
     if (!f) {
         fail("write package database");
     }
@@ -254,7 +272,7 @@ static void replace(const char *src, const char *relative, unsigned mode) {
     sync_parent(dest);
 }
 static void journal(const char *dest) {
-    FILE *f = fopen(dest, "wb");
+    FILE *f = private_output(dest);
     if (!f) {
         fail("create journal");
     }
@@ -863,6 +881,9 @@ void transact(void) {
         fail("insufficient disk space for staging and rollback");
     }
     mkdirs(txn);
+    if (chmod(txn, 0700) != 0) {
+        fail("protect transaction directory");
+    }
     transaction_started = 1;
     if (boot_config) {
         char next_config[4096];
@@ -997,6 +1018,8 @@ void transact(void) {
     replace(next, "var/lib/setup/installed.json", 0600);
     remove_tree(txn);
     sync_parent(txn);
+    transaction_started = 0;
+    publish_public_catalog(chosen, nchosen);
     puts("Transaction complete");
     if (kernel_pending) {
         puts(

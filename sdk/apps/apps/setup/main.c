@@ -5,7 +5,7 @@
 // Разбор аргументов, просмотр каталога и последовательное обновление пакетов
 // Подсистема: пользовательский пакетный менеджер
 // Первое изменение в истории Git: 09.10.2026
-// Последнее изменение: 21.10.2026
+// Последнее изменение: 03.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -243,6 +243,11 @@ int main(int argc, char **argv) {
             fail("another setup operation is running or lock is unavailable");
         }
         lock = candidate;
+        // Проверка индекса не меняет установленные пакеты
+        if (!check && !update) {
+            invalidate_public_catalog();
+        }
+
         if (!recovery) {
             char txn[4096];
             path(txn, "var/lib/setup/txn");
@@ -253,10 +258,21 @@ int main(int argc, char **argv) {
         } else {
             recovering = 1;
             recover();
+            load_state();
+            load_repos(0);
+            publish_public_catalog(installed, ninstalled);
             return 0;
         }
     }
-    load_state();
+    struct stat root_stat;
+    int owned_root = *root != 0 && stat(root, &root_stat) == 0 && root_stat.st_uid == geteuid();
+    int public_read = geteuid() != 0 && !owned_root && (!strcmp(cmd, "ls") || !strcmp(cmd, "l") ||
+        !strcmp(cmd, "list") || !strcmp(cmd, "search") || !strcmp(cmd, "info"));
+    if (public_read) {
+        load_public_catalog();
+    } else {
+        load_state();
+    }
     if (check) {
         int notify = count == 2 && !strcmp(args[1], "--notify");
         if (count != 1 && !notify) {
@@ -313,6 +329,7 @@ int main(int argc, char **argv) {
         } else {
             puts("All installed packages are up to date.");
         }
+        publish_public_catalog(installed, ninstalled);
         return 0;
     }
     if (update) {
@@ -323,6 +340,7 @@ int main(int argc, char **argv) {
         if (!nrepo) {
             fail("no repositories configured; see setup repo list");
         }
+        publish_public_catalog(installed, ninstalled);
         return 0;
     }
     if (!strcmp(cmd, "l") || !strcmp(cmd, "ls") || !strcmp(cmd, "list")) {
@@ -342,7 +360,9 @@ int main(int argc, char **argv) {
             }
             return 0;
         }
-        load_repos(0);
+        if (!public_read) {
+            load_repos(0);
+        }
         for (int i = 0; i < navailable; i++) {
             struct package *p = available[i];
             int have = 0;
@@ -369,11 +389,14 @@ int main(int argc, char **argv) {
         if (count < 2) {
             fail("remove needs package names");
         }
+        load_repos(0);
         plan_remove(count - 1, args + 1);
         transact();
         return 0;
     }
-    load_repos(!strcmp(cmd, "repo") ? -1 : 0);
+    if (!public_read) {
+        load_repos(!strcmp(cmd, "repo") ? -1 : 0);
+    }
     if (!strcmp(cmd, "repo")) {
         if (count != 2 || strcmp(args[1], "list")) {
             fail("usage: setup repo list");
@@ -410,8 +433,12 @@ int main(int argc, char **argv) {
                 printf("%s %s [%s] %s\n", p->name, p->version, repos[p->repo].id,
                        p->description);
                 if (!strcmp(cmd, "info")) {
-                    printf("  %s %s, %llu bytes, %s\n", p->arch, p->abi,
-                           (unsigned long long)p->size, p->kind);
+                    if (public_read && p->installed) {
+                        printf("  %s %s, archive size unavailable, %s\n", p->arch, p->abi, p->kind);
+                    } else {
+                        printf("  %s %s, %llu bytes, %s\n", p->arch, p->abi,
+                               (unsigned long long)p->size, p->kind);
+                    }
                     for (int d = 0; d < p->ndep; d++) {
                         printf("  requires %s\n", p->dep[d]);
                     }

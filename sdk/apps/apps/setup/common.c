@@ -5,7 +5,7 @@
 // Работа с путями, метаданными, JSON и контрольными суммами
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 27.10.2026
+// Последнее изменение: 03.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -288,12 +288,35 @@ void sha_file(const char *p, char out[65]) {
     hex(h, 32, out);
 }
 struct json *parse_json(const char *s, size_t len) {
-    struct json *j = malloc(sizeof *j);
-    if (!j) {
-        fail("out of memory");
+    size_t capacity = len / 12 + 128;
+    if (capacity < 512) {
+        capacity = 512;
     }
-    if (json_parse(j, s, len)) {
-        fail("invalid or overly complex JSON");
+
+    struct json *j;
+    for (;;) {
+        if (capacity > META_LIMIT || capacity > (SIZE_MAX - sizeof *j) / sizeof(struct json_token)) {
+            fail("JSON token limit exceeded");
+        }
+
+        j = malloc(sizeof *j + capacity * sizeof(struct json_token));
+        if (j == NULL) {
+            fail("out of memory");
+        }
+
+        j->t = (struct json_token *)(j + 1);
+        j->capacity = (int)capacity;
+        if (json_parse(j, s, len) == 0) {
+            break;
+        }
+
+        int full = j->count == j->capacity;
+        free(j);
+        if (!full) {
+            fail("invalid JSON");
+        }
+
+        capacity *= 2;
     }
 
     for (int t = 0; t < j->count; t++) {
@@ -424,7 +447,9 @@ struct package *parse_package(struct json *j, int t) {
         if (!strncmp(f->path, "etc/setup/", 10) ||
             !strcmp(f->path, "etc/settings.ini") ||
             !strncmp(f->path, "etc/dropbear/", 13) || !strcmp(f->path, "etc/shadow") ||
-            !strcmp(f->path, "etc/passwd")) {
+            !strcmp(f->path, "etc/passwd") ||
+            !strcmp(f->path, "usr/share/setup/catalog.json") ||
+            !strcmp(f->path, "usr/share/setup/catalog.json.new")) {
             fail("protected path %s", f->path);
         }
         uint64_t mode = jnum(j, k, "mode");

@@ -5,7 +5,7 @@
 // Получение каталога, проверка подписи и учёт источников пакетов
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 23.10.2026
+// Последнее изменение: 03.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -937,5 +937,302 @@ void load_state(void) {
         installed[ninstalled++] = pkg;
     }
     free(j);
+    free(data);
+}
+
+// Выдать только общие сведения, без путей файлов, хэшей и данных авторизации
+static void public_string(FILE *stream, const char *value) {
+    fputc('"', stream);
+    for (const unsigned char *p = (const unsigned char *)value; *p != 0; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', stream);
+            fputc(*p, stream);
+        } else if (*p < 32) {
+            fprintf(stream, "\\u%04x", (unsigned)*p);
+        } else {
+            fputc(*p, stream);
+        }
+    }
+
+    fputc('"', stream);
+}
+
+// Записать разрешённые поля manifest, не копируя исходный JSON целиком
+static void public_manifest(FILE *stream, const struct package *package) {
+    const char *keys[] = {"name", "version", "description", "kind", "arch", "abi"};
+    const char *values[] = {package->name, package->version, package->description,
+                           package->kind, package->arch, package->abi};
+    fputs("{\"format\":1", stream);
+    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
+        fprintf(stream, ",\"%s\":", keys[i]);
+        public_string(stream, values[i]);
+    }
+
+    fputs(",\"depends\":[", stream);
+    for (int i = 0; i < package->ndep; i++) {
+        if (i != 0) {
+            fputc(',', stream);
+        }
+        public_string(stream, package->dep[i]);
+    }
+
+    fputs("],\"conflicts\":[", stream);
+    for (int i = 0; i < package->nconf; i++) {
+        if (i != 0) {
+            fputc(',', stream);
+        }
+        public_string(stream, package->conflict[i]);
+    }
+    fputs("],\"files\":[]}", stream);
+}
+
+// Создать только общеизвестные каталоги usr/share с точными правами при любом umask
+static void public_directory(const char *relative) {
+    char full[4096];
+    path(full, relative);
+    if (mkdir(full, 0755) != 0 && errno != EEXIST) {
+        fail("create public catalog directory: %s", strerror(errno));
+    }
+
+    int fd = open(full, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+    struct stat st;
+    if (fd < 0) {
+        fail("open public catalog directory: %s", strerror(errno));
+    }
+    int bad = fstat(fd, &st) != 0 || st.st_uid != geteuid();
+    if (!bad) {
+        bad = fchmod(fd, 0755) != 0;
+    }
+    close(fd);
+    if (bad) {
+        fail("unsafe public catalog directory");
+    }
+}
+
+// Убрать прежний снимок до изменения состояния, чтобы после отказа не показывать старые данные
+void invalidate_public_catalog(void) {
+    int fd = open(*root != 0 ? root : "/", O_RDONLY | O_DIRECTORY);
+    if (fd < 0) {
+        fail("open public catalog root");
+    }
+    const char *parts[] = {"usr", "share", "setup"};
+    for (size_t i = 0; i < sizeof(parts) / sizeof(parts[0]); i++) {
+        int next = openat(fd, parts[i], O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+        int error = errno;
+        close(fd);
+        if (next < 0) {
+            if (error == ENOENT) {
+                return;
+            }
+            fail("unsafe public catalog directory");
+        }
+        fd = next;
+        struct stat st;
+        if (fstat(fd, &st) != 0 || st.st_uid != geteuid() || fchmod(fd, 0755) != 0) {
+            close(fd);
+            fail("unsafe public catalog directory");
+        }
+    }
+    int result = unlinkat(fd, "catalog.json", 0);
+    int error = errno;
+    if (result == 0 && fsync(fd) != 0) {
+        result = -1;
+        error = errno;
+    }
+    close(fd);
+    if (result != 0 && error != ENOENT) {
+        fail("invalidate public catalog: %s", strerror(error));
+    }
+}
+
+// Опубликовать разобранное состояние и уже проверенные каталоги под общей блокировкой setup
+void publish_public_catalog(struct package **state, int count) {
+    public_directory("usr");
+    public_directory("usr/share");
+    public_directory("usr/share/setup");
+    char full[4096], temp[4096];
+    path(full, "usr/share/setup/catalog.json");
+    path(temp, "usr/share/setup/catalog.json.new");
+    if (unlink(temp) != 0 && errno != ENOENT) {
+        fail("remove public catalog staging file");
+    }
+
+    int fd = open(temp, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+    if (fd < 0) {
+        fail("create public catalog: %s", strerror(errno));
+    }
+    FILE *stream = fdopen(fd, "wb");
+    if (stream == NULL) {
+        close(fd);
+        unlink(temp);
+        fail("open public catalog stream");
+    }
+
+    fputs("{\"format\":1,\"repositories\":[", stream);
+    for (int i = 0; i < nrepo; i++) {
+        fprintf(stream, "%s{\"id\":", i != 0 ? "," : "");
+        public_string(stream, repos[i].id);
+        fprintf(stream, ",\"priority\":%d}", repos[i].priority);
+    }
+    fputs("],\"available\":[", stream);
+    for (int i = 0; i < navailable; i++) {
+        struct package *package = available[i];
+        fprintf(stream, "%s{\"source\":", i != 0 ? "," : "");
+        public_string(stream, repos[package->repo].id);
+        fprintf(stream, ",\"size\":%llu,\"manifest\":", (unsigned long long)package->size);
+        public_manifest(stream, package);
+        fputc('}', stream);
+    }
+    fputs("],\"installed\":[", stream);
+    for (int i = 0; i < count; i++) {
+        struct package *package = state[i];
+        const char *source = package->installed ? package->url : repos[package->repo].id;
+        if (!valid_name(source)) {
+            fclose(stream);
+            unlink(temp);
+            fail("invalid public catalog source");
+        }
+        fprintf(stream, "%s{\"source\":", i != 0 ? "," : "");
+        public_string(stream, source);
+        fprintf(stream, ",\"explicit\":%s,\"manifest\":", package->explicit ? "true" : "false");
+        public_manifest(stream, package);
+        fputc('}', stream);
+    }
+    fputs("]}\n", stream);
+    long bytes = ftell(stream);
+    int bad = bytes < 0 || (uint64_t)bytes > META_LIMIT || ferror(stream);
+    if (!bad) {
+        bad = fflush(stream) != 0 || fchmod(fd, 0644) != 0 || fsync(fd) != 0;
+    }
+    if (fclose(stream) != 0) {
+        bad = 1;
+    }
+    if (bad || rename(temp, full) != 0) {
+        unlink(temp);
+        fail("public catalog publication failed; package state may already be committed");
+    }
+    sync_parent(full);
+}
+
+// Разрешить имя источника без адресов серверов и ссылок на приватные credentials
+static int public_repo(const char *id, int priority) {
+    if (!valid_name(id)) {
+        fail("invalid public catalog repository");
+    }
+    for (int i = 0; i < nrepo; i++) {
+        if (strcmp(repos[i].id, id) == 0) {
+            return i;
+        }
+    }
+    if (nrepo == MAXREPO || priority < 0 || priority > 10000) {
+        fail("public catalog repository limit");
+    }
+    strcpy(repos[nrepo].id, id);
+    repos[nrepo].priority = priority;
+    return nrepo++;
+}
+
+// Прочитать только безопасный снимок, не открывая installed.json, подписанные кэши и auth
+void load_public_catalog(void) {
+    char full[4096];
+    path(full, "usr/share/setup/catalog.json");
+    struct stat st;
+    uid_t owner = 0;
+    if (*root != 0) {
+        struct stat directory;
+        if (stat(root, &directory) != 0 || !S_ISDIR(directory.st_mode)) {
+            fail("invalid public catalog root");
+        }
+        owner = directory.st_uid;
+    }
+    if (lstat(full, &st) != 0) {
+        fail("public catalog unavailable; administrator must run setup update or recover");
+    }
+    if (!S_ISREG(st.st_mode) || st.st_uid != owner || (st.st_mode & 0022) != 0) {
+        fail("unsafe public catalog ownership or permissions");
+    }
+
+    size_t len;
+    char *data = read_bytes(full, META_LIMIT, &len);
+    struct json *json = parse_json(data, len);
+    object_fields(json, 0, "|format||repositories||available||installed|");
+    if (jnum(json, 0, "format") != 1) {
+        fail("unsupported public catalog");
+    }
+    int array = json_get(json, 0, "repositories");
+    if (array < 0 || json->t[array].type != J_ARRAY) {
+        fail("invalid public repositories");
+    }
+    for (int token = array + 1; token < json->t[array].next; token = json->t[token].next) {
+        object_fields(json, token, "|id||priority|");
+        char id[64];
+        jstr(json, token, "id", id, sizeof(id));
+        uint64_t priority = jnum(json, token, "priority");
+        if (priority > 10000) {
+            fail("public repository priority out of range");
+        }
+        (void)public_repo(id, (int)priority);
+    }
+
+    const char *sections[] = {"available", "installed"};
+    for (int section = 0; section < 2; section++) {
+        array = json_get(json, 0, sections[section]);
+        if (array < 0 || json->t[array].type != J_ARRAY) {
+            fail("invalid public package list");
+        }
+        for (int token = array + 1; token < json->t[array].next; token = json->t[token].next) {
+            object_fields(json, token, section == 0 ? "|source||size||manifest|" :
+                          "|source||explicit||manifest|");
+            struct package *package = parse_package(json, json_get(json, token, "manifest"));
+            if (package->nfile != 0) {
+                fail("private file metadata in public catalog");
+            }
+            char source[64];
+            jstr(json, token, "source", source, sizeof(source));
+            if (!valid_name(source)) {
+                fail("invalid public source");
+            }
+            if (section == 0) {
+                if (navailable == MAXPKG) {
+                    fail("public catalog package limit");
+                }
+                package->size = jnum(json, token, "size");
+                if (package->size > PACKAGE_LIMIT) {
+                    fail("public package size limit");
+                }
+                package->repo = public_repo(source, 0);
+                available[navailable++] = package;
+            } else {
+                if (ninstalled == MAXPKG) {
+                    fail("public installed package limit");
+                }
+                if (json_boolean(json, json_get(json, token, "explicit"), &package->explicit)) {
+                    fail("invalid public installed flag");
+                }
+                package->installed = 1;
+                strcpy(package->url, source);
+                installed[ninstalled++] = package;
+            }
+        }
+    }
+
+    // Установленные компоненты видны и до первого получения сетевого индекса
+    for (int i = 0; i < ninstalled; i++) {
+        int found = 0;
+        for (int j = 0; j < navailable; j++) {
+            if (strcmp(installed[i]->name, available[j]->name) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            if (navailable == MAXPKG) {
+                fail("public catalog package limit");
+            }
+            installed[i]->repo = public_repo(installed[i]->url, 0);
+            available[navailable++] = installed[i];
+        }
+    }
+    free(json);
     free(data);
 }

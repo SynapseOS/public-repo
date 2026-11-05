@@ -5,7 +5,7 @@
 // Структуры каталога, плана установки и состояния транзакции
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 22.10.2026
+// Последнее изменение: 03.11.2026
 // Доступ: общедоступный
 
 #ifndef SYNAPSE_SETUP_H
@@ -91,6 +91,9 @@ void jstr(struct json *j, int t, const char *key, char *out, size_t cap);
 uint64_t jnum(struct json *j, int t, const char *key);
 struct package *parse_package(struct json *j, int t);
 void load_state(void);
+void load_public_catalog(void);
+void invalidate_public_catalog(void);
+void publish_public_catalog(struct package **state, int count);
 void load_repos(int update);
 void plus_command(int argc, char **argv);
 void auth_command(int argc, char **argv);
