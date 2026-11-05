@@ -1,4 +1,5 @@
 # Зависимости выходных файлов
+$(BUILD_ROOT)/labwc/.built: $(BUILD_ROOT)/weston/.built $(BUILD_ROOT)/opengl/.built
 $(BUILD_ROOT)/curl/.built: $(BUILD_ROOT)/openssl/.built
 $(BUILD_ROOT)/nginx/.built: $(BUILD_ROOT)/openssl/.built $(BUILD_ROOT)/pcre2/.built $(BUILD_ROOT)/zlib/.built
 $(BUILD_ROOT)/wget/.built: $(BUILD_ROOT)/openssl/.built
@@ -18,6 +19,7 @@ $(BUILD_ROOT)/glib-gio/.built: $(BUILD_ROOT)/glib/.built $(BUILD_ROOT)/libffi/.b
 $(BUILD_ROOT)/json-glib/.built: $(BUILD_ROOT)/glib-gio/.built
 $(BUILD_ROOT)/bubblewrap/.built: $(BUILD_ROOT)/libcap/.built
 $(BUILD_ROOT)/xdg-dbus-proxy/.built: $(BUILD_ROOT)/glib-gio/.built
+$(BUILD_ROOT)/synapse-openuri-portal/.built: $(BUILD_ROOT)/glib-gio/.built
 $(BUILD_ROOT)/libassuan/.built: $(BUILD_ROOT)/libgpg-error/.built
 $(BUILD_ROOT)/libgcrypt/.built: $(BUILD_ROOT)/libgpg-error/.built
 $(BUILD_ROOT)/libksba/.built: $(BUILD_ROOT)/libgpg-error/.built
@@ -25,6 +27,15 @@ $(BUILD_ROOT)/gnupg/.built: $(BUILD_ROOT)/libgcrypt/.built $(BUILD_ROOT)/libksba
 	$(BUILD_ROOT)/npth/.built $(BUILD_ROOT)/libassuan/.built $(BUILD_ROOT)/zlib/.built
 $(BUILD_ROOT)/gpgme/.built: $(BUILD_ROOT)/libassuan/.built
 $(BUILD_ROOT)/libarchive/.built: $(BUILD_ROOT)/zlib/.built
+$(BUILD_ROOT)/dpkg-deb/.built: $(BUILD_ROOT)/zlib/.built $(BUILD_ROOT)/liblzma/.built \
+	$(BUILD_ROOT)/libmd/.built $(BUILD_ROOT)/gnu-tar/.built
+$(BUILD_ROOT)/debian-dpkg/.built: $(BUILD_ROOT)/dpkg-deb/.built $(BUILD_ROOT)/zlib/.built \
+	$(BUILD_ROOT)/liblzma/.built $(BUILD_ROOT)/libmd/.built
+$(BUILD_ROOT)/apt/.built: $(BUILD_ROOT)/zlib/.built $(BUILD_ROOT)/liblzma/.built \
+	$(BUILD_ROOT)/libbz2/.built $(BUILD_ROOT)/liblz4/.built $(BUILD_ROOT)/libxxhash/.built \
+	$(BUILD_ROOT)/openssl/.built $(BUILD_ROOT)/libstdcxx/.built $(BUILD_ROOT)/glibc/.built \
+	$(BUILD_ROOT)/debian-dpkg/.built \
+	$(BUILD_ROOT)/gnupg/.built $(BUILD_ROOT)/debian-archive-keyring/.built
 $(BUILD_ROOT)/libpng/.built: $(BUILD_ROOT)/zlib/.built
 $(BUILD_ROOT)/gdk-pixbuf/.built: $(BUILD_ROOT)/glib-gio/.built $(BUILD_ROOT)/libpng/.built
 $(BUILD_ROOT)/libxmlb/.built: $(BUILD_ROOT)/glib-gio/.built $(BUILD_ROOT)/liblzma/.built
@@ -35,6 +46,7 @@ $(BUILD_ROOT)/flatpak/.built: $(BUILD_ROOT)/appstream/.built $(BUILD_ROOT)/gdk-p
 	$(BUILD_ROOT)/libostree/.built $(BUILD_ROOT)/json-glib/.built $(BUILD_ROOT)/libcap/.built \
 	$(BUILD_ROOT)/libarchive/.built $(BUILD_ROOT)/libseccomp/.built $(BUILD_ROOT)/fuse3/.built \
 	$(BUILD_ROOT)/bubblewrap/.built $(BUILD_ROOT)/xdg-dbus-proxy/.built
+$(BUILD_ROOT)/flatpak/.built: $(BUILD_ROOT)/qemu-i386/.built $(BUILD_ROOT)/synapse-openuri-portal/.built
 $(BUILD_ROOT)/libcurl/.built: $(BUILD_ROOT)/openssl/.built
 $(BUILD_ROOT)/libostree/.built: $(BUILD_ROOT)/glib-gio/.built $(BUILD_ROOT)/libffi/.built \
 	$(BUILD_ROOT)/pcre2/.built $(BUILD_ROOT)/zlib/.built $(BUILD_ROOT)/liblzma/.built \
@@ -44,6 +56,7 @@ $(BUILD_ROOT)/libostree/.built: $(BUILD_ROOT)/gpgme/.built
 $(BUILD_ROOT)/dbus/.built: $(BUILD_ROOT)/expat/.built
 $(BUILD_ROOT)/glibc-dev/.built: $(BUILD_ROOT)/glibc/.built
 $(BUILD_ROOT)/less/.built: $(SDK)/.ncurses-ready
+$(BUILD_ROOT)/oh-my-zsh/.built: $(BUILD_ROOT)/zsh/.built
 $(BUILD_ROOT)/screen/.built: $(SDK)/.ncurses-ready
 $(BUILD_ROOT)/vim/.built: $(SDK)/.ncurses-ready
 $(BUILD_ROOT)/links/.built: $(SDK)/.mbedtls-ready
@@ -84,7 +97,10 @@ $(BUILD_ROOT)/qt6-llvm-runtime/.built: $(ROOT)/pkgs/qt6-base/runtime.sh
 $(BUILD_ROOT)/qt6-base/.built: $(BUILD_ROOT)/weston/.built $(BUILD_ROOT)/opengl/.built $(BUILD_ROOT)/qt6-llvm-runtime/.built $(ROOT)/build/cxx-shared.sh
 $(BUILD_ROOT)/qt6-wayland/.built: $(BUILD_ROOT)/qt6-base/.built
 $(BUILD_ROOT)/synapse-files/.built: $(BUILD_ROOT)/qt6-wayland/.built $(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
-$(BUILD_ROOT)/synapse-desktop/.built: $(BUILD_ROOT)/synapse-files/.built $(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
+$(BUILD_ROOT)/synapse-desktop/.built: $(BUILD_ROOT)/synapse-files/.built $(BUILD_ROOT)/synapse-store/.built \
+	$(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
+$(BUILD_ROOT)/synapse-store/.built: $(BUILD_ROOT)/qt6-wayland/.built $(BUILD_ROOT)/setup/.built \
+	$(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
 $(BUILD_ROOT)/go-runtime/.built: $(BUILD_ROOT)/go/.built
 go: $(BUILD_ROOT)/go-runtime/.built
 

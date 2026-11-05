@@ -2,11 +2,16 @@
 # package.sh: сборка пакета по закреплённому рецепту
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 21.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 set -euo pipefail
 source "$ROOT/build/common.sh"
+
+: "${TMPDIR:=$ROOT/.work/tmp}"
+mkdir -p "$TMPDIR"
+export TMPDIR
+
 export SYNAPSE_LINK_MODE=static
 name=${1:?Package name required}
 
