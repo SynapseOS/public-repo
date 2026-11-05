@@ -1,0 +1,17 @@
+# synapse-switch-user.desktop: выход к экрану выбора пользователя
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: x86_64, ABI: Wayland
+# Подсистема: графический сеанс
+# Первое изменение: 30.10.2026
+# Последнее изменение: 30.10.2026
+# Доступ: общедоступный
+[Desktop Entry]
+Type=Application
+Name=Switch User
+Name[ru]=Сменить пользователя
+Comment=Return to the graphical login screen
+Comment[ru]=Вернуться к экрану выбора пользователя
+Exec=/bin/labwc -e
+Icon=system-users
+Categories=System;
+Terminal=false
