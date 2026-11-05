@@ -1,5 +1,13 @@
+// passwd.c: Смена пароля с сохранением файла учётных записей
+// Автор изменений SynapseOS: Елчинян Арен Артурович, 2026
+// Архитектура: x86_64, ABI: Linux ELF64 musl
+// Подсистема: учётные записи
+// Первое изменение: дата исходной адаптации не установлена
+// Последнее изменение: 03.11.2026
+// Доступ: общедоступный
 /* See LICENSE file for copyright and license details. */
 #include <sys/ioctl.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
@@ -8,6 +16,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <pwd.h>
+#include <signal.h>
 #include <shadow.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -49,51 +58,95 @@ open_tty(void)
 	return fd;
 }
 
-static char *
-tty_getpass(const char *prompt)
-{
-	static char buf[BUFSIZ];
-	struct termios old, new;
-	int ttyfd;
-	ssize_t len;
+static volatile sig_atomic_t password_signal;
 
-	ttyfd = open_tty();
-	if (ttyfd < 0) {
-		weprintf("cannot open any tty device:");
-		return NULL;
-	}
+// Прервать ввод, чтобы обычный путь вернул режим терминала
+static void password_interrupted(int number) {
+    password_signal = number;
+}
 
-	fputs(prompt, stderr);
-	fflush(stderr);
+// Прочитать строку без эха и вернуть режим терминала перед обработкой сигнала
+static char *tty_getpass(const char *prompt) {
+    static char buf[BUFSIZ];
+    struct termios old, hidden;
+    const int signals[] = {SIGINT, SIGTERM, SIGHUP, SIGQUIT};
+    struct sigaction previous[4], action;
+    unsigned installed = 0;
+    int changed = 0, valid = 0;
+    size_t length = 0;
+    explicit_bzero(buf, sizeof(buf));
+    int ttyfd = open_tty();
+    if (ttyfd < 0 || tcgetattr(ttyfd, &old) != 0) {
+        if (ttyfd >= 0) {
+            close(ttyfd);
+        }
+        return NULL;
+    }
 
-	if (tcgetattr(ttyfd, &old) < 0) {
-		weprintf("tcgetattr:");
-		close(ttyfd);
-		return NULL;
-	}
-	new = old;
-	new.c_lflag &= ~(ECHO | ECHONL);
-	if (tcsetattr(ttyfd, TCSAFLUSH, &new) < 0) {
-		weprintf("tcsetattr:");
-		close(ttyfd);
-		return NULL;
-	}
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = password_interrupted;
+    sigemptyset(&action.sa_mask);
+    password_signal = 0;
+    for (; installed < 4; installed++) {
+        if (sigaction(signals[installed], &action, &previous[installed]) != 0) {
+            goto done;
+        }
+    }
 
-	len = read(ttyfd, buf, sizeof(buf) - 1);
-	tcsetattr(ttyfd, TCSANOW, &old);
-	fputc('\n', stderr);
-	fflush(stderr);
-	close(ttyfd);
+    hidden = old;
+    hidden.c_lflag = (hidden.c_lflag | ICANON) & ~(ECHO | ECHONL);
+    if (tcsetattr(ttyfd, TCSAFLUSH, &hidden) != 0) {
+        goto done;
+    }
+    changed = 1;
+    fputs(prompt, stderr);
+    fflush(stderr);
 
-	if (len < 0) {
-		weprintf("read:");
-		return NULL;
-	}
-	buf[len] = '\0';
-	if (len > 0 && buf[len - 1] == '\n')
-		buf[len - 1] = '\0';
+    while (password_signal == 0) {
+        char byte;
+        ssize_t count = read(ttyfd, &byte, 1);
+        if (count < 0 && errno == EINTR && password_signal == 0) {
+            continue;
+        }
+        if (count != 1) {
+            errno = count == 0 ? EIO : errno;
+            break;
+        }
+        if (byte == '\n' || byte == '\r') {
+            valid = 1;
+            break;
+        }
+        if (length >= sizeof(buf) - 1) {
+            errno = EOVERFLOW;
+            break;
+        }
+        buf[length++] = byte;
+    }
+    buf[length] = '\0';
 
-	return buf;
+done:
+    {
+        int error = errno;
+        if (changed && tcsetattr(ttyfd, TCSAFLUSH, &old) != 0) {
+            error = errno;
+            valid = 0;
+        }
+        close(ttyfd);
+        for (unsigned i = 0; i < installed; i++) {
+            sigaction(signals[i], &previous[i], NULL);
+        }
+        fputc('\n', stderr);
+        fflush(stderr);
+        if (!valid || password_signal != 0) {
+            explicit_bzero(buf, sizeof(buf));
+        }
+        errno = error;
+    }
+    if (password_signal != 0) {
+        raise(password_signal);
+        return NULL;
+    }
+    return valid ? buf : NULL;
 }
 
 static void
@@ -106,111 +159,186 @@ flush_tty(void)
 	}
 }
 
-static FILE *
-spw_get_file(const char *user)
-{
-	FILE *fp = NULL;
-	char file[PATH_MAX];
-	int r;
+// Заблокировать всю замену учётных данных на постоянном файле
+static int lock_password_files(void) {
+    int fd = open("/etc/.pwd.lock", O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0600);
+    if (fd < 0) {
+        return -1;
+    }
 
-	r = snprintf(file, sizeof(file), "/etc/tcb/%s/shadow", user);
-	if (r < 0 || (size_t)r >= sizeof(file))
-		eprintf("snprintf:");
-	fp = fopen(file, "r+");
-	if (!fp)
-		fp = fopen("/etc/shadow", "r+");
-	return fp;
+    struct stat info;
+    if (fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != 0 ||
+        info.st_nlink != 1 || (info.st_mode & 0777) != 0600) {
+        close(fd);
+        errno = EINVAL;
+        return -1;
+    }
+
+    while (flock(fd, LOCK_EX) != 0) {
+        if (errno != EINTR) {
+            int error = errno;
+            close(fd);
+            errno = error;
+            return -1;
+        }
+    }
+
+    return fd;
 }
 
+// Открыть только обычный файл root, не переходя по символьной ссылке
+static FILE *open_account_file(const char *path) {
+    int fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+    if (fd < 0) {
+        return NULL;
+    }
+
+    struct stat info;
+    if (fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != 0 || info.st_nlink != 1) {
+        close(fd);
+        errno = EINVAL;
+        return NULL;
+    }
+
+    FILE *file = fdopen(fd, "r");
+    if (file == NULL) {
+        int error = errno;
+        close(fd);
+        errno = error;
+    }
+
+    return file;
+}
+
+// Найти используемый shadow, не подменяя ошибку доступа другим файлом
+static FILE *spw_get_file(const char *user, char path[PATH_MAX]) {
+    int length = snprintf(path, PATH_MAX, "/etc/tcb/%s/shadow", user);
+    if (length < 0 || length >= PATH_MAX) {
+        errno = ENAMETOOLONG;
+        return NULL;
+    }
+
+    FILE *file = open_account_file(path);
+    if (file != NULL || (errno != ENOENT && errno != ENOTDIR)) {
+        return file;
+    }
+
+    strcpy(path, "/etc/shadow");
+    return open_account_file(path);
+}
+
+// Сохранить новый файл целиком, затем заменить старое имя и синхронизировать каталог
+static int write_password_file(FILE *source, const char *path, const char *user, const char *hash) {
+    char directory[PATH_MAX], temporary[PATH_MAX];
+    const char *name = strrchr(path, '/');
+    if (name == NULL || name == path || (size_t)(name - path) >= sizeof(directory)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    size_t directory_length = (size_t)(name - path);
+    memcpy(directory, path, directory_length);
+    directory[directory_length] = '\0';
+    int length = snprintf(temporary, sizeof(temporary), "%s/.passwd-XXXXXX", directory);
+    if (length < 0 || (size_t)length >= sizeof(temporary)) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    int parent = open(directory, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (parent < 0) {
+        return -1;
+    }
+
+    struct stat info;
+    if (fstat(parent, &info) != 0 || info.st_uid != 0 || (info.st_mode & 0022) != 0) {
+        close(parent);
+        errno = EINVAL;
+        return -1;
+    }
+
+    int fd = mkstemp(temporary);
+    if (fd < 0) {
+        close(parent);
+        return -1;
+    }
+
+    int result = -1;
+    FILE *target = NULL;
+    char *line = NULL;
+    size_t capacity = 0;
+    if (fchmod(fd, strcmp(path, "/etc/passwd") == 0 ? 0644 : 0600) != 0 ||
+        fstat(fd, &info) != 0 || info.st_uid != 0 || !S_ISREG(info.st_mode) || info.st_nlink != 1) {
+        goto done;
+    }
+
+    target = fdopen(fd, "w");
+    if (target == NULL) {
+        goto done;
+    }
+    fd = -1;
+    size_t user_length = strlen(user);
+    int found = 0;
+    ssize_t size;
+    while ((size = getline(&line, &capacity, source)) >= 0) {
+        if (size > 16384) {
+            errno = EOVERFLOW;
+            goto done;
+        }
+
+        if (strncmp(line, user, user_length) == 0 && line[user_length] == ':') {
+            char *rest = strchr(line + user_length + 1, ':');
+            if (rest == NULL || found != 0) {
+                errno = EINVAL;
+                goto done;
+            }
+            found = 1;
+            if (fprintf(target, "%s:%s%s", user, hash, rest) < 0) {
+                goto done;
+            }
+        } else if (fputs(line, target) == EOF) {
+            goto done;
+        }
+    }
+
+    if (ferror(source) || found != 1 || fflush(target) != 0 || fsync(fileno(target)) != 0) {
+        if (found != 1) {
+            errno = EINVAL;
+        }
+        goto done;
+    }
+
+    if (fclose(target) != 0) {
+        target = NULL;
+        goto done;
+    }
+    target = NULL;
+    if (rename(temporary, path) != 0 || fsync(parent) != 0) {
+        goto done;
+    }
+    result = 0;
+
+done:
+    {
+        int error = errno;
+        free(line);
+        if (target != NULL) {
+            fclose(target);
+        }
+        if (fd >= 0) {
+            close(fd);
+        }
+        if (result != 0) {
+            unlink(temporary);
+        }
+        close(parent);
+        errno = error;
+    }
+    return result;
+}
+
+// Получить полную случайную соль для имеющегося SHA-512 crypt
 static int
-spw_write_file(FILE *fp, const struct spwd *spw, char *pwhash)
-{
-	struct spwd *spwent;
-	int r = -1, w = 0;
-	FILE *tfp = NULL;
-
-	tfp = tmpfile();
-	if (!tfp) {
-		weprintf("tmpfile:");
-		goto cleanup;
-	}
-	while ((spwent = fgetspent(fp))) {
-		if (strcmp(spwent->sp_namp, spw->sp_namp) == 0) {
-			spwent->sp_pwdp = pwhash;
-			w++;
-		}
-		errno = 0;
-		if (putspent(spwent, tfp) == -1) {
-			weprintf("putspent:");
-			goto cleanup;
-		}
-	}
-	if (!w) {
-		weprintf("shadow: no matching entry to write to\n");
-		goto cleanup;
-	}
-	fflush(tfp);
-
-	if (fseek(fp, 0, SEEK_SET) == -1 || fseek(tfp, 0, SEEK_SET) == -1) {
-		weprintf("fseek:");
-		goto cleanup;
-	}
-
-	concat(tfp, "tmpfile", fp, "shadow");
-	ftruncate(fileno(fp), ftell(tfp));
-
-	r = 0;
-cleanup:
-	if (tfp)
-		fclose(tfp);
-	return r;
-}
-
-static int
-pw_write_file(FILE *fp, const struct passwd *pw, char *pwhash)
-{
-	struct passwd *pwent;
-	int r = -1, w = 0;
-	FILE *tfp = NULL;
-
-	tfp = tmpfile();
-	if (!tfp) {
-		weprintf("tmpfile:");
-		goto cleanup;
-	}
-	while ((pwent = fgetpwent(fp))) {
-		if (strcmp(pwent->pw_name, pw->pw_name) == 0) {
-			pwent->pw_passwd = pwhash;
-			w++;
-		}
-		errno = 0;
-		if (putpwent(pwent, tfp) == -1) {
-			weprintf("putpwent:");
-			goto cleanup;
-		}
-	}
-	if (!w) {
-		weprintf("passwd: no matching entry to write to\n");
-		goto cleanup;
-	}
-	fflush(tfp);
-
-	if (fseek(fp, 0, SEEK_SET) == -1 || fseek(tfp, 0, SEEK_SET) == -1) {
-		weprintf("fseek:");
-		goto cleanup;
-	}
-
-	concat(tfp, "tmpfile", fp, "passwd");
-	ftruncate(fileno(fp), ftell(tfp));
-
-	r = 0;
-cleanup:
-	if (tfp)
-		fclose(tfp);
-	return r;
-}
-
-static void
 gensalt(char *s)
 {
 	static const char b64[] = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -218,8 +346,21 @@ gensalt(char *s)
 	uint32_t n;
 	int i;
 
-	if (syscall(SYS_getrandom, buf, sizeof(buf), 0) < 0)
-		eprintf("getrandom:");
+    size_t done = 0;
+    while (done < sizeof(buf)) {
+        ssize_t count = syscall(SYS_getrandom, buf + done, sizeof(buf) - done, 0);
+        if (count < 0 && errno == EINTR) {
+            continue;
+        }
+        if (count <= 0) {
+            if (count == 0) {
+                errno = EIO;
+            }
+            explicit_bzero(buf, sizeof(buf));
+            return -1;
+        }
+        done += (size_t)count;
+    }
 	for (i = 0; i < 12; i += 3) {
 		n = buf[i] << 16 | buf[i+1] << 8 | buf[i+2];
 		*s++ = b64[n%64]; n /= 64;
@@ -228,152 +369,159 @@ gensalt(char *s)
 		*s++ = b64[n];
 	}
 	*s++ = '\0';
+    explicit_bzero(buf, sizeof(buf));
+    return 0;
 }
 
+// Показать поддерживаемый способ запуска
 static void
 usage(void)
 {
 	eprintf("usage: %s [username [password]]\n", argv0);
 }
 
-int
-main(int argc, char *argv[])
-{
-	char *cryptpass = NULL;
-	char *inpass, *p, salt[sizeof(PW_CIPHER) + 16] = PW_CIPHER;
-	struct passwd *pw;
-	struct spwd *spw = NULL;
-	FILE *fp = NULL;
-	int r = -1, status = 1;
-	const char *target_user = NULL;
-	const char *direct_password = NULL;
+// Сменить пароль после проверки аккаунта и полного подтверждения ввода
+int main(int argc, char *argv[]) {
+    char *cryptpass = NULL, *inpass = NULL, *encoded;
+    char salt[sizeof(PW_CIPHER) + 16] = PW_CIPHER;
+    char account_path[PATH_MAX];
+    struct passwd *account;
+    struct spwd *shadow = NULL;
+    FILE *file = NULL;
+    int lock_fd = -1, status = 1;
+    const char *target_user = NULL, *direct_password = NULL;
 
-	ARGBEGIN {
-	default:
-		usage();
-	} ARGEND;
+    ARGBEGIN {
+    default:
+        usage();
+        goto cleanup;
+    } ARGEND;
+    if (argc > 2) {
+        usage();
+        goto cleanup;
+    }
+    if (argc >= 1) {
+        target_user = argv[0];
+    }
+    if (argc == 2) {
+        direct_password = argv[1];
+    }
 
-	pw_init();
-	umask(077);
+    pw_init();
+    umask(077);
+    lock_fd = lock_password_files();
+    if (lock_fd < 0) {
+        weprintf("lock password files:");
+        goto cleanup;
+    }
 
-	if (argc >= 1)
-		target_user = argv[0];
-	if (argc >= 2)
-		direct_password = argv[1];
-	if (argc > 2)
-		usage();
+    account = target_user != NULL ? getpwnam(target_user) : getpwuid(getuid());
+    if (account == NULL || account->pw_name == NULL || account->pw_passwd == NULL) {
+        weprintf("account is unavailable\n");
+        goto cleanup;
+    }
+    if (strcmp(account->pw_passwd, "x") == 0) {
+        shadow = getspnam(account->pw_name);
+        if (shadow == NULL || shadow->sp_pwdp == NULL) {
+            weprintf("shadow account is unavailable\n");
+            goto cleanup;
+        }
+    }
 
-	errno = 0;
-	if (!target_user)
-		pw = getpwuid(getuid());
-	else
-		pw = getpwnam(target_user);
-	if (!pw) {
-		if (errno)
-			eprintf("getpwnam: %s:", target_user ? target_user : "");
-		else
-			eprintf("who are you?\n");
-	}
+    if (direct_password != NULL) {
+        if (getuid() != 0) {
+            weprintf("only root can set password non-interactively\n");
+            goto cleanup;
+        }
+    } else {
+        flush_tty();
+        if (getuid() != 0) {
+            const char *prior = shadow != NULL ? shadow->sp_pwdp : account->pw_passwd;
+            if (prior[0] == '!' || prior[0] == '*') {
+                weprintf("denied\n");
+                goto cleanup;
+            }
+            if (prior[0] != '\0') {
+                inpass = tty_getpass("Old password: ");
+                if (inpass == NULL || inpass[0] == '\0') {
+                    weprintf("no password supplied\n");
+                    goto cleanup;
+                }
+                encoded = crypt(inpass, prior);
+                explicit_bzero(inpass, strlen(inpass));
+                if (encoded == NULL || encoded[0] == '*' || strcmp(encoded, prior) != 0) {
+                    weprintf("incorrect password\n");
+                    goto cleanup;
+                }
+            }
+        }
+    }
 
-	if (pw->pw_passwd[0] == 'x' && pw->pw_passwd[1] == '\0') {
-		errno = 0;
-		spw = getspnam(pw->pw_name);
-		if (!spw) {
-			if (errno)
-				eprintf("getspnam: %s:", pw->pw_name);
-			else
-				eprintf("who are you?\n");
-		}
-	}
+    if (direct_password != NULL) {
+        inpass = (char *)direct_password;
+    } else {
+        inpass = tty_getpass("Enter new password: ");
+    }
+    if (inpass == NULL || inpass[0] == '\0') {
+        weprintf("no password supplied\n");
+        goto cleanup;
+    }
+    if (gensalt(salt + strlen(salt)) != 0) {
+        weprintf("getrandom:");
+        goto cleanup;
+    }
+    encoded = crypt(inpass, salt);
+    explicit_bzero(inpass, strlen(inpass));
+    if (encoded == NULL || encoded[0] == '*') {
+        weprintf("crypt failed\n");
+        goto cleanup;
+    }
+    cryptpass = strdup(encoded);
+    if (cryptpass == NULL) {
+        weprintf("copy password hash:");
+        goto cleanup;
+    }
 
-	if (direct_password) {
-		if (getuid() != 0)
-			eprintf("only root can set password non-interactively\n");
-		inpass = (char *)direct_password;
-	} else {
-		flush_tty();
+    if (direct_password == NULL) {
+        flush_tty();
+        inpass = tty_getpass("Retype new password: ");
+        if (inpass == NULL || inpass[0] == '\0') {
+            weprintf("no password supplied\n");
+            goto cleanup;
+        }
+        encoded = crypt(inpass, salt);
+        explicit_bzero(inpass, strlen(inpass));
+        if (encoded == NULL || encoded[0] == '*' || strcmp(cryptpass, encoded) != 0) {
+            weprintf("passwords do not match\n");
+            goto cleanup;
+        }
+    }
 
-		if (getuid() != 0) {
-			char *prevhash = NULL;
-			char *cryptpass_old = NULL;
+    file = spw_get_file(account->pw_name, account_path);
+    if (file == NULL && (errno == ENOENT || errno == ENOTDIR)) {
+        strcpy(account_path, "/etc/passwd");
+        file = open_account_file(account_path);
+    }
+    if (file == NULL || write_password_file(file, account_path, account->pw_name, cryptpass) != 0) {
+        weprintf("update password file:");
+        goto cleanup;
+    }
+    status = 0;
 
-			if (pw->pw_passwd[0] == '!' ||
-			    pw->pw_passwd[0] == '*')
-				eprintf("denied\n");
-			if (pw->pw_passwd[0] == '\0')
-				goto newpass_interactive;
-			if (pw->pw_passwd[0] == 'x' &&
-			    pw->pw_passwd[1] == '\0')
-				prevhash = spw->sp_pwdp;
-			else
-				prevhash = pw->pw_passwd;
-
-			printf("Changing password for %s\n", pw->pw_name);
-			inpass = tty_getpass("Old password: ");
-			if (!inpass)
-				eprintf("getpass:");
-			if (inpass[0] == '\0')
-				eprintf("no password supplied\n");
-			p = crypt(inpass, prevhash);
-			if (!p)
-				eprintf("crypt:");
-			cryptpass_old = estrdup(p);
-			if (strcmp(cryptpass_old, prevhash) != 0)
-				eprintf("incorrect password\n");
-			free(cryptpass_old);
-		}
-
-newpass_interactive:
-		inpass = tty_getpass("Enter new password: ");
-		if (!inpass)
-			eprintf("getpass:");
-		if (inpass[0] == '\0')
-			eprintf("no password supplied\n");
-
-		gensalt(salt + strlen(salt));
-		p = crypt(inpass, salt);
-		if (!p)
-			eprintf("crypt:");
-		cryptpass = estrdup(p);
-
-		flush_tty();
-
-		inpass = tty_getpass("Retype new password: ");
-		if (!inpass)
-			eprintf("getpass:");
-		if (inpass[0] == '\0')
-			eprintf("no password supplied\n");
-		p = crypt(inpass, salt);
-		if (!p)
-			eprintf("crypt:");
-		if (strcmp(cryptpass, p) != 0)
-			eprintf("passwords don't match\n");
-	}
-
-	if (direct_password) {
-		gensalt(salt + strlen(salt));
-		p = crypt(direct_password, salt);
-		if (!p)
-			eprintf("crypt:");
-		cryptpass = estrdup(p);
-	}
-
-	fp = spw_get_file(pw->pw_name);
-	if (fp) {
-		r = spw_write_file(fp, spw, cryptpass);
-	} else {
-		fp = fopen("/etc/passwd", "r+");
-		if (fp)
-			r = pw_write_file(fp, pw, cryptpass);
-		else
-			weprintf("fopen:");
-	}
-	if (!r)
-		status = 0;
-
-	if (fp)
-		fclose(fp);
-	free(cryptpass);
-
-	return status;
+cleanup:
+    if (inpass != NULL) {
+        explicit_bzero(inpass, strlen(inpass));
+    }
+    if (file != NULL && fclose(file) != 0) {
+        status = 1;
+    }
+    if (cryptpass != NULL) {
+        explicit_bzero(cryptpass, strlen(cryptpass));
+        free(cryptpass);
+    }
+    if (lock_fd >= 0) {
+        close(lock_fd);
+    }
+    explicit_bzero(salt, sizeof(salt));
+    return status;
 }
