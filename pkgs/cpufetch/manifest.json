@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "cpufetch",
+  "version": "1.7.0-r1",
+  "description": "CPU architecture and feature viewer",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["musl-runtime"],
+  "conflicts": [],
+  "files": []
+}

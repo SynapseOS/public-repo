@@ -1,0 +1,81 @@
+--- a/src/x86/cpuid.c
++++ b/src/x86/cpuid.c
+@@ -212,7 +212,7 @@ int64_t get_peak_performance(struct cpuInfo* cpu, bool accurate_pp) {
+     struct topology* topo = ptr->topo;
+     int64_t freq = get_freq(ptr->freq);
+ 
+-  #ifdef __linux__
++  #if defined(__linux__) && !defined(__synapse__)
+     if(accurate_pp)
+       freq = get_freq_pp(ptr->freq);
+   #else
+@@ -455,7 +455,7 @@ int get_core_type(struct cpuInfo* cpu) {
+   }
+ }
+ 
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__synapse__)
+ // Gets the max frequency for estimating the peak performance,
+ // filling in the passed cpuInfo parameter with this information.
+ void fill_frequency_info_pp(struct cpuInfo* cpu) {
+@@ -593,7 +593,7 @@ struct cpuInfo* get_cpu_info(void) {
+     if(ptr->topo == NULL) return cpu;
+   }
+ 
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__synapse__)
+   // If accurate_pp is requested, we need to get the max frequency
+   // after fetching the topology for all CPU modules, since the topology
+   // is required by fill_frequency_info_pp
+@@ -1027,7 +1027,7 @@ struct frequency* get_frequency_info(struct cpuInfo* cpu) {
+   }
+ 
+-  #ifdef __linux__
++  #if defined(__linux__) && !defined(__synapse__)
+     if (freq->max == UNKNOWN_DATA || measure_max_frequency_flag()) {
+       if (freq->max == UNKNOWN_DATA)
+         printWarn("All previous methods failed, measuring CPU frequency");
+       freq->max = measure_max_frequency(cpu->first_core_id);
+--- a/src/common/args.c
++++ b/src/common/args.c
+@@ -386,11 +386,15 @@
+     args.logo_long = false;
+   }
+ 
+-#if defined(ARCH_X86) && ! defined(__linux__)
++#if defined(ARCH_X86) && (!defined(__linux__) || defined(__synapse__))
+   if(args.accurate_pp) {
+     printWarn("%s option is valid only in Linux x86_64", args_str[ARG_ACCURATE_PP]);
+     args.help_flag  = true;
+   }
++  if(args.measure_max_frequency_flag) {
++    printWarn("%s option is not supported on SynapseOS", args_str[ARG_MEASURE_MAX_FREQ]);
++    args.help_flag = true;
++  }
+ #endif
+ 
+   // Leave log level untouched after returning
+--- a/src/common/main.c
++++ b/src/common/main.c
+@@ -28,7 +28,7 @@
+   printf("      --%s %*s Show the long version of the logo\n", t[ARG_LOGO_LONG], (int) (max_len-strlen(t[ARG_LOGO_LONG])), "");
+   printf("  -%c, --%s %*s Print extra information (if available) about how cpufetch tried fetching information\n", c[ARG_VERBOSE], t[ARG_VERBOSE], (int) (max_len-strlen(t[ARG_VERBOSE])), "");
+ #ifdef ARCH_X86
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__synapse__)
+   printf("      --%s %*s Compute the peak performance accurately (measure the CPU frequency instead of using the maximum)\n", t[ARG_ACCURATE_PP], (int) (max_len-strlen(t[ARG_ACCURATE_PP])), "");
+   printf("      --%s %*s Measure the max CPU frequency instead of reading it\n", t[ARG_MEASURE_MAX_FREQ], (int) (max_len-strlen(t[ARG_MEASURE_MAX_FREQ])), "");
+ #endif // __linux__
+--- a/src/common/global.c
++++ b/src/common/global.c
+@@ -45,7 +45,9 @@
+   #include "../riscv/riscv.h"
+ #endif
+ 
+-#ifdef __linux__
++#ifdef __synapse__
++  static const char* OS_STR = "SynapseOS";
++#elif defined(__linux__)
+   #ifdef __ANDROID__
+     static const char* OS_STR = "Android";
+   #else
