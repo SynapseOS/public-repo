@@ -3,7 +3,7 @@
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Описание: конструктор фильтров для будущего системного вызова seccomp
 # Подсистема: сборка пакетов
-# Первое изменение: 25.10.2026, последнее изменение: 26.10.2026
+# Первое изменение: 25.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -13,7 +13,7 @@ fetch "$(jq -er .gperf_source "$spec")" \
 fetch "$(jq -er .linux_headers_source "$spec")" \
 	"$(jq -er .linux_headers_sha256 "$spec")" "$work/linux-libc-dev.deb"
 
-host_tools=$(mktemp -d /tmp/synapse-libseccomp-tools.XXXXXX)
+host_tools=$(mktemp -d "${TMPDIR:-/tmp}/synapse-libseccomp-tools.XXXXXX")
 trap 'rm -rf -- "$host_tools"' EXIT
 ar p "$work/gperf.deb" data.tar.xz | tar -xJf - -C "$host_tools"
 ar p "$work/linux-libc-dev.deb" data.tar.xz | tar -xJf - -C "$host_tools"
