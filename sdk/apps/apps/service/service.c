@@ -5,7 +5,7 @@
 // Супервизор хранит состояние в var/run и принимает команды через файлы
 // Подсистема: запуск и обслуживание пользовательских служб
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 25.10.2026
+// Последнее изменение: 03.11.2026
 // Доступ: общедоступный
 
 #include <stdio.h>
@@ -30,6 +30,67 @@ static char runbase[512], confbase[512], logbase[512];
 static int read_definition;
 static unsigned health_port;
 static char health_path[128];
+static volatile sig_atomic_t supervisor_stop_requested;
+
+// Обработчик только просит основной цикл остановить службу
+static void supervisor_stop_signal(int signal_number) {
+    supervisor_stop_requested = signal_number;
+}
+
+// Остановить только собственного ребёнка, не затрагивая чужие группы процессов
+static int stop_owned_child(pid_t child) {
+    if (child <= 0) {
+        return 0;
+    }
+
+    pid_t result;
+    do {
+        result = waitpid(child, NULL, WNOHANG);
+    } while (result < 0 && errno == EINTR);
+
+    if (result == child || (result < 0 && errno == ECHILD)) {
+        return 0;
+    }
+    if (result < 0) {
+        return -1;
+    }
+
+    // Пока единственный поток не подобрал ребёнка, его PID не переиспользуется
+    if (kill(child, SIGTERM) < 0 && errno != ESRCH) {
+        return -1;
+    }
+
+    struct timespec started;
+    int have_clock = clock_gettime(CLOCK_MONOTONIC, &started) == 0;
+    for (unsigned attempt = 0; attempt < 30; attempt++) {
+        result = waitpid(child, NULL, WNOHANG);
+        if (result == child || (result < 0 && errno == ECHILD)) {
+            return 0;
+        }
+        if (result < 0 && errno != EINTR) {
+            return -1;
+        }
+
+        struct timespec now;
+        if (have_clock && clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
+            now.tv_sec - started.tv_sec >= 3) {
+            break;
+        }
+
+        usleep(100000);
+    }
+
+    if (kill(child, SIGKILL) < 0 && errno != ESRCH) {
+        return -1;
+    }
+
+    do {
+        result = waitpid(child, NULL, 0);
+    } while (result < 0 && errno == EINTR);
+
+    return result == child || (result < 0 && errno == ECHILD) ? 0 : -1;
+}
+
 static int valid(const char *s) {
     if (!*s || strlen(s) > 63) {
         return 0;
@@ -395,6 +456,23 @@ static void report_necromant(const char *kind, const char *name, int detail) {
 
 // Перезапускать службу и изолировать её после пяти быстрых отказов
 static int supervise(const char *name, char **argv, int once) {
+    struct sigaction stop_action = {0};
+    stop_action.sa_handler = supervisor_stop_signal;
+    sigemptyset(&stop_action.sa_mask);
+    supervisor_stop_requested = 0;
+    if (sigaction(SIGTERM, &stop_action, NULL) < 0 || sigaction(SIGINT, &stop_action, NULL) < 0 ||
+        sigaction(SIGHUP, &stop_action, NULL) < 0) {
+        return 1;
+    }
+
+    // Зомби остаётся нашим ребёнком до waitpid даже при унаследованном SIGCHLD=SIG_IGN
+    struct sigaction child_action = {0};
+    child_action.sa_handler = SIG_DFL;
+    sigemptyset(&child_action.sa_mask);
+    if (sigaction(SIGCHLD, &child_action, NULL) < 0) {
+        return 1;
+    }
+
     char dir[768], req[768], disabled[768], lock[800];
     snprintf(dir, sizeof(dir), "%s/%s", runbase, name);
     mkdir(dir, 0700);
@@ -434,6 +512,20 @@ static int supervise(const char *name, char **argv, int once) {
     int health_healthy = 0;
     time_t next_health = 0;
     for (;;) {
+        if (supervisor_stop_requested) {
+            if (stop_owned_child(child) != 0) {
+                event_log(name, "stop-failed", child, errno);
+                sleep(1);
+                continue;
+            }
+
+            child = 0;
+            publish(name, 0, "stopped", 0, 0);
+            event_log(name, "supervisor-stopped", 0, supervisor_stop_requested);
+            unlink(lock);
+            return 0;
+        }
+
         FILE *f = fopen(req, "r");
         char action[32] = "";
         if (f) {
@@ -451,21 +543,10 @@ static int supervise(const char *name, char **argv, int once) {
             }
             if (child && (!wanted || !strcmp(action, "restart"))) {
                 event_log(name, action, child, SIGTERM);
-                kill(child, SIGTERM);
-                time_t deadline = ticks() + 3;
-                int reaped = 0;
-                while (ticks() < deadline) {
-                    pid_t r = waitpid(child, NULL, WNOHANG);
-                    if (r == child || (r < 0 && errno == ECHILD)) {
-                        reaped = 1;
-                        break;
-                    }
-                    usleep(100000);
-                }
-                if (!reaped) {
-                    kill(child, SIGKILL);
-                    while (waitpid(child, NULL, 0) < 0 && errno == EINTR) {
-                    }
+                if (stop_owned_child(child) != 0) {
+                    event_log(name, "stop-failed", child, errno);
+                    sleep(1);
+                    continue;
                 }
                 child = 0;
             }
@@ -531,21 +612,10 @@ static int supervise(const char *name, char **argv, int once) {
                     report_necromant("F", name, response);
                     event_log(name, "health-failed", child, response);
                     incident_open = 1;
-                    kill(child, SIGTERM);
-                    time_t deadline = ticks() + 3;
-                    int reaped = 0;
-                    while (ticks() < deadline) {
-                        pid_t result = waitpid(child, NULL, WNOHANG);
-                        if (result == child || (result < 0 && errno == ECHILD)) {
-                            reaped = 1;
-                            break;
-                        }
-                        usleep(100000);
-                    }
-                    if (!reaped) {
-                        kill(child, SIGKILL);
-                        while (waitpid(child, NULL, 0) < 0 && errno == EINTR) {
-                        }
+                    if (stop_owned_child(child) != 0) {
+                        event_log(name, "stop-failed", child, errno);
+                        next_health = ticks() + 5;
+                        continue;
                     }
                     child = 0;
                     health_failures = 0;
@@ -561,6 +631,10 @@ static int supervise(const char *name, char **argv, int once) {
             health_failures = 0;
             health_healthy = 0;
             if (child == 0) {
+                // После setsid служба принимает сигналы сама, без обработчика супервизора
+                signal(SIGTERM, SIG_DFL);
+                signal(SIGINT, SIG_DFL);
+                signal(SIGHUP, SIG_DFL);
                 setsid();
                 char log[768];
                 snprintf(log, sizeof(log), "%s/%s.log", logbase, name);
