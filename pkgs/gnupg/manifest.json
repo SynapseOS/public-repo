@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "gnupg",
-  "version": "2.5.24-r1",
+  "version": "2.5.24-r3",
   "description": "OpenPGP engine for signed Flatpak remotes",
   "kind": "application",
   "arch": "x86_64",

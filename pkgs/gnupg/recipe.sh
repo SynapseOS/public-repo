@@ -2,12 +2,12 @@
 # Автор: Елчинян Арен Артурович, 2026
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Подсистема: сборка пакетов
-# Первое изменение: 26.10.2026, последнее изменение: 26.10.2026
+# Первое изменение: 26.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
 
-sysroot=$(mktemp -d /tmp/synapse-gnupg-sysroot.XXXXXX)
+sysroot=$(mktemp -d "${TMPDIR:-/tmp}/synapse-gnupg-sysroot.XXXXXX")
 trap 'rm -rf -- "$sysroot"' EXIT
 mkdir -p "$sysroot/usr/include" "$sysroot/usr/lib" "$sysroot/usr/bin"
 
@@ -44,7 +44,7 @@ mkdir -p "$work/build"
 		CFLAGS="-O2 -I$sysroot/usr/include" \
 		LDFLAGS="-static -L$sysroot/usr/lib" \
 		"$source/configure" --build=x86_64-linux-gnu --host=x86_64-linux-musl \
-			--prefix=/usr --libdir=/usr/lib --sysconfdir=/etc --localstatedir=/var \
+			--prefix=/usr --bindir=/bin --libdir=/usr/lib --sysconfdir=/etc --localstatedir=/var \
 			--with-libgpg-error-prefix="$sysroot/usr" \
 			--with-libgcrypt-prefix="$sysroot/usr" \
 			--with-libassuan-prefix="$sysroot/usr" \
@@ -55,8 +55,8 @@ mkdir -p "$work/build"
 	make -j"$JOBS"
 )
 
-copy "$work/build/g10/gpg" usr/bin/gpg
-copy "$work/build/g10/gpgv" usr/bin/gpgv
-copy "$work/build/agent/gpg-agent" usr/bin/gpg-agent
-copy "$work/build/tools/gpgconf" usr/bin/gpgconf
+copy "$work/build/g10/gpg" bin/gpg
+copy "$work/build/g10/gpgv" bin/gpgv
+copy "$work/build/agent/gpg-agent" bin/gpg-agent
+copy "$work/build/tools/gpgconf" bin/gpgconf
 copy "$source/COPYING" usr/share/licenses/gnupg/COPYING
