@@ -53,3 +53,33 @@
          echo " little endian"
          have=NGX_HAVE_LITTLE_ENDIAN . auto/have
      else
+
+--- a/src/os/unix/ngx_process.c
++++ b/src/os/unix/ngx_process.c
+@@ -89,0 +90 @@
++#if !defined(__synapse__)
+@@ -90,0 +92 @@
++#endif
+@@ -144,0 +147,2 @@
++#if !defined(__synapse__)
++        // Master получает управление от обычных сигналов и не читает ngx_sigio
+@@ -158,0 +163,2 @@
++
++#endif
+
+--- a/src/os/unix/ngx_process_cycle.c
++++ b/src/os/unix/ngx_process_cycle.c
+@@ -315,9 +315,4 @@
+-            ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reconfiguring");
+-
+-            cycle = ngx_init_cycle(cycle);
+-            if (cycle == NULL) {
+-                cycle = (ngx_cycle_t *) ngx_cycle;
+-                continue;
+-            }
+-
+-            ngx_cycle = cycle;
++            // Сохраняем действующие соединения и таймеры одного процесса
++            ngx_log_error(NGX_LOG_WARN, cycle->log, 0,
++                          "reload requires master_process on, "
++                          "keeping the current configuration");

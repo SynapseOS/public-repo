@@ -1,13 +1,14 @@
 {
   "format": 1,
   "name": "nginx",
-  "version": "1.30.5-r4",
+  "version": "1.30.5-r6",
   "description": "Static nginx HTTP/HTTPS server with PCRE2 rewrite and zlib gzip",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
-    "kernel >= 0.1.554-r1"
+    "kernel >= 0.1.554-r1",
+    "bash >= 5.3.0-r1"
   ],
   "conflicts": [],
   "files": [
