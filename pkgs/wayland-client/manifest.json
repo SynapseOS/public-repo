@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "wayland-client",
-  "version": "1.23.1-r2",
+  "version": "1.23.1-r3",
   "description": "Wayland client, cursor and XKB runtime for SynapseOS",
   "kind": "application",
   "arch": "x86_64",
