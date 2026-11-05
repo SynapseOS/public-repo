@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "oh-my-zsh",
+  "version": "2026.10.30-r1",
+  "description": "Oh My Zsh framework pinned to upstream commit 17a2b4c3",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["zsh >= 5.9.2-r3"],
+  "conflicts": [],
+  "files": []
+}

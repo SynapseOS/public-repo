@@ -1,0 +1,9 @@
+{
+  "name": "oh-my-zsh",
+  "upstream_version": "17a2b4c3a5855524ad4772a17ada0dc474e2fdf3",
+  "source": "https://github.com/ohmyzsh/ohmyzsh/archive/17a2b4c3a5855524ad4772a17ada0dc474e2fdf3.tar.gz",
+  "sha256": "eb6f2788316ff75f9be60c00372da0da97d4bcab202d64a9229e1f6365166932",
+  "source_directory": "ohmyzsh-17a2b4c3a5855524ad4772a17ada0dc474e2fdf3",
+  "patches": [],
+  "license": "MIT"
+}
