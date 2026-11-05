@@ -1,0 +1,91 @@
+--- a/include/labwc.h
++++ b/include/labwc.h
+@@ -162,6 +162,7 @@
+ 	struct wlr_compositor *compositor;
+ 
+ 	struct wl_event_source *sighup_source;
++	struct wl_event_source *sigusr2_source;
+ 	struct wl_event_source *sigint_source;
+ 	struct wl_event_source *sigterm_source;
+ 	struct wl_event_source *sigchld_source;
+--- a/src/main.c
++++ b/src/main.c
+@@ -24,6 +24,7 @@
+ 	{"help", no_argument, NULL, 'h'},
+ 	{"merge-config", no_argument, NULL, 'm'},
+ 	{"reconfigure", no_argument, NULL, 'r'},
++	{"show-menu", no_argument, NULL, 'u'},
+ 	{"startup", required_argument, NULL, 's'},
+ 	{"session", required_argument, NULL, 'S'},
+ 	{"version", no_argument, NULL, 'v'},
+@@ -40,6 +41,7 @@
+ "  -h, --help               Show help message and quit\n"
+ "  -m, --merge-config       Merge user config files/theme in all XDG Base Dirs\n"
+ "  -r, --reconfigure        Reload the compositor configuration\n"
++"  -u, --show-menu          Open the root menu at the pointer\n"
+ "  -s, --startup <command>  Run command on startup\n"
+ "  -S, --session <command>  Run command on startup and terminate on exit\n"
+ "  -v, --version            Show version number and quit\n"
+@@ -181,6 +183,9 @@
+ 			break;
+ 		case 'r':
+ 			send_signal_to_labwc_pid(SIGHUP);
++			exit(0);
++		case 'u':
++			send_signal_to_labwc_pid(SIGUSR2);
+ 			exit(0);
+ 		case 's':
+ 			startup_cmd = optarg;
+--- a/src/server.c
++++ b/src/server.c
+@@ -9,6 +9,7 @@
+ #include <wlr/render/allocator.h>
+ #include <wlr/types/wlr_alpha_modifier_v1.h>
++#include <wlr/types/wlr_cursor.h>
+ #include <wlr/types/wlr_data_control_v1.h>
+ #include <wlr/types/wlr_data_device.h>
+ #include <wlr/types/wlr_drm.h>
+ #include <wlr/config.h>
+@@ -118,6 +118,25 @@
+ 	session_environment_init();
+ 	reload_config_and_theme(server);
+ 	output_virtual_update_fallback(server);
++	return 0;
++}
++
++// Открыть главное меню рядом с кнопкой на панели
++static int
++handle_sigusr2(int signal, void *data)
++{
++	(void)signal;
++	struct server *server = data;
++	if (server->seat.cursor == NULL) {
++		return 0;
++	}
++
++	struct menu *menu = menu_get_by_id(server, "root-menu");
++	if (menu != NULL) {
++		menu_open_root(menu, (int)server->seat.cursor->x,
++			(int)server->seat.cursor->y);
++	}
++
+ 	return 0;
+ }
+ 
+@@ -446,6 +465,8 @@
+ 	/* Catch signals */
+ 	server->sighup_source = wl_event_loop_add_signal(
+ 		server->wl_event_loop, SIGHUP, handle_sighup, server);
++	server->sigusr2_source = wl_event_loop_add_signal(
++		server->wl_event_loop, SIGUSR2, handle_sigusr2, server);
+ 	server->sigint_source = wl_event_loop_add_signal(
+ 		server->wl_event_loop, SIGINT, handle_sigterm, server->wl_display);
+ 	server->sigterm_source = wl_event_loop_add_signal(
+@@ -779,6 +800,7 @@
+ 	desktop_entry_finish(server);
+ #endif
+ 	wl_event_source_remove(server->sighup_source);
++	wl_event_source_remove(server->sigusr2_source);
+ 	wl_event_source_remove(server->sigint_source);
+ 	wl_event_source_remove(server->sigterm_source);
+ 	wl_event_source_remove(server->sigchld_source);

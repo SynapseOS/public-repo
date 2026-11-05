@@ -1,0 +1,53 @@
+--- a/backend/headless/output.c
++++ b/backend/headless/output.c
+@@ -6,6 +6,8 @@
+ #include <wlr/util/log.h>
+ #include "backend/headless.h"
+ #include "types/wlr_output.h"
++
++#include "synapse-headless.inc"
+ 
+ static const uint32_t SUPPORTED_OUTPUT_STATE =
+ 	WLR_OUTPUT_STATE_BACKEND_OPTIONAL |
+@@ -62,6 +64,11 @@
+ 		return false;
+ 	}
+ 
++	if (synapse_fb_fd >= 0 && (state->committed & WLR_OUTPUT_STATE_BUFFER) != 0 &&
++			!synapse_fb_present(wlr_output, state)) {
++		return false;
++	}
++
+ 	if (state->committed & WLR_OUTPUT_STATE_MODE) {
+ 		output_update_refresh(output, state->custom_mode.refresh);
+ 	}
+@@ -90,6 +97,8 @@
+ 
+ static void output_destroy(struct wlr_output *wlr_output) {
+ 	struct wlr_headless_output *output = headless_output_from_output(wlr_output);
++
++	synapse_fb_close();
+ 
+ 	wlr_output_finish(wlr_output);
+ 
+@@ -121,8 +130,20 @@
+ 	struct wlr_headless_backend *backend =
+ 		headless_backend_from_backend(wlr_backend);
+ 
++	if (getenv("SYNAPSE_FB") != NULL) {
++		if (synapse_fb_fd >= 0) {
++			wlr_log(WLR_DEBUG, "SynapseOS framebuffer is already in use by this compositor");
++			return NULL;
++		}
++		if (!synapse_fb_open(&width, &height)) {
++			wlr_log(WLR_ERROR, "Cannot open SynapseOS framebuffer");
++			return NULL;
++		}
++	}
++
+ 	struct wlr_headless_output *output = calloc(1, sizeof(*output));
+ 	if (output == NULL) {
++		synapse_fb_close();
+ 		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_output");
+ 		return NULL;
+ 	}

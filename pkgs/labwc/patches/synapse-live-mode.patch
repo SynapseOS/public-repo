@@ -1,0 +1,17 @@
+--- a/backend/headless/output.c
++++ b/backend/headless/output.c
+@@ -175,6 +175,14 @@
+ 
+ 	output->frame_timer = wl_event_loop_add_timer(backend->event_loop, signal_frame, output);
+ 
++	if (synapse_fb_modeset) {
++		synapse_fb_mode_timer = wl_event_loop_add_timer(backend->event_loop,
++			synapse_fb_poll_mode, wlr_output);
++		if (synapse_fb_mode_timer != NULL) {
++			wl_event_source_timer_update(synapse_fb_mode_timer, 500);
++		}
++	}
++
+ 	wl_list_insert(&backend->outputs, &output->link);
+ 
+ 	if (backend->started) {

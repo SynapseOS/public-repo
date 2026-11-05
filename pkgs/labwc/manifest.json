@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "name": "labwc",
+  "version": "0.9.8-r36",
+  "description": "Wayland window manager for SynapseOS desktop sessions",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "musl-runtime",
+    "dbus >= 1.16.2-r3",
+    "weston >= 13.0.3-r20",
+    "mesa >= 24.3.4-r10",
+    "opengl >= 24.3.4-r7",
+    "synapse-desktop >= 0.1.0-r17",
+    "synapse-files"
+  ],
+  "conflicts": [],
+  "files": []
+}

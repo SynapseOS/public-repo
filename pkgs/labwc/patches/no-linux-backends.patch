@@ -1,0 +1,199 @@
+--- a/src/output.c
++++ b/src/output.c
+@@ -10,10 +10,15 @@
+ #include "output.h"
+ #include <assert.h>
+ #include <strings.h>
++#include <wlr/config.h>
++#if WLR_HAS_DRM_BACKEND
+ #include <wlr/backend/drm.h>
++#endif
+ #include <wlr/backend/wayland.h>
+ #include <wlr/types/wlr_cursor.h>
++#if WLR_HAS_DRM_BACKEND
+ #include <wlr/types/wlr_drm_lease_v1.h>
++#endif
+ #include <wlr/types/wlr_gamma_control_v1.h>
+ #include <wlr/types/wlr_output.h>
+ #include <wlr/types/wlr_output_management_v1.h>
+@@ -124,9 +129,11 @@
+ 	/*
+ 	 * skip painting the session when it exists but is not active.
+ 	 */
++	#if WLR_HAS_SESSION
+ 	if (output->server->session && !output->server->session->active) {
+ 		return;
+ 	}
++#endif
+ 
+ 	if (output->gamma_lut_changed) {
+ 		/*
+@@ -488,7 +495,7 @@
+ 	 *
+ 	 * TODO: remove once labwc starts tracking 0.20.x and the fix has been merged.
+ 	 */
+-#if LAB_WLR_VERSION_AT_LEAST(0, 19, 1)
++#if LAB_WLR_VERSION_AT_LEAST(0, 19, 1) && WLR_HAS_DRM_BACKEND
+ 	if (server->drm_lease_manager && wlr_output_is_drm(wlr_output)) {
+ 		wlr_drm_lease_v1_manager_offer_output(
+ 			server->drm_lease_manager, wlr_output);
+@@ -574,7 +581,11 @@
+ 	 * it would result in no outputs being enabled at all. This check
+ 	 * might need tweaking if wlroots adds other output backends.
+ 	 */
++	#if WLR_HAS_DRM_BACKEND
+ 	if (rc.auto_enable_outputs || !wlr_output_is_drm(wlr_output)) {
++#else
++	{
++#endif
+ 		configure_new_output(server, output);
+ 	}
+ 
+--- a/src/config/session.c
++++ b/src/config/session.c
+@@ -8,7 +8,10 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <sys/stat.h>
++#include <wlr/config.h>
++#if WLR_HAS_DRM_BACKEND
+ #include <wlr/backend/drm.h>
++#endif
+ #include <wlr/backend/multi.h>
+ #include <wlr/util/log.h>
+ #include "common/buf.h"
+@@ -176,6 +179,7 @@
+ 	return success;
+ }
+ 
++#if WLR_HAS_DRM_BACKEND
+ static void
+ backend_check_drm(struct wlr_backend *backend, void *is_drm)
+ {
+@@ -184,6 +188,8 @@
+ 	}
+ }
+ 
++#endif
++
+ static bool
+ should_update_activation(struct server *server)
+ {
+@@ -206,7 +212,9 @@
+ 
+ 	/* With no valid preference, update when a DRM backend is in use */
+ 	bool have_drm = false;
++	#if WLR_HAS_DRM_BACKEND
+ 	wlr_multi_for_each_backend(server->backend, backend_check_drm, &have_drm);
++#endif
+ 	return have_drm;
+ }
+ 
+--- a/src/server.c
++++ b/src/server.c
+@@ -11,7 +11,10 @@
+ #include <wlr/types/wlr_data_control_v1.h>
+ #include <wlr/types/wlr_data_device.h>
+ #include <wlr/types/wlr_drm.h>
++#include <wlr/config.h>
++#if WLR_HAS_DRM_BACKEND
+ #include <wlr/types/wlr_drm_lease_v1.h>
++#endif
+ #include <wlr/types/wlr_export_dmabuf_v1.h>
+ #include <wlr/types/wlr_ext_data_control_v1.h>
+ #include <wlr/types/wlr_ext_foreign_toplevel_list_v1.h>
+@@ -193,6 +196,7 @@
+ 	return 0;
+ }
+ 
++#if WLR_HAS_DRM_BACKEND
+ static void
+ handle_drm_lease_request(struct wl_listener *listener, void *data)
+ {
+@@ -205,6 +209,8 @@
+ 	}
+ }
+ 
++#endif
++
+ static bool
+ protocol_is_privileged(const struct wl_interface *iface)
+ {
+@@ -690,6 +696,7 @@
+ 
+ 	session_lock_init(server);
+ 
++	#if WLR_HAS_DRM_BACKEND
+ 	server->drm_lease_manager = wlr_drm_lease_v1_manager_create(
+ 		server->wl_display, server->backend);
+ 	if (server->drm_lease_manager) {
+@@ -701,6 +708,8 @@
+ 		wlr_log(WLR_INFO, "VR will not be available");
+ 	}
+ 
++	#endif
++
+ 	server->output_power_manager_v1 =
+ 		wlr_output_power_manager_v1_create(server->wl_display);
+ 	server->output_power_manager_set_mode.notify =
+--- a/src/input/keyboard.c
++++ b/src/input/keyboard.c
+@@ -3,7 +3,10 @@
+ #include "input/keyboard.h"
+ #include <assert.h>
+ #include <stdlib.h>
++#include <wlr/config.h>
++#if WLR_HAS_SESSION
+ #include <wlr/backend/session.h>
++#endif
+ #include <wlr/interfaces/wlr_keyboard.h>
+ #include <wlr/types/wlr_keyboard_group.h>
+ #include <wlr/types/wlr_seat.h>
+@@ -54,7 +57,12 @@
+ static void
+ change_vt(struct server *server, unsigned int vt)
+ {
++	#if WLR_HAS_SESSION
+ 	wlr_session_change_vt(server->session, vt);
++#else
++	(void)server;
++	(void)vt;
++#endif
+ }
+ 
+ uint32_t
+--- /dev/null
++++ b/include/wlr/backend/libinput.h
+@@ -0,0 +1,32 @@
++// libinput.h: Совместимость Labwc с wlroots без libinput backend
++// Автор: Елчинян Арен Артурович, 2026
++// Архитектура: x86_64, ABI: synapse-x86_64-v1
++// Описание: Заглушки для вложенного Wayland backend
++// Подсистема: графическая оболочка
++// Первое изменение: 28.10.2026
++// Последнее изменение: 28.10.2026
++// Доступ: общедоступный
++
++#ifndef SYNAPSE_WLR_LIBINPUT_STUB_H
++#define SYNAPSE_WLR_LIBINPUT_STUB_H
++
++#include <stdbool.h>
++#include <libinput.h>
++
++struct wlr_input_device;
++
++// Указать, что вложенный backend не создает устройства libinput
++static inline bool wlr_input_device_is_libinput(struct wlr_input_device *device) {
++    (void)device;
++
++    return false;
++}
++
++// Вернуть отсутствие дескриптора libinput у вложенного устройства
++static inline struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *device) {
++    (void)device;
++
++    return 0;
++}
++
++#endif

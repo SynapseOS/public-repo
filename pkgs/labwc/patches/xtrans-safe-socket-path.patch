@@ -1,0 +1,21 @@
+--- a/usr/include/X11/Xtrans/Xtranssock.c
++++ b/usr/include/X11/Xtrans/Xtranssock.c
+@@ -757,9 +757,16 @@
+     if (*port == '/') /* a full pathname */
+ 	upath = "";
+ 
+-    if ((ssize_t)(strlen(at) + strlen(upath) + strlen(port)) > maxlen)
++    size_t at_length = strlen(at);
++    size_t upath_length = strlen(upath);
++    size_t port_length = strlen(port);
++    if (at_length > (size_t)maxlen || upath_length > (size_t)maxlen - at_length ||
++        port_length > (size_t)maxlen - at_length - upath_length)
+ 	return -1;
+-    snprintf(path, sizeof(s.sun_path), "%s%s%s", at, upath, port);
++    memcpy(path, at, at_length);
++    memcpy(path + at_length, upath, upath_length);
++    memcpy(path + at_length + upath_length, port, port_length);
++    path[at_length + upath_length + port_length] = '\0';
+     return 0;
+ }
+ #endif

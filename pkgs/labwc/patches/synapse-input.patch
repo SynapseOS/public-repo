@@ -1,0 +1,31 @@
+--- a/backend/headless/backend.c
++++ b/backend/headless/backend.c
+@@ -3,6 +3,8 @@
+ #include <wlr/interfaces/wlr_output.h>
+ #include <wlr/util/log.h>
+ #include "backend/headless.h"
++
++#include "synapse-input.inc"
+ 
+ struct wlr_headless_backend *headless_backend_from_backend(
+ 		struct wlr_backend *wlr_backend) {
+@@ -22,6 +24,11 @@
+ 			&output->wlr_output);
+ 	}
+ 
++	if (getenv("SYNAPSE_FB") != NULL && !synapse_input_start(backend)) {
++		wlr_log(WLR_ERROR, "Cannot start SynapseOS input");
++		return false;
++	}
++
+ 	backend->started = true;
+ 	return true;
+ }
+@@ -33,6 +40,7 @@
+ 		return;
+ 	}
+ 
++	synapse_input_finish();
+ 	wlr_backend_finish(wlr_backend);
+ 
+ 	struct wlr_headless_output *output, *output_tmp;

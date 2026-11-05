@@ -1,0 +1,21 @@
+{
+  "name": "labwc",
+  "version": "0.9.8-r15",
+  "source": "https://github.com/labwc/labwc/archive/refs/tags/0.9.8.tar.gz",
+  "sha256": "f97bdbcb4b2b907b0eda243a62d8e06db822e889de14126156505245ffb7e6cb",
+  "source_directory": "labwc-0.9.8",
+  "patches": [
+    "patches/no-linux-backends.patch",
+    "patches/synapse-panel-menu.patch"
+  ],
+  "wlroots_source": "https://gitlab.freedesktop.org/wlroots/wlroots/-/archive/0.19.3/wlroots-0.19.3.tar.gz",
+  "wlroots_sha256": "a6ff89b64ea15e424d1b0db4a22145fccf5ec2ff2e7b8af0fa35e2ac8975986f",
+  "xwayland_source": "https://xorg.freedesktop.org/archive/individual/xserver/xwayland-24.1.9.tar.xz",
+  "xwayland_sha256": "f297af27a84508db9b80d1cbbcc69c3801da38eb64c72f3b5b50f582459afdd0",
+  "swaybg_source": "https://github.com/swaywm/swaybg/archive/refs/tags/v1.2.2.tar.gz",
+  "swaybg_sha256": "94e5c06a765d969e554b0f321f9cdf9c283a3fdaf70ad4e3d28163b21bd4d240",
+  "themes_source": "https://github.com/addy-dclxvi/openbox-theme-collections/archive/8da2d26201f937e34d7fab71dc8e64d6ce4c94e0.tar.gz",
+  "themes_sha256": "ac1823cb4756573e80496a20c2a68ba0cbf21739bb717963db93d650ef8cb1a9",
+  "license": "GPL-2.0-only AND GPL-3.0-only",
+  "build_system": "recipe"
+}

@@ -1,0 +1,45 @@
+<!--
+    rc.xml: Клавиши и оформление окон Labwc
+    Автор: Елчинян Арен Артурович, 2026
+    Архитектура: x86_64, ABI: Wayland
+    Описание: Единые кнопки окон и доступ к меню SynapseOS
+    Подсистема: графическая оболочка
+    Первое изменение: 28.10.2026
+    Последнее изменение: 30.10.2026
+    Доступ: общедоступный
+-->
+<labwc_config>
+    <core>
+        <decoration>server</decoration>
+    </core>
+    <theme>
+        <name>Numix-Clone</name>
+        <titlebar>
+            <layout>menu:iconify,max,close</layout>
+        </titlebar>
+    </theme>
+    <keyboard>
+        <default />
+        <keybind key="Super_L" onRelease="yes">
+            <action name="Execute" command="synapse-menuctl" />
+        </keybind>
+        <keybind key="W-space">
+            <action name="Execute" command="synapse-menuctl" />
+        </keybind>
+        <keybind key="W-Return">
+            <action name="Execute" command="weston-terminal" />
+        </keybind>
+        <keybind key="W-e">
+            <action name="Execute" command="synapse-files" />
+        </keybind>
+        <keybind key="W-s">
+            <action name="Execute" command="synapse-desktop --settings" />
+        </keybind>
+    </keyboard>
+    <mouse>
+        <default />
+    </mouse>
+    <windowRules>
+        <windowRule identifier="org.freedesktop.weston.wayland-terminal" serverDecoration="yes" />
+    </windowRules>
+</labwc_config>

@@ -1,0 +1,14 @@
+#!/bin/sh
+# autostart: Запустить обои и терминал рабочего стола Labwc
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: x86_64, ABI: musl и Wayland
+# Описание: Подготовить рабочее пространство после запуска композитора
+# Подсистема: графическая оболочка
+# Первое изменение: 28.10.2026
+# Последнее изменение: 30.10.2026
+# Доступ: общедоступный
+
+/usr/libexec/labwc/swaybg -i /usr/share/backgrounds/synapse/Desktop-dark.png -m fill &
+/usr/libexec/labwc/synapse-panel &
+synapse-desktop --menu-service &
+weston-terminal &

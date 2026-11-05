@@ -1,0 +1,19 @@
+--- a/backend/headless/output.c
++++ b/backend/headless/output.c
+@@ -89,8 +89,16 @@
+ static bool output_set_cursor(struct wlr_output *wlr_output,
+ 		struct wlr_buffer *buffer, int hotspot_x, int hotspot_y) {
++	if (synapse_fb_fd >= 0) {
++		return false;
++	}
++
+ 	return true;
+ }
+ 
+ static bool output_move_cursor(struct wlr_output *wlr_output, int x, int y) {
++	if (synapse_fb_fd >= 0) {
++		return false;
++	}
++
+ 	return true;
+ }
