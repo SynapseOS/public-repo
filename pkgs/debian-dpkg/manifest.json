@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "debian-dpkg",
+  "version": "1.22.22-r1",
+  "description": "Isolated Debian package database and installation root",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["dpkg-deb >= 1.22.22-r1"],
+  "conflicts": [],
+  "files": []
+}
