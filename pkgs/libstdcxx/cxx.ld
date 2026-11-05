@@ -20,6 +20,8 @@ SECTIONS {
         *(.rodata .rodata.*)
     }
 
+    .note.gnu.build-id : ALIGN(4) { *(.note.gnu.build-id) }
+
     .eh_frame_hdr : ALIGN(8) { *(.eh_frame_hdr) }
     .eh_frame : ALIGN(8) { KEEP(*(.eh_frame)) *(.eh_frame.*) }
     .gcc_except_table : ALIGN(8) { *(.gcc_except_table .gcc_except_table.*) }
@@ -40,6 +42,15 @@ SECTIONS {
         KEEP(*(.fini_array))
         KEEP(*(SORT(.fini_array.*)))
         __fini_array_end = .;
+    }
+
+    .tdata : ALIGN(16) {
+        *(.tdata .tdata.*)
+    }
+
+    .tbss : ALIGN(16) {
+        *(.tbss .tbss.* .gnu.linkonce.tb.*)
+        *(.tcommon)
     }
 
     .bss : ALIGN(4K) {
