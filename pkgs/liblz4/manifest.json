@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "liblz4",
+  "version": "1.10.0-r1",
+  "description": "LZ4 static library for APT",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}
