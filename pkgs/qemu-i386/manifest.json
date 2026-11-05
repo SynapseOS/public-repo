@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "name": "qemu-i386",
+  "version": "10.1.5-r3",
+  "description": "Static QEMU i386 user emulator for 32-bit applications",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "musl-runtime"
+  ],
+  "conflicts": [],
+  "files": []
+}

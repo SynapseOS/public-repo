@@ -1,0 +1,161 @@
+--- a/linux-user/qemu.h
++++ b/linux-user/qemu.h
+@@ -119,6 +119,7 @@
+     target_ulong orig_ax;
+ #endif
+     abi_ulong child_tidptr;
++    abi_ulong robust_list_head;
+ #ifdef TARGET_M68K
+     abi_ulong tp_value;
+ #endif
+--- a/linux-user/syscall.c
++++ b/linux-user/syscall.c
+@@ -6894,6 +6894,7 @@
+             if (flags & CLONE_PARENT_SETTID)
+                 put_user_u32(sys_gettid(), parent_tidptr);
+             ts = get_task_state(cpu);
++            ts->robust_list_head = 0;
+             if (flags & CLONE_SETTLS)
+                 cpu_set_tls (env, newtls);
+             if (flags & CLONE_CHILD_CLEARTID)
+@@ -7942,6 +7943,74 @@
+     g_assert_not_reached();
+ }
+ 
++#ifdef TARGET_NR_set_robust_list
++// Mark a mutex owned by an exiting guest thread and wake its waiters
++static void target_robust_mark_dead(CPUState *cpu, TaskState *ts,
++                                    abi_ulong entry, int32_t offset)
++{
++    abi_ulong addr = entry + offset;
++    uint32_t old_value;
++    uint32_t new_value;
++    uint32_t *host_addr;
++
++    if ((addr & 3) != 0 || !access_ok(cpu, VERIFY_WRITE, addr, sizeof(uint32_t))) {
++        return;
++    }
++
++    host_addr = g2h(cpu, addr);
++    for (;;) {
++        old_value = qatomic_read(host_addr);
++        if ((tswap32(old_value) & FUTEX_TID_MASK) != ts->ts_tid) {
++            return;
++        }
++
++        new_value = tswap32((tswap32(old_value) & FUTEX_WAITERS) | FUTEX_OWNER_DIED);
++        if (qatomic_cmpxchg(host_addr, old_value, new_value) == old_value) {
++            break;
++        }
++    }
++
++    if (tswap32(old_value) & FUTEX_WAITERS) {
++        do_sys_futex((int *)host_addr, FUTEX_WAKE, 1, NULL, NULL, 0);
++    }
++}
++
++// Walk the guest robust list before the emulated thread exits
++static void target_robust_exit(CPUState *cpu, TaskState *ts)
++{
++    abi_ulong head = ts->robust_list_head;
++    abi_ulong entry;
++    abi_ulong next;
++    abi_ulong pending;
++    int32_t offset;
++    unsigned int count;
++
++    if (head == 0 || get_user_ual(entry, head) ||
++        get_user_s32(offset, head + sizeof(abi_ulong)) ||
++        get_user_ual(pending, head + 2 * sizeof(abi_ulong))) {
++        return;
++    }
++
++    for (count = 0; entry != head && count < 2048; count++) {
++        if (get_user_ual(next, entry)) {
++            break;
++        }
++
++        if (entry != pending) {
++            target_robust_mark_dead(cpu, ts, entry, offset);
++        }
++
++        entry = next;
++    }
++
++    if (pending != 0) {
++        target_robust_mark_dead(cpu, ts, pending, offset);
++    }
++
++    ts->robust_list_head = 0;
++}
++#endif
++
+ static int do_safe_futex(int *uaddr, int op, int val,
+                          const struct timespec *timeout, int *uaddr2,
+                          int val3)
+@@ -9413,6 +9482,10 @@
+         if (CPU_NEXT(first_cpu)) {
+             TaskState *ts = get_task_state(cpu);
+ 
++#ifdef TARGET_NR_set_robust_list
++            target_robust_exit(cpu, ts);
++#endif
++
+             if (ts->child_tidptr) {
+                 put_user_u32(0, ts->child_tidptr);
+                 do_sys_futex(g2h(cpu, ts->child_tidptr),
+@@ -9436,6 +9509,9 @@
+         }
+ 
+         pthread_mutex_unlock(&clone_lock);
++#ifdef TARGET_NR_set_robust_list
++        target_robust_exit(cpu, get_task_state(cpu));
++#endif
+         preexit_cleanup(cpu_env, arg1);
+         _exit(arg1);
+         return 0; /* avoid warning */
+@@ -13110,20 +13186,31 @@
+ 
+ #ifdef TARGET_NR_set_robust_list
+     case TARGET_NR_set_robust_list:
++    {
++        TaskState *ts = get_task_state(cpu);
++
++        if (arg2 != 3 * sizeof(abi_ulong)) {
++            return -TARGET_EINVAL;
++        }
++
++        ts->robust_list_head = arg1;
++        return 0;
++    }
+     case TARGET_NR_get_robust_list:
+-        /* The ABI for supporting robust futexes has userspace pass
+-         * the kernel a pointer to a linked list which is updated by
+-         * userspace after the syscall; the list is walked by the kernel
+-         * when the thread exits. Since the linked list in QEMU guest
+-         * memory isn't a valid linked list for the host and we have
+-         * no way to reliably intercept the thread-death event, we can't
+-         * support these. Silently return ENOSYS so that guest userspace
+-         * falls back to a non-robust futex implementation (which should
+-         * be OK except in the corner case of the guest crashing while
+-         * holding a mutex that is shared with another process via
+-         * shared memory).
+-         */
+-        return -TARGET_ENOSYS;
++    {
++        TaskState *ts = get_task_state(cpu);
++
++        if (arg1 != 0 && arg1 != ts->ts_tid) {
++            return -TARGET_ESRCH;
++        }
++
++        if (put_user_ual(ts->robust_list_head, arg2) ||
++            put_user_ual(3 * sizeof(abi_ulong), arg3)) {
++            return -TARGET_EFAULT;
++        }
++
++        return 0;
++    }
+ #endif
+ 
+ #if defined(TARGET_NR_utimensat)

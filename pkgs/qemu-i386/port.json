@@ -1,0 +1,6 @@
+{
+  "source": "https://download.qemu.org/qemu-10.1.5.tar.xz",
+  "sha256": "1f1209b4db82e6c4417eaf6e7e0b073563572a042d9fb7492b084ba65a9c0693",
+  "source_directory": "qemu-10.1.5",
+  "patches": ["patches/robust-list.patch"]
+}
