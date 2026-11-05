@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "zsh",
-  "version": "5.9.2-r2",
+  "version": "5.9.2-r4",
   "description": "Z shell with line editing, history and completion",
   "kind": "tool",
   "arch": "x86_64",

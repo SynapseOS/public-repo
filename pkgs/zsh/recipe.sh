@@ -3,7 +3,7 @@
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Описание: собрать оболочку с редактором строки и установить функции дополнения
 # Подсистема: сборка пакетов
-# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Первое изменение: 25.10.2026, последнее изменение: 30.10.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -28,6 +28,13 @@ mkdir -p "$stage"
 		./configure --host=x86_64-linux-musl --build=x86_64-linux-gnu \
 			--prefix=/usr --bindir=/bin --disable-dynamic --enable-multibyte \
 			--enable-libc-musl --with-term-lib=ncursesw
+
+	# Oh My Zsh использует system и regex, статическая сборка должна включать оба модуля
+	sed -i -E '/^name=zsh\/(regex|system) / {
+		s/ link=no / link=static /
+		s/ auto=yes / auto=no /
+	}' config.modules
+	make -C Src prep
 
 	make -j"$JOBS"
 	make install.bin install.modules install.fns DESTDIR="$stage"
