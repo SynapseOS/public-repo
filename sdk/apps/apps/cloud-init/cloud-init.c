@@ -5,7 +5,7 @@
 // Ограниченный набор cloud-config и получение метаданных OpenStack
 // Подсистема: установка и начальная настройка системы
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 27.10.2026
+// Последнее изменение: 01.11.2026
 // Доступ: общедоступный
 
 // Поддерживается ограниченный набор cloud-config для OpenStack
@@ -541,12 +541,41 @@ static char *config_file(const char *root, const char *file) {
 // Прочитать файл из корня диска NoCloud
 static char *nocloud_file(const char *root, const char *file) {
     char path[512];
+    char alias[64];
+    size_t length = strlen(file);
 
-    if (snprintf(path, sizeof(path), "%s/%s", root, file) >= (int)sizeof(path)) {
+    if (length >= sizeof(alias) ||
+        snprintf(path, sizeof(path), "%s/%s", root, file) >= (int)sizeof(path)) {
         return NULL;
     }
 
-    return read_file(path);
+    char *data = read_file(path);
+    if (data != NULL) {
+        return data;
+    }
+
+    // ISO9660 без Rock Ridge заменяет дефис подчёркиванием
+    for (size_t index = 0; index < length; index++) {
+        alias[index] = file[index] == '-' ? '_' : file[index];
+    }
+    alias[length] = 0;
+
+    if (snprintf(path, sizeof(path), "%s/%s", root, alias) < (int)sizeof(path)) {
+        data = read_file(path);
+        if (data != NULL) {
+            return data;
+        }
+    }
+
+    // ISO level 1 оставляет только первые восемь символов имени
+    if (length > 8U) {
+        alias[8] = 0;
+        if (snprintf(path, sizeof(path), "%s/%s", root, alias) < (int)sizeof(path)) {
+            return read_file(path);
+        }
+    }
+
+    return NULL;
 }
 
 // Определить формат метаданных на диске
@@ -733,9 +762,9 @@ int main(int argc, char **argv) {
     if (cached) {
         cached[strcspn(cached, "\r\n")] = 0;
     }
-    if (!password_hash[0] && cached && !strncmp(cached, "$6$", 3) &&
+    if (password[0] && !password_hash[0] && cached && !strncmp(cached, "$6$", 3) &&
         strlen(cached) < sizeof(password_hash)) {
-        char *candidate = password[0] ? crypt(password, cached) : cached;
+        char *candidate = crypt(password, cached);
         if (candidate && !strcmp(candidate, cached)) {
             strcpy(password_hash, cached);
         }
@@ -823,6 +852,9 @@ int main(int argc, char **argv) {
     free(managed);
     free(existing);
     if (password_hash[0] && write_file(cache_path, password_hash, 0600)) {
+        return 1;
+    }
+    if (!password_hash[0] && unlink(cache_path) != 0 && errno != ENOENT) {
         return 1;
     }
     memset(password, 0, sizeof(password));
