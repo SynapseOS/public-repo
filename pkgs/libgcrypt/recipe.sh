@@ -2,12 +2,12 @@
 # Автор: Елчинян Арен Артурович, 2026
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Подсистема: сборка пакетов
-# Первое изменение: 26.10.2026, последнее изменение: 26.10.2026
+# Первое изменение: 26.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
 
-sysroot=$(mktemp -d /tmp/synapse-libgcrypt-sysroot.XXXXXX)
+sysroot=$(mktemp -d "${TMPDIR:-/tmp}/synapse-libgcrypt-sysroot.XXXXXX")
 trap 'rm -rf -- "$sysroot"' EXIT
 mkdir -p "$sysroot/usr/include" "$sysroot/usr/lib" "$sysroot/usr/bin"
 
