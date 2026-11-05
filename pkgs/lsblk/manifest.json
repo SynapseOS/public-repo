@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "lsblk",
+  "version": "0.1.0-r2",
+  "description": "List block devices from SynapseOS sysfs and devtmpfs",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["musl-runtime"],
+  "conflicts": [],
+  "files": []
+}

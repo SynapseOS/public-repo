@@ -1,0 +1,7 @@
+{
+  "name": "lsblk",
+  "version": "0.1.0-r2",
+  "description": "List block devices from SynapseOS sysfs and devtmpfs",
+  "build_system": "recipe",
+  "upstream_license": "NOASSERTION"
+}
