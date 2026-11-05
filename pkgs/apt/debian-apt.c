@@ -2,7 +2,7 @@
 // Автор: Елчинян Арен Артурович, 2026
 // Архитектура: x86_64, ABI: synapse-x86_64-v1
 // Подсистема: менеджер Debian-пакетов
-// Первое изменение: 01.11.2026, последнее изменение: 01.11.2026
+// Первое изменение: 01.11.2026, последнее изменение: 03.11.2026
 // Статус доступа: общедоступный
 
 #define _GNU_SOURCE
@@ -41,6 +41,10 @@
 #define PACKAGE_LISTS DEBIAN_APT_BASE "/lists"
 #define GENERATIONS DEBIAN_APT_BASE "/generations"
 #define CURRENT DEBIAN_APT_BASE "/current"
+#define CATALOG_DIRECTORY "/var/cache/debian-apt"
+#define CATALOG_SNAPSHOT CATALOG_DIRECTORY "/catalog.jsonl"
+#define RUNTIME_DIRECTORY "/usr/libexec/debian-runtime"
+#define RUNTIME_CURRENT RUNTIME_DIRECTORY "/current"
 
 #ifndef PROVIDER_SHA256
 #define PROVIDER_SHA256 ""
@@ -492,6 +496,11 @@ static int sync_directory(const char *path) {
     return result;
 }
 
+static int invalidate_catalog(void);
+static int publish_catalog(const char *generation);
+static int invalidate_runtime(void);
+static int publish_runtime(const char *generation);
+
 // Переключить текущий указатель только после проверки поколения
 static int commit_generation(const char *name) {
     char target[PATH_MAX];
@@ -503,7 +512,8 @@ static int commit_generation(const char *name) {
         return -1;
     }
 
-    if (symlink(target, path) < 0 || rename(path, CURRENT) < 0) {
+    if (invalidate_runtime() < 0 || invalidate_catalog() < 0 ||
+        symlink(target, path) < 0 || rename(path, CURRENT) < 0) {
         return -1;
     }
 
@@ -518,7 +528,7 @@ static int commit_generation(const char *name) {
     }
 
     close(directory);
-    return 0;
+    return publish_catalog(name);
 }
 
 // Сформировать параметры APT для выбранного каталога состояния
@@ -873,113 +883,533 @@ static int mutate_package(const char *command, const char *package) {
     return 0;
 }
 
-// Вывести поддерживаемые пакеты строками JSON для магазина
-static int catalog(const char *generation, const char *text) {
+// Сформировать только публичные поля двух проверенных пакетов
+static int format_catalog(char *output, size_t size, int busybox, int m4) {
+    int length = snprintf(output, size,
+        "{\"schema\":1,\"kind\":\"package\",\"id\":\"busybox-static\","
+        "\"version\":\"1:1.37.0-6+b9\",\"description\":\"Static Unix utilities\","
+        "\"installed\":%s,\"installable\":true,\"reason\":\"signed-index-required\"}\n"
+        "{\"schema\":1,\"kind\":\"package\",\"id\":\"m4\","
+        "\"version\":\"1.4.19-8\",\"description\":\"GNU macro processor\","
+        "\"installed\":%s,\"installable\":true,\"reason\":\"signed-index-required\"}\n",
+        busybox ? "true" : "false", m4 ? "true" : "false");
+
+    return length >= 0 && (size_t)length < size ? length : -1;
+}
+
+// Открыть публичный каталог только в настоящем каталоге root
+static int catalog_directory(int create) {
+    if (create && make_directories(CATALOG_DIRECTORY) < 0) {
+        return -1;
+    }
+
+    int descriptor = open(CATALOG_DIRECTORY, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+    struct stat status;
+    if (descriptor < 0 || fstat(descriptor, &status) < 0 || !S_ISDIR(status.st_mode) ||
+        status.st_uid != 0 || (status.st_mode & 0022U) != 0U ||
+        (create && fchmod(descriptor, 0755) < 0)) {
+        if (descriptor >= 0) {
+            close(descriptor);
+        }
+
+        return -1;
+    }
+
+    return descriptor;
+}
+
+// Удалить старую сводку до переключения приватного поколения
+static int invalidate_catalog(void) {
+    int directory = catalog_directory(1);
+    if (directory < 0) {
+        return -1;
+    }
+
+    int result = unlink(CATALOG_SNAPSHOT);
+    if (result < 0 && errno == ENOENT) {
+        result = 0;
+    }
+
+    if (result == 0) {
+        result = fsync(directory);
+    }
+
+    close(directory);
+    return result;
+}
+
+// Атомарно опубликовать сводку после успешного переключения поколения
+static int publish_catalog(const char *generation) {
     char root[PATH_MAX];
     char busybox[PATH_MAX];
     char m4[PATH_MAX];
+    char temporary[PATH_MAX];
+    char private_root[PATH_MAX];
+    char output[1024];
+    struct stat status;
 
-    if (join_path(root, sizeof root, GENERATIONS, generation) < 0 ||
+    if (!valid_generation(generation) ||
+        join_path(root, sizeof root, GENERATIONS, generation) < 0 ||
         join_path(busybox, sizeof busybox, root, "root/usr/bin/busybox") < 0 ||
-        join_path(m4, sizeof m4, root, "root/usr/bin/m4") < 0) {
+        join_path(m4, sizeof m4, root, "root/usr/bin/m4") < 0 ||
+        lstat(root, &status) < 0 || !S_ISDIR(status.st_mode) || status.st_uid != 0 ||
+        (status.st_mode & 0022U) != 0U ||
+        join_path(private_root, sizeof private_root, root, "root") < 0 ||
+        lstat(private_root, &status) < 0 || !S_ISDIR(status.st_mode) || status.st_uid != 0 ||
+        (status.st_mode & 0022U) != 0U) {
+        return -1;
+    }
+
+    if (publish_runtime(generation) < 0) {
+        return -1;
+    }
+
+    int length = format_catalog(output, sizeof output, access(busybox, F_OK) == 0, access(m4, F_OK) == 0);
+    int written = snprintf(temporary, sizeof temporary, CATALOG_DIRECTORY "/.catalog.%ld", (long)getpid());
+    int directory = catalog_directory(1);
+    if (length < 0 || written < 0 || (size_t)written >= sizeof temporary || directory < 0) {
+        if (directory >= 0) {
+            close(directory);
+        }
+
+        return -1;
+    }
+
+    int descriptor = open(temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+    int result = descriptor < 0 ? -1 : 0;
+    size_t done = 0U;
+    while (result == 0 && done < (size_t)length) {
+        ssize_t count = write(descriptor, output + done, (size_t)length - done);
+        if (count < 0 && errno == EINTR) {
+            continue;
+        }
+
+        if (count <= 0) {
+            result = -1;
+        } else {
+            done += (size_t)count;
+        }
+    }
+
+    if (result == 0 && (fchmod(descriptor, 0644) < 0 || fsync(descriptor) < 0)) {
+        result = -1;
+    }
+
+    if (descriptor >= 0 && close(descriptor) < 0) {
+        result = -1;
+    }
+
+    if (result == 0 && (rename(temporary, CATALOG_SNAPSHOT) < 0 || fsync(directory) < 0)) {
+        result = -1;
+    }
+
+    if (result != 0 && descriptor >= 0) {
+        unlink(temporary);
+    }
+
+    close(directory);
+    return result;
+}
+
+// Прочитать ограниченную сводку без доступа к приватному состоянию и без записи
+static int catalog_snapshot(const char *text) {
+    char output[1024];
+    char expected[1024];
+    struct stat status;
+    int directory = catalog_directory(0);
+    if (directory < 0) {
+        fprintf(stderr, "Debian catalog is unavailable, run debian-apt update as root\n");
         return 1;
     }
 
-    if (strstr("busybox-static", text) != NULL || strstr("Static Unix utilities", text) != NULL) {
-        printf("{\"schema\":1,\"kind\":\"package\",\"id\":\"busybox-static\","
-               "\"version\":\"1:1.37.0-6+b9\",\"description\":\"Static Unix utilities\","
-               "\"installed\":%s,\"installable\":true,\"reason\":\"signed-index-required\"}\n",
-               access(busybox, F_OK) == 0 ? "true" : "false");
+    int descriptor = open(CATALOG_SNAPSHOT, O_RDONLY | O_NOFOLLOW);
+    close(directory);
+    if (descriptor < 0 || fstat(descriptor, &status) < 0 || !S_ISREG(status.st_mode) ||
+        status.st_uid != 0 || (status.st_mode & 0777U) != 0644U ||
+        status.st_size <= 0 || (uint64_t)status.st_size >= sizeof output) {
+        if (descriptor >= 0) {
+            close(descriptor);
+        }
+
+        fprintf(stderr, "Debian catalog is missing or unsafe, run debian-apt update as root\n");
+        return 1;
     }
 
-    if (strstr("m4", text) != NULL || strstr("GNU macro processor", text) != NULL) {
-        printf("{\"schema\":1,\"kind\":\"package\",\"id\":\"m4\","
-               "\"version\":\"1.4.19-8\",\"description\":\"GNU macro processor\","
-               "\"installed\":%s,\"installable\":true,\"reason\":\"signed-index-required\"}\n",
-               access(m4, F_OK) == 0 ? "true" : "false");
+    size_t length = (size_t)status.st_size;
+    size_t done = 0U;
+    while (done < length) {
+        ssize_t count = read(descriptor, output + done, length - done);
+        if (count < 0 && errno == EINTR) {
+            continue;
+        }
+
+        if (count <= 0) {
+            break;
+        }
+
+        done += (size_t)count;
+    }
+
+    close(descriptor);
+    output[done] = '\0';
+    int valid = 0;
+    for (int busybox = 0; busybox <= 1; busybox++) {
+        for (int m4 = 0; m4 <= 1; m4++) {
+            int expected_length = format_catalog(expected, sizeof expected, busybox, m4);
+            if (done == length && expected_length >= 0 && (size_t)expected_length == length &&
+                memcmp(output, expected, length) == 0) {
+                valid = 1;
+            }
+        }
+    }
+
+    if (!valid) {
+        fprintf(stderr, "Debian catalog is damaged, run debian-apt update as root\n");
+        return 1;
+    }
+
+    char *line = output;
+    while (*line != '\0') {
+        char *end = strchr(line, '\n');
+        if (end == NULL) {
+            return 1;
+        }
+
+        *end = '\0';
+        if (strstr(line, text) != NULL) {
+            puts(line);
+        }
+
+        line = end + 1;
     }
 
     return 0;
 }
 
-// Запустить разрешённую программу из выбранного поколения
-static int run_package(const char *generation, int argc, char **argv) {
-    char root[PATH_MAX];
+// Проверить каждого родителя до создания или чтения публичного пути
+static int runtime_directory(const char *path, int create) {
+    char copy[PATH_MAX];
+    size_t length = strlen(path);
+
+    if (length == 0U || path[0] != '/' || length >= sizeof copy) {
+        return -1;
+    }
+
+    memcpy(copy, path, length + 1U);
+
+    for (size_t index = 1U; index <= length; index++) {
+        if (copy[index] != '/' && copy[index] != '\0') {
+            continue;
+        }
+
+        char saved = copy[index];
+        struct stat status;
+        copy[index] = '\0';
+
+        if (lstat(copy, &status) < 0) {
+            if (!create || errno != ENOENT || mkdir(copy, 0755) < 0 ||
+                chmod(copy, 0755) < 0 || lstat(copy, &status) < 0) {
+                return -1;
+            }
+        }
+
+        if (!S_ISDIR(status.st_mode) || status.st_uid != 0U ||
+            (status.st_mode & (S_IWGRP | S_IWOTH)) != 0U) {
+            return -1;
+        }
+
+        copy[index] = saved;
+    }
+
+    return 0;
+}
+
+// Проверить неизменяемый обычный файл до чтения его контрольной суммы
+static int runtime_file(const char *path, const char *hash) {
+    struct stat status;
+
+    if (lstat(path, &status) < 0 || !S_ISREG(status.st_mode) || status.st_uid != 0U ||
+        (status.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH | S_ISUID | S_ISGID)) != 0U) {
+        return -1;
+    }
+
+    return verify_sha256(path, hash);
+}
+
+// Отключить новые запуски до изменения состава установленного поколения
+static int invalidate_runtime(void) {
+    if (runtime_directory(RUNTIME_DIRECTORY, 1) < 0) {
+        return -1;
+    }
+
+    if (unlink(RUNTIME_CURRENT) < 0 && errno != ENOENT) {
+        return -1;
+    }
+
+    return sync_directory(RUNTIME_DIRECTORY);
+}
+
+// Скопировать только проверенный файл без ссылок и служебных данных
+static int runtime_copy(const char *source, const char *destination, const char *hash, mode_t mode) {
+    int input = open(source, O_RDONLY | O_NOFOLLOW);
+    int output = -1;
+    struct stat status;
+    int result = -1;
+
+    if (input < 0 || fstat(input, &status) < 0 || !S_ISREG(status.st_mode) ||
+        status.st_uid != 0U || (status.st_mode & (S_IWGRP | S_IWOTH)) != 0U) {
+        goto done;
+    }
+
+    output = open(destination, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+
+    if (output < 0) {
+        goto done;
+    }
+
+    unsigned char buffer[16384];
+
+    for (;;) {
+        ssize_t count = read(input, buffer, sizeof buffer);
+
+        if (count < 0 && errno == EINTR) {
+            continue;
+        }
+
+        if (count < 0) {
+            goto done;
+        }
+
+        if (count == 0) {
+            break;
+        }
+
+        size_t written = 0U;
+
+        while (written < (size_t)count) {
+            ssize_t part = write(output, buffer + written, (size_t)count - written);
+
+            if (part < 0 && errno == EINTR) {
+                continue;
+            }
+
+            if (part <= 0) {
+                goto done;
+            }
+
+            written += (size_t)part;
+        }
+    }
+
+    if (fchmod(output, mode) == 0 && fsync(output) == 0 && runtime_file(destination, hash) == 0) {
+        result = 0;
+    }
+
+done:
+    if (input >= 0) {
+        close(input);
+    }
+
+    if (output >= 0 && close(output) < 0) {
+        result = -1;
+    }
+
+    return result;
+}
+
+// Опубликовать только четыре разрешённых файла в отдельном поколении
+static int publish_runtime(const char *generation) {
+    const char *names[] = {"busybox", "m4", "ld-linux-x86-64.so.2", "libc.so.6"};
+    const char *sources[] = {"root/usr/bin/busybox", "root/usr/bin/m4",
+                            "root/lib/ld-linux-x86-64.so.2", "root/lib/libc.so.6"};
+    const char *hashes[] = {BUSYBOX_ELF_SHA256, M4_ELF_SHA256, LOADER_SHA256, LIBC_SHA256};
+    char private_directory[PATH_MAX];
+    char directory[PATH_MAX];
+    char staging[PATH_MAX];
+    char pointer[PATH_MAX];
+    int present[4] = {0, 0, 0, 0};
+    int existing = 0;
+    struct stat status;
+
+    if (!valid_generation(generation) || invalidate_runtime() < 0 ||
+        join_path(private_directory, sizeof private_directory, GENERATIONS, generation) < 0 ||
+        runtime_directory(private_directory, 0) < 0 ||
+        join_path(directory, sizeof directory, RUNTIME_DIRECTORY, generation) < 0) {
+        return -1;
+    }
+
+#ifdef DEBIAN_APT_TEST_FAIL_RUNTIME_PUBLISH
+    return -1;
+#endif
+
+    for (size_t index = 0U; index < 2U; index++) {
+        char source[PATH_MAX];
+
+        if (join_path(source, sizeof source, private_directory, sources[index]) < 0) {
+            return -1;
+        }
+
+        if (lstat(source, &status) == 0) {
+            present[index] = 1;
+        } else if (errno != ENOENT) {
+            return -1;
+        }
+    }
+
+    present[2] = present[1];
+    present[3] = present[1];
+
+    if (lstat(directory, &status) == 0) {
+        existing = 1;
+
+        if (runtime_directory(directory, 0) < 0) {
+            return -1;
+        }
+    } else if (errno != ENOENT) {
+        return -1;
+    }
+
+    int written = snprintf(staging, sizeof staging, RUNTIME_DIRECTORY "/.stage.%ld", (long)getpid());
+
+    if (written < 0 || (size_t)written >= sizeof staging ||
+        (!existing && (mkdir(staging, 0700) < 0))) {
+        return -1;
+    }
+
+    const char *target = existing ? directory : staging;
+
+    for (size_t index = 0U; index < 4U; index++) {
+        char source[PATH_MAX];
+        char destination[PATH_MAX];
+
+        if (join_path(source, sizeof source, private_directory, sources[index]) < 0 ||
+            join_path(destination, sizeof destination, target, names[index]) < 0) {
+            return -1;
+        }
+
+        if (!present[index]) {
+            if (lstat(destination, &status) == 0 || errno != ENOENT) {
+                return -1;
+            }
+
+            continue;
+        }
+
+        mode_t mode = index == 3U ? 0444 : 0555;
+
+        if ((!existing && runtime_copy(source, destination, hashes[index], mode) < 0) ||
+            runtime_file(destination, hashes[index]) < 0) {
+            return -1;
+        }
+    }
+
+    DIR *stream = opendir(target);
+
+    if (stream == NULL) {
+        return -1;
+    }
+
+    struct dirent *entry;
+    int safe = 1;
+
+    while ((entry = readdir(stream)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        int allowed = 0;
+
+        for (size_t index = 0U; index < 4U; index++) {
+            if (present[index] && strcmp(entry->d_name, names[index]) == 0) {
+                allowed = 1;
+            }
+        }
+
+        if (!allowed) {
+            safe = 0;
+        }
+    }
+
+    closedir(stream);
+
+    if (!safe || (!existing && (chmod(staging, 0555) < 0 || sync_tree(staging, 0U) < 0 ||
+                               rename(staging, directory) < 0)) ||
+        sync_directory(RUNTIME_DIRECTORY) < 0) {
+        return -1;
+    }
+
+    written = snprintf(pointer, sizeof pointer, RUNTIME_DIRECTORY "/.current.%ld", (long)getpid());
+
+    if (written < 0 || (size_t)written >= sizeof pointer ||
+        symlink(generation, pointer) < 0 || rename(pointer, RUNTIME_CURRENT) < 0) {
+        return -1;
+    }
+
+    return sync_directory(RUNTIME_DIRECTORY);
+}
+
+// Запустить проверенную программу с исходными UID и GID без приватной базы
+static int run_package(int argc, char **argv) {
+    char generation[64];
+    char directory[PATH_MAX];
     char binary[PATH_MAX];
     char loader[PATH_MAX];
-    char libraries[PATH_MAX];
     char libc[PATH_MAX];
+    struct stat status;
 
     if (argc < 3 || argc > 64 ||
         (strcmp(argv[2], "m4") != 0 && strcmp(argv[2], "busybox-static") != 0) ||
-        join_path(root, sizeof root, GENERATIONS, generation) < 0) {
-        fprintf(stderr, "Debian program is outside the verified ABI allowlist\n");
+        runtime_directory(RUNTIME_DIRECTORY, 0) < 0 ||
+        lstat(RUNTIME_CURRENT, &status) < 0 || !S_ISLNK(status.st_mode) || status.st_uid != 0U) {
+        fprintf(stderr, "Verified Debian runtime is unavailable\n");
         return 1;
     }
 
-    if (strcmp(argv[2], "busybox-static") == 0) {
-        if (join_path(binary, sizeof binary, root, "root/usr/bin/busybox") < 0) {
-            fprintf(stderr, "Verified Debian busybox-static is not installed\n");
-            return 1;
-        }
+    ssize_t length = readlink(RUNTIME_CURRENT, generation, sizeof generation - 1U);
 
-        int descriptor = open(binary, O_RDONLY);
-        struct stat status;
-        char magic[SELFMAG];
-
-        if (descriptor < 0 || fstat(descriptor, &status) < 0 ||
-            !S_ISREG(status.st_mode) || status.st_uid != 0U ||
-            (status.st_mode & (S_IWGRP | S_IWOTH)) != 0 ||
-            pread(descriptor, magic, sizeof magic, 0) != (ssize_t)sizeof magic ||
-            memcmp(magic, ELFMAG, SELFMAG) != 0) {
-            if (descriptor >= 0) {
-                close(descriptor);
-            }
-
-            fprintf(stderr, "Verified Debian busybox-static is not installed\n");
-            return 1;
-        }
-
-        close(descriptor);
-
-        if (check_elf_file(binary) < 0 || access(binary, X_OK) < 0) {
-            fprintf(stderr, "Verified Debian busybox-static is not installed\n");
-            return 1;
-        }
-
-        char *arguments[65];
-        arguments[0] = binary;
-
-        for (int index = 3; index < argc; index++) {
-            arguments[index - 2] = argv[index];
-        }
-
-        arguments[argc - 2] = NULL;
-        return run_program(binary, arguments);
-    }
-
-    if (join_path(binary, sizeof binary, root, "root/usr/bin/m4") < 0 ||
-        join_path(loader, sizeof loader, root, "root/lib/ld-linux-x86-64.so.2") < 0 ||
-        join_path(libraries, sizeof libraries, root, "root/lib") < 0 ||
-        join_path(libc, sizeof libc, libraries, "libc.so.6") < 0 ||
-        check_elf_file(binary) < 0 || verify_sha256(loader, LOADER_SHA256) < 0 ||
-        verify_sha256(libc, LIBC_SHA256) < 0) {
-        fprintf(stderr, "Verified Debian m4 is not installed\n");
+    if (length <= 0 || (size_t)length >= sizeof generation - 1U) {
         return 1;
     }
 
-    char *arguments[68];
-    arguments[0] = loader;
-    arguments[1] = "--library-path";
-    arguments[2] = libraries;
-    arguments[3] = binary;
+    generation[length] = '\0';
+
+    if (!valid_generation(generation) ||
+        join_path(directory, sizeof directory, RUNTIME_DIRECTORY, generation) < 0 ||
+        runtime_directory(directory, 0) < 0) {
+        return 1;
+    }
+
+    int m4 = strcmp(argv[2], "m4") == 0;
+
+    if (join_path(binary, sizeof binary, directory, m4 ? "m4" : "busybox") < 0 ||
+        runtime_file(binary, m4 ? M4_ELF_SHA256 : BUSYBOX_ELF_SHA256) < 0 || access(binary, X_OK) < 0) {
+        fprintf(stderr, "Verified Debian program is not installed\n");
+        return 1;
+    }
+
+    char *arguments[69];
+    size_t count = 0U;
+
+    if (m4) {
+        if (join_path(loader, sizeof loader, directory, "ld-linux-x86-64.so.2") < 0 ||
+            join_path(libc, sizeof libc, directory, "libc.so.6") < 0 ||
+            runtime_file(loader, LOADER_SHA256) < 0 || runtime_file(libc, LIBC_SHA256) < 0) {
+            return 1;
+        }
+
+        arguments[count++] = loader;
+        arguments[count++] = "--library-path";
+        arguments[count++] = directory;
+    }
+
+    arguments[count++] = binary;
 
     for (int index = 3; index < argc; index++) {
-        arguments[index + 1] = argv[index];
+        arguments[count++] = argv[index];
     }
 
-    arguments[argc + 1] = NULL;
-    return run_program(loader, arguments);
+    arguments[count] = NULL;
+    return run_program(m4 ? loader : binary, arguments);
 }
 
 // Выбрать операцию, сохраняя setup вне Debian-root
@@ -1002,6 +1432,25 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    if (strcmp(argv[1], "catalog") == 0 && (argc == 2 || argc == 3)) {
+        const char *query = argc == 3 ? argv[2] : "";
+
+        if (strlen(query) > 100U) {
+            fprintf(stderr, "Catalog query is too long\n");
+            return 2;
+        }
+
+        if (geteuid() != 0) {
+            return catalog_snapshot(query);
+        }
+    }
+
+    if (strcmp(argv[1], "run") == 0) {
+        return run_package(argc, argv);
+    }
+
+    umask(0077);
+
     int lock = open(DEBIAN_APT_BASE "/lock", O_CREAT | O_RDWR, 0600);
 
     if (lock < 0 && make_directories(DEBIAN_APT_BASE) == 0) {
@@ -1021,6 +1470,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if ((strcmp(argv[1], "catalog") == 0 && (argc == 2 || argc == 3)) ||
+        (strcmp(argv[1], "update") == 0 && argc == 2)) {
+        if (publish_catalog(current) < 0) {
+            fprintf(stderr, "Cannot publish the Debian catalog\n");
+            return 1;
+        }
+
+        if (strcmp(argv[1], "catalog") == 0) {
+            return catalog_snapshot(argc == 3 ? argv[2] : "");
+        }
+    }
+
     if (strcmp(argv[1], "current") == 0 && argc == 2) {
         printf("%s\n", current);
         return 0;
@@ -1030,21 +1491,6 @@ int main(int argc, char **argv) {
         printf("{\"schema\":1,\"kind\":\"state\",\"generation\":\"%s\","
                "\"mode\":\"isolated\"}\n", current);
         return 0;
-    }
-
-    if (strcmp(argv[1], "catalog") == 0 && (argc == 2 || argc == 3)) {
-        const char *query = argc == 3 ? argv[2] : "";
-
-        if (strlen(query) > 100U) {
-            fprintf(stderr, "Catalog query is too long\n");
-            return 2;
-        }
-
-        return catalog(current, query);
-    }
-
-    if (strcmp(argv[1], "run") == 0) {
-        return run_package(current, argc, argv);
     }
 
     if (strcmp(argv[1], "update") == 0 && argc == 2) {

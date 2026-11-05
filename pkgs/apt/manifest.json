@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "apt",
-  "version": "3.0.3-r4",
+  "version": "3.0.3-r6",
   "description": "Debian APT metadata client in an isolated state directory",
   "kind": "tool",
   "arch": "x86_64",
