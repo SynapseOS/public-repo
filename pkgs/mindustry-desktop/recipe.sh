@@ -1,7 +1,7 @@
 # recipe.sh: Собрать Arc JNI, звук, FreeType, SDL и модуль совместимости Java
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 31.10.2026
 # Статус доступа: общедоступный
 
 while IFS=$'\t' read -r filename url sha; do
@@ -82,6 +82,53 @@ profile+='Java_arc_backend_sdl_jni_SDLGL_(\w+)\s*\([^{}]*\)\s*\{)'
 profile+='/$1\n synapse_profile::Scope profile("$2");/g'
 perl -0777 -i -pe "$profile" \
 	"$work/sdl-jni/arc_backend_sdl_jni_SDLGL.cpp"
+generated_gl="$work/sdl-jni/arc_backend_sdl_jni_SDLGL.cpp"
+generated_sdl="$work/sdl-jni/arc_backend_sdl_jni_SDL.cpp"
+
+if [[ $(grep -Fc '        glBufferData(target, size, data, usage);' "$generated_gl") -ne 1 ]] ||
+	[[ $(grep -Fc '        SDL_GL_SwapWindow((SDL_Window*)window);' "$generated_sdl") -ne 1 ]]; then
+	printf '%s\n' 'Unexpected generated OpenGL buffer or swap wrapper' >&2
+	exit 1
+fi
+
+sed -i '/^        glBufferData(target, size, data, usage);$/i\        synapse_profile::buffer_data(target, size, usage);' \
+	"$generated_gl"
+sed -i '1i namespace synapse_profile { void frame_end(); }' "$generated_sdl"
+sed -i '/^        SDL_GL_SwapWindow((SDL_Window\*)window);$/a\        synapse_profile::frame_end();' \
+	"$generated_sdl"
+
+if [[ $(grep -Fc '        return SDL_Init(flags);' "$generated_sdl") -ne 1 ]]; then
+	printf '%s\n' 'Unexpected generated SDL_Init wrapper' >&2
+	exit 1
+fi
+
+perl -0pi -e 's/        return SDL_Init\(flags\);/        \/\/ Выбрать EGL только для Mindustry, если пользователь не задал режим\n        if (SDL_getenv("SYNAPSE_GL_EGL") == NULL \&\&\n            SDL_getenv("SYNAPSE_GL_EGL_AUTO") == NULL) {\n            SDL_setenv("SYNAPSE_GL_EGL_AUTO", "1", 0);\n        }\n\n        return SDL_Init(flags);/' "$generated_sdl"
+
+# Генератор JNI приводит 32-битные смещения напрямую к 64-битному указателю
+if [[ $(grep -Ec '\((const )?void\*\)(indices|ptr|offset|indicesOffset)' "$generated_gl") -ne 7 ]]; then
+	printf '%s\n' 'Unexpected generated OpenGL pointer offsets' >&2
+	exit 1
+fi
+
+if [[ $(grep -Fc '    #define GLEW_STATIC' "$generated_gl") -ne 1 ]]; then
+	printf '%s\n' 'Unexpected generated GLEW definition' >&2
+	exit 1
+fi
+
+sed -i '/^    #define GLEW_STATIC$/d' "$generated_gl"
+perl -pi -e 's/\((const )?void\*\)(indices|ptr|offset|indicesOffset)/($1void*)(intptr_t)$2/g' \
+	"$generated_gl"
+perl -0777 -i -pe \
+	's/(JNIEXPORT jobject JNICALL Java_arc_backend_sdl_jni_SDLGL_glGetBufferPointerv\([^{}]*\)\s*\{[^{}]*?env->ThrowNew\(IAEClass, "Unsupported method"\);)/$1\n        return NULL;/s' \
+	"$generated_gl"
+
+if [[ $(grep -Fc 'return NULL;' "$generated_gl") -lt 1 ]] ||
+	grep -Eq '\((const )?void\*\)(indices|ptr|offset|indicesOffset)' "$generated_gl"; then
+	printf '%s\n' 'Generated OpenGL JNI correction failed' >&2
+	exit 1
+fi
+
+sed -i '1i#include <stdint.h>' "$generated_gl"
 fetch 'https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0.tgz' \
 	d4fc82893cfb00109578d0a1a2337fb8ca335b3ceccf97b97e5cc7f08e4353e1 "$work/glew/source.tar.gz"
 glew="$work/glew/glew-2.2.0"
@@ -90,8 +137,10 @@ if [[ ! -d $glew ]]; then
 	bsdtar -xf "$work/glew/source.tar.gz" -C "$work/glew"
 fi
 
-sed -i '/#  include <GL\/osmesa.h>/i #  define APIENTRY' "$glew/src/glew.c"
-flags=("${common[@]}" -DGLEW_OSMESA -DGLEW_STATIC -DGLEW_NO_GLU -I"$work/sdl-jni" -I"$glew/include"
+if ! grep -q '^#  define APIENTRY$' "$glew/src/glew.c"; then
+	sed -i '/#  include <GL\/osmesa.h>/i #  define APIENTRY' "$glew/src/glew.c"
+fi
+flags=("${common[@]}" -Werror -DGLEW_OSMESA -DGLEW_STATIC -DGLEW_NO_GLU -I"$work/sdl-jni" -I"$glew/include"
 	-I"$BUILD_ROOT/mesa/mesa-24.3.4/include" -I"$BUILD_ROOT/sdl2/SDL2-2.30.11/include"
 	-I"$BUILD_ROOT/sdl2/build/include")
 sources=("$glew/src/glew.c" "$work/sdl-jni/"*.cpp)

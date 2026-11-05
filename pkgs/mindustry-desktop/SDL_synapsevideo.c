@@ -4,7 +4,7 @@
 // SDL_synapsevideo.c: экран, ввод и показатели игры SynapseOS
 // Архитектура: x86_64, ABI: SDL2, musl и SynAPI
 // Подсистема: графический клиент
-// Первое изменение: 13.10.2026, последнее изменение: 18.10.2026
+// Первое изменение: 13.10.2026, последнее изменение: 31.10.2026
 // Статус доступа: общедоступный, лицензия Zlib указана выше
 #include "../../SDL_internal.h"
 #ifdef SDL_VIDEO_DRIVER_OFFSCREEN
@@ -15,6 +15,10 @@
 #include "SDL_timer.h"
 #include <stdio.h>
 #include <GL/osmesa.h>
+#include <GL/glext.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <gbm.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -41,6 +45,14 @@ typedef struct {
 	Uint32 buttons;
 	Uint32 metric_start, metric_frames;
 	Uint64 metric_render, metric_copy, metric_present;
+	Uint64 metric_finish, metric_wait, metric_fill, metric_decor, metric_commit;
+	Uint64 metric_gl_state, metric_gl_fence_wait, metric_gl_readback, metric_gl_restore, metric_gl_flip;
+	Uint64 metric_pbo_enqueue, metric_pbo_wait, metric_pbo_map;
+	unsigned metric_pbo_frames, metric_pbo_fallbacks;
+	unsigned metric_gl_fence_frames, metric_gl_fence_failures;
+	unsigned egl_trace_count;
+	Uint32 egl_sample_time, egl_sample_hash;
+	struct SynapseGLContext *gl_context;
 	unsigned char *hud_font;
 	Uint32 hud_width, hud_height, hud_bytes, hud_stride;
 	Uint16 hud_glyph[128];
@@ -50,7 +62,25 @@ typedef struct {
 	char hud_line[2][128];
 } SynapseVideo;
 
+typedef struct SynapseGLContext {
+	OSMesaContext osmesa;
+	EGLDisplay display;
+	EGLContext context;
+	EGLSurface surface;
+	EGLConfig config;
+	struct gbm_device *gbm;
+	struct gbm_surface *gbm_surface;
+	unsigned char *readback;
+	GLuint pbo[2];
+	GLsync pbo_fence[2];
+	unsigned pbo_next;
+	SDL_bool pbo_active, pbo_failed;
+	int render_fd;
+	SDL_bool egl;
+} SynapseGLContext;
+
 static void hud_draw(SynapseVideo *s);
+static int syn_egl_resize(SynapseVideo *video, int width, int height);
 #include "synapse-wayland.inc"
 
 // Загрузить ограниченный шрифт PSF2 и соответствие печатных символов ASCII
@@ -427,21 +457,440 @@ static int load_gl(_THIS, const char *path) {
 
 static void unload_gl(_THIS) {}
 
+// Освободить пробные буферы чтения, пока EGL-контекст ещё активен
+static void syn_pbo_reset(SynapseGLContext *gl) {
+	PFNGLDELETESYNCPROC delete_sync =
+	    (PFNGLDELETESYNCPROC)eglGetProcAddress("glDeleteSync");
+	PFNGLDELETEBUFFERSPROC delete_buffers =
+	    (PFNGLDELETEBUFFERSPROC)eglGetProcAddress("glDeleteBuffers");
+
+	for (unsigned i = 0; i < SDL_arraysize(gl->pbo_fence); i++) {
+		if (gl->pbo_fence[i] != NULL && delete_sync != NULL) {
+			delete_sync(gl->pbo_fence[i]);
+		}
+
+		gl->pbo_fence[i] = NULL;
+	}
+
+	if (gl->pbo_active && delete_buffers != NULL) {
+		delete_buffers((GLsizei)SDL_arraysize(gl->pbo), gl->pbo);
+	}
+
+	SDL_memset(gl->pbo, 0, sizeof(gl->pbo));
+	gl->pbo_active = SDL_FALSE;
+	gl->pbo_next = 0;
+}
+
+// Проверить доступность двух буферов чтения без изменения обычного режима
+static SDL_bool syn_pbo_init(SynapseGLContext *gl, size_t bytes) {
+	const char *enabled = SDL_getenv("SYNAPSE_GL_PBO");
+	PFNGLGENBUFFERSPROC gen_buffers =
+	    (PFNGLGENBUFFERSPROC)eglGetProcAddress("glGenBuffers");
+	PFNGLBINDBUFFERPROC bind_buffer =
+	    (PFNGLBINDBUFFERPROC)eglGetProcAddress("glBindBuffer");
+	PFNGLBUFFERDATAPROC buffer_data =
+	    (PFNGLBUFFERDATAPROC)eglGetProcAddress("glBufferData");
+	GLint saved_buffer = 0;
+
+	if (gl->pbo_active) {
+		return SDL_TRUE;
+	}
+
+	if (gl->pbo_failed || enabled == NULL || SDL_strcmp(enabled, "1") != 0 ||
+	    gen_buffers == NULL || bind_buffer == NULL || buffer_data == NULL ||
+	    eglGetProcAddress("glMapBufferRange") == NULL ||
+	    eglGetProcAddress("glUnmapBuffer") == NULL ||
+	    eglGetProcAddress("glFenceSync") == NULL ||
+	    eglGetProcAddress("glClientWaitSync") == NULL ||
+	    eglGetProcAddress("glDeleteSync") == NULL) {
+		return SDL_FALSE;
+	}
+
+	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &saved_buffer);
+	gen_buffers((GLsizei)SDL_arraysize(gl->pbo), gl->pbo);
+
+	for (unsigned i = 0; i < SDL_arraysize(gl->pbo); i++) {
+		bind_buffer(GL_PIXEL_PACK_BUFFER, gl->pbo[i]);
+		buffer_data(GL_PIXEL_PACK_BUFFER, (GLsizeiptr)bytes, NULL, GL_STREAM_READ);
+	}
+
+	bind_buffer(GL_PIXEL_PACK_BUFFER, (GLuint)saved_buffer);
+
+	if (glGetError( ) != GL_NO_ERROR || gl->pbo[0] == 0 || gl->pbo[1] == 0) {
+		gl->pbo_active = SDL_TRUE;
+		syn_pbo_reset(gl);
+		gl->pbo_failed = SDL_TRUE;
+		return SDL_FALSE;
+	}
+
+	gl->pbo_active = SDL_TRUE;
+	fprintf(stderr, "SYNAPSE_EGL_PBO_ACTIVE buffers=2 bytes=%zu\n", bytes);
+	return SDL_TRUE;
+}
+
+// Читать предыдущий готовый кадр, сохраняя прежний вывод при любой ошибке
+static SDL_bool syn_pbo_read_frame(SynapseVideo *video, size_t bytes) {
+	SynapseGLContext *gl = video->gl_context;
+	PFNGLBINDBUFFERPROC bind_buffer =
+	    (PFNGLBINDBUFFERPROC)eglGetProcAddress("glBindBuffer");
+	PFNGLFENCESYNCPROC fence_sync =
+	    (PFNGLFENCESYNCPROC)eglGetProcAddress("glFenceSync");
+	PFNGLCLIENTWAITSYNCPROC wait_sync =
+	    (PFNGLCLIENTWAITSYNCPROC)eglGetProcAddress("glClientWaitSync");
+	PFNGLMAPBUFFERRANGEPROC map_buffer =
+	    (PFNGLMAPBUFFERRANGEPROC)eglGetProcAddress("glMapBufferRange");
+	PFNGLUNMAPBUFFERPROC unmap_buffer =
+	    (PFNGLUNMAPBUFFERPROC)eglGetProcAddress("glUnmapBuffer");
+	PFNGLDELETESYNCPROC delete_sync =
+	    (PFNGLDELETESYNCPROC)eglGetProcAddress("glDeleteSync");
+	unsigned current = gl->pbo_next;
+	unsigned previous = current ^ 1U;
+	Uint64 started = SDL_GetPerformanceCounter( );
+	Uint64 enqueued;
+	Uint64 waited;
+	SDL_bool ready = SDL_FALSE;
+
+	bind_buffer(GL_PIXEL_PACK_BUFFER, gl->pbo[current]);
+	glReadPixels(0, 0, video->w, video->h, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+	gl->pbo_fence[current] = fence_sync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	enqueued = SDL_GetPerformanceCounter( );
+
+	if (glGetError( ) != GL_NO_ERROR || gl->pbo_fence[current] == NULL) {
+		goto fallback;
+	}
+
+	if (gl->pbo_fence[previous] == NULL) {
+		bind_buffer(GL_PIXEL_PACK_BUFFER, 0);
+		glReadPixels(0, 0, video->w, video->h, GL_BGRA, GL_UNSIGNED_BYTE,
+		             gl->readback);
+
+		if (glGetError( ) != GL_NO_ERROR) {
+			goto fallback;
+		}
+
+		gl->pbo_next = previous;
+		video->metric_pbo_enqueue += enqueued - started;
+		video->metric_pbo_fallbacks++;
+		return SDL_TRUE;
+	}
+
+	GLenum result = wait_sync(gl->pbo_fence[previous], GL_SYNC_FLUSH_COMMANDS_BIT,
+	                          1000000000ULL);
+	waited = SDL_GetPerformanceCounter( );
+
+	if (result != GL_ALREADY_SIGNALED && result != GL_CONDITION_SATISFIED) {
+		goto fallback;
+	}
+
+	bind_buffer(GL_PIXEL_PACK_BUFFER, gl->pbo[previous]);
+	void *mapped = map_buffer(GL_PIXEL_PACK_BUFFER, 0, (GLsizeiptr)bytes, GL_MAP_READ_BIT);
+
+	if (mapped != NULL) {
+		SDL_memcpy(gl->readback, mapped, bytes);
+		ready = unmap_buffer(GL_PIXEL_PACK_BUFFER) == GL_TRUE;
+	}
+
+	if (!ready || glGetError( ) != GL_NO_ERROR) {
+		goto fallback;
+	}
+
+	delete_sync(gl->pbo_fence[previous]);
+	gl->pbo_fence[previous] = NULL;
+	bind_buffer(GL_PIXEL_PACK_BUFFER, 0);
+	gl->pbo_next = previous;
+	video->metric_pbo_enqueue += enqueued - started;
+	video->metric_pbo_wait += waited - enqueued;
+	video->metric_pbo_map += SDL_GetPerformanceCounter( ) - waited;
+	video->metric_pbo_frames++;
+	return SDL_TRUE;
+
+fallback:
+	bind_buffer(GL_PIXEL_PACK_BUFFER, 0);
+	syn_pbo_reset(gl);
+	gl->pbo_failed = SDL_TRUE;
+	video->metric_pbo_fallbacks++;
+	return SDL_FALSE;
+}
+
+// Создать буфер вывода EGL после изменения размера окна
+static int syn_egl_resize(SynapseVideo *video, int width, int height) {
+	SynapseGLContext *gl = video->gl_context;
+	unsigned char *readback = SDL_malloc((size_t)width * (size_t)height * 4);
+
+	if (readback == NULL) {
+		return SDL_OutOfMemory( );
+	}
+
+	struct gbm_surface *gbm_surface = gbm_surface_create(gl->gbm, (uint32_t)width,
+	                                                   (uint32_t)height, GBM_FORMAT_ARGB8888,
+	                                                   GBM_BO_USE_RENDERING);
+
+	if (gbm_surface == NULL) {
+		SDL_free(readback);
+		return SDL_SetError("GBM resize failed");
+	}
+
+	EGLSurface surface = eglCreateWindowSurface(gl->display, gl->config,
+	                                           (EGLNativeWindowType)gbm_surface, NULL);
+
+	if (surface == EGL_NO_SURFACE ||
+	    eglMakeCurrent(gl->display, surface, surface, gl->context) != EGL_TRUE) {
+		if (surface != EGL_NO_SURFACE) {
+			eglDestroySurface(gl->display, surface);
+		}
+
+		gbm_surface_destroy(gbm_surface);
+		SDL_free(readback);
+		return SDL_SetError("EGL resize failed: 0x%x", eglGetError( ));
+	}
+
+	syn_pbo_reset(gl);
+	gl->pbo_failed = SDL_FALSE;
+	eglDestroySurface(gl->display, gl->surface);
+	gbm_surface_destroy(gl->gbm_surface);
+	SDL_free(gl->readback);
+	gl->surface = surface;
+	gl->gbm_surface = gbm_surface;
+	gl->readback = readback;
+	return 0;
+}
+
+// Попробовать VirtIO GPU через EGL, не меняя программный путь по умолчанию
+static SynapseGLContext *syn_egl_create(_THIS) {
+	SynapseVideo *video = _this->driverdata;
+	SynapseGLContext *gl = SDL_calloc(1, sizeof(*gl));
+	EGLint count = 0;
+	const char *stage = "render node";
+	EGLint config_attrs[] = { EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_RENDERABLE_TYPE,
+		                   EGL_OPENGL_BIT, EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8,
+		                   EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8, EGL_DEPTH_SIZE, 24,
+		                   EGL_STENCIL_SIZE, 8, EGL_NONE };
+	EGLint context_attrs[] = {
+		EGL_CONTEXT_MAJOR_VERSION, _this->gl_config.major_version,
+		EGL_CONTEXT_MINOR_VERSION, _this->gl_config.minor_version,
+		EGL_CONTEXT_OPENGL_PROFILE_MASK,
+		_this->gl_config.profile_mask == SDL_GL_CONTEXT_PROFILE_CORE
+		    ? EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT
+		    : EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT,
+		EGL_NONE
+	};
+
+	if (gl == NULL) {
+		return NULL;
+	}
+
+	gl->render_fd = -1;
+	gl->display = EGL_NO_DISPLAY;
+	gl->context = EGL_NO_CONTEXT;
+	gl->surface = EGL_NO_SURFACE;
+	gl->render_fd = open("/dev/dri/renderD128", O_RDWR | O_CLOEXEC);
+
+	if (gl->render_fd < 0) {
+		goto fail;
+	}
+
+	stage = "GBM device";
+	gl->gbm = gbm_create_device(gl->render_fd);
+
+	if (gl->gbm == NULL) {
+		goto fail;
+	}
+
+	stage = "EGL display/config";
+	gl->display = eglGetPlatformDisplay(EGL_PLATFORM_GBM_KHR, gl->gbm, NULL);
+
+	if (gl->display == EGL_NO_DISPLAY || eglInitialize(gl->display, NULL, NULL) != EGL_TRUE ||
+	    eglBindAPI(EGL_OPENGL_API) != EGL_TRUE ||
+	    eglChooseConfig(gl->display, config_attrs, &gl->config, 1, &count) != EGL_TRUE ||
+	    count != 1) {
+		if (gl->display != EGL_NO_DISPLAY && count == 0) {
+			EGLConfig configs[16];
+			EGLint available = 0;
+
+			if (eglGetConfigs(gl->display, configs, 16, &available) == EGL_TRUE) {
+				fprintf(stderr, "SYNAPSE_EGL_CONFIGS count=%d\n", available);
+
+				for (EGLint i = 0; i < available && i < 16; i++) {
+					EGLint surface_type = 0;
+					EGLint render_type = 0;
+					EGLint depth = 0;
+					EGLint stencil = 0;
+					eglGetConfigAttrib(gl->display, configs[i], EGL_SURFACE_TYPE,
+					                   &surface_type);
+					eglGetConfigAttrib(gl->display, configs[i], EGL_RENDERABLE_TYPE,
+					                   &render_type);
+					eglGetConfigAttrib(gl->display, configs[i], EGL_DEPTH_SIZE, &depth);
+					eglGetConfigAttrib(gl->display, configs[i], EGL_STENCIL_SIZE, &stencil);
+					fprintf(stderr,
+					        "SYNAPSE_EGL_CONFIG index=%d surface=0x%x render=0x%x "
+					        "depth=%d stencil=%d\n",
+					        i, surface_type, render_type, depth, stencil);
+				}
+			}
+		}
+
+		goto fail;
+	}
+
+	stage = "EGL context/surface";
+	gl->context = eglCreateContext(gl->display, gl->config, EGL_NO_CONTEXT, context_attrs);
+	EGLint context_error = eglGetError( );
+	const char *allow_downgrade = SDL_getenv("SYNAPSE_GL_EGL_DOWNGRADE");
+	const char *automatic = SDL_getenv("SYNAPSE_GL_EGL_AUTO");
+
+	if (gl->context == EGL_NO_CONTEXT &&
+	    ((allow_downgrade != NULL && SDL_strcmp(allow_downgrade, "1") == 0) ||
+	     (automatic != NULL && SDL_strcmp(automatic, "1") == 0))) {
+		const EGLint versions[][2] = { { 4, 3 }, { 3, 3 } };
+
+		for (size_t i = 0; i < SDL_arraysize(versions); i++) {
+			if (versions[i][0] > _this->gl_config.major_version ||
+			    (versions[i][0] == _this->gl_config.major_version &&
+			     versions[i][1] >= _this->gl_config.minor_version)) {
+				continue;
+			}
+
+			context_attrs[1] = versions[i][0];
+			context_attrs[3] = versions[i][1];
+			gl->context = eglCreateContext(gl->display, gl->config, EGL_NO_CONTEXT,
+			                               context_attrs);
+			context_error = eglGetError( );
+			fprintf(stderr, "SYNAPSE_EGL_CONTEXT_TRY version=%d.%d context=%p egl=0x%x\n",
+			        versions[i][0], versions[i][1], gl->context, context_error);
+
+			if (gl->context != EGL_NO_CONTEXT) {
+				break;
+			}
+		}
+	}
+
+	EGLint visual = 0;
+	eglGetConfigAttrib(gl->display, gl->config, EGL_NATIVE_VISUAL_ID, &visual);
+	gl->gbm_surface = gbm_surface_create(gl->gbm, (uint32_t)video->w,
+	                                      (uint32_t)video->h, GBM_FORMAT_ARGB8888,
+	                                      GBM_BO_USE_RENDERING);
+
+	if (gl->gbm_surface != NULL) {
+		gl->surface = eglCreateWindowSurface(gl->display, gl->config,
+		                                     (EGLNativeWindowType)gl->gbm_surface, NULL);
+	}
+
+	fprintf(stderr,
+	        "SYNAPSE_EGL_CREATE context=%p gbm_surface=%p egl_surface=%p "
+	        "visual=0x%x requested=0x%x version=%d.%d profile=0x%x "
+	        "context_error=0x%x errno=%d egl=0x%x\n",
+	        gl->context, (void *)gl->gbm_surface, gl->surface, visual,
+	        GBM_FORMAT_ARGB8888, _this->gl_config.major_version,
+	        _this->gl_config.minor_version, _this->gl_config.profile_mask,
+	        context_error, errno, eglGetError( ));
+
+	if (gl->context == EGL_NO_CONTEXT || gl->surface == EGL_NO_SURFACE ||
+	    eglMakeCurrent(gl->display, gl->surface, gl->surface, gl->context) != EGL_TRUE) {
+		goto fail;
+	}
+
+	const GLubyte *version = glGetString(GL_VERSION);
+	int gl_major = 0;
+	int gl_minor = 0;
+	stage = "OpenGL capabilities";
+
+	if (version == NULL || sscanf((const char *)version, "%d.%d", &gl_major, &gl_minor) != 2 ||
+	    gl_major < 3 || (gl_major == 3 && gl_minor < 3) ||
+	    eglGetProcAddress("glBindBuffer") == NULL ||
+	    eglGetProcAddress("glCreateShader") == NULL ||
+	    eglGetProcAddress("glGenVertexArrays") == NULL ||
+	    eglGetProcAddress("glDrawElementsInstanced") == NULL ||
+	    eglGetProcAddress("glBlitFramebuffer") == NULL) {
+		goto fail;
+	}
+
+	fprintf(stderr, "SYNAPSE_EGL_VERSION %s\n", version);
+
+	stage = "readback allocation";
+	gl->readback = SDL_malloc((size_t)video->w * (size_t)video->h * 4);
+
+	if (gl->readback == NULL) {
+		goto fail;
+	}
+
+	gl->egl = SDL_TRUE;
+	fprintf(stderr, "SYNAPSE_EGL_ACTIVE renderD128 OpenGL GBM readback\n");
+	return gl;
+
+fail:
+	fprintf(stderr, "SYNAPSE_EGL_FALLBACK stage=%s egl=0x%x errno=%d configs=%d\n",
+	        stage, eglGetError( ), errno, count);
+	SDL_free(gl->readback);
+
+	if (gl->display != EGL_NO_DISPLAY) {
+		eglMakeCurrent(gl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+
+		if (gl->surface != EGL_NO_SURFACE) {
+			eglDestroySurface(gl->display, gl->surface);
+		}
+
+		if (gl->gbm_surface != NULL) {
+			gbm_surface_destroy(gl->gbm_surface);
+		}
+
+		if (gl->context != EGL_NO_CONTEXT) {
+			eglDestroyContext(gl->display, gl->context);
+		}
+
+		eglTerminate(gl->display);
+	}
+
+	if (gl->gbm != NULL) {
+		gbm_device_destroy(gl->gbm);
+	}
+
+	if (gl->render_fd >= 0) {
+		close(gl->render_fd);
+	}
+
+	SDL_free(gl);
+	return NULL;
+}
+
 static void *get_proc(_THIS, const char *name) {
+	SynapseVideo *video = _this->driverdata;
+
+	if (video->gl_context != NULL && video->gl_context->egl) {
+		return (void *)eglGetProcAddress(name);
+	}
+
 	return (void *)OSMesaGetProcAddress(name);
 }
 
 static int make_current(_THIS, SDL_Window *w, SDL_GLContext c) {
 	SynapseVideo *s = _this->driverdata;
+	SynapseGLContext *gl = c;
+	(void)w;
 
-	if (!c) {
+	if (gl == NULL) {
+		if (s->gl_context != NULL && s->gl_context->egl) {
+			eglMakeCurrent(s->gl_context->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			               EGL_NO_CONTEXT);
+		}
+
 		OSMesaMakeCurrent(NULL, NULL, GL_UNSIGNED_BYTE, 0, 0);
+		s->gl_context = NULL;
 		return 0;
 	}
 
-	if (!OSMesaMakeCurrent(c, s->pixels, GL_UNSIGNED_BYTE, s->w, s->h))
-		return SDL_SetError("OSMesaMakeCurrent failed");
-	OSMesaPixelStore(OSMESA_Y_UP, 0);
+	if (gl->egl) {
+		if (eglMakeCurrent(gl->display, gl->surface, gl->surface, gl->context) != EGL_TRUE) {
+			return SDL_SetError("eglMakeCurrent failed: 0x%x", eglGetError( ));
+		}
+	} else {
+		if (!OSMesaMakeCurrent(gl->osmesa, s->pixels, GL_UNSIGNED_BYTE, s->w, s->h)) {
+			return SDL_SetError("OSMesaMakeCurrent failed");
+		}
+
+		OSMesaPixelStore(OSMESA_Y_UP, 0);
+	}
+
+	s->gl_context = gl;
 	return 0;
 }
 
@@ -462,48 +911,279 @@ static SDL_GLContext create_context(_THIS, SDL_Window *w) {
 		            OSMESA_CONTEXT_MINOR_VERSION,
 		            _this->gl_config.minor_version,
 		            0 };
-	OSMesaContext c = OSMesaCreateContextAttribs(attrs, NULL);
+	SynapseVideo *video = _this->driverdata;
+	SynapseGLContext *gl = NULL;
+	const char *egl_enabled = SDL_getenv("SYNAPSE_GL_EGL");
+	const char *egl_auto = SDL_getenv("SYNAPSE_GL_EGL_AUTO");
+	SDL_bool egl_disabled = egl_enabled != NULL && SDL_strcmp(egl_enabled, "0") == 0;
+	SDL_bool egl_requested = egl_enabled != NULL && SDL_strcmp(egl_enabled, "1") == 0;
+	SDL_bool auto_requested = egl_auto != NULL && SDL_strcmp(egl_auto, "1") == 0;
 
-	if (!c) {
+	if (video->wayland != NULL && !egl_disabled && (egl_requested || auto_requested)) {
+		gl = syn_egl_create(_this);
+	}
+
+	if (gl != NULL) {
+		video->gl_context = gl;
+		return gl;
+	}
+
+	gl = SDL_calloc(1, sizeof(*gl));
+
+	if (gl == NULL) {
+		SDL_OutOfMemory( );
+		return NULL;
+	}
+
+	gl->osmesa = OSMesaCreateContextAttribs(attrs, NULL);
+
+	if (gl->osmesa == NULL) {
+		SDL_free(gl);
 		SDL_SetError("Requested OpenGL context unsupported by Mesa OSMesa");
 		return NULL;
 	}
 
-	if (make_current(_this, w, c)) {
-		OSMesaDestroyContext(c);
+	if (make_current(_this, w, gl) != 0) {
+		OSMesaDestroyContext(gl->osmesa);
+		SDL_free(gl);
 		return NULL;
 	}
 
-	return c;
+	return gl;
 }
 
 static void delete_context(_THIS, SDL_GLContext c) {
-	OSMesaDestroyContext(c);
+	SynapseVideo *video = _this->driverdata;
+	SynapseGLContext *gl = c;
+
+	if (gl == NULL) {
+		return;
+	}
+
+	if (video->gl_context == gl) {
+		if (gl->egl) {
+			syn_pbo_reset(gl);
+		}
+
+		make_current(_this, NULL, NULL);
+	}
+
+	if (gl->egl) {
+		eglDestroySurface(gl->display, gl->surface);
+		gbm_surface_destroy(gl->gbm_surface);
+		eglDestroyContext(gl->display, gl->context);
+		eglTerminate(gl->display);
+		gbm_device_destroy(gl->gbm);
+		close(gl->render_fd);
+		SDL_free(gl->readback);
+	} else {
+		OSMesaDestroyContext(gl->osmesa);
+	}
+
+	SDL_free(gl);
+}
+
+// Записать краткую выборку пикселей тестового кадра без сохранения изображения
+static void syn_egl_sample_frame(SynapseVideo *s) {
+	if (SDL_getenv("SYNAPSE_GL_EGL_PIXELS") == NULL) {
+		return;
+	}
+
+	Uint32 now = SDL_GetTicks( );
+
+	if (now - s->egl_sample_time < 1000) {
+		return;
+	}
+
+	Uint32 hash = 2166136261U;
+	unsigned lit = 0;
+	size_t stride = (size_t)s->w * 4U;
+
+	for (unsigned row = 0; row < 16U; row++) {
+		size_t y = (size_t)row * (size_t)s->h / 16U;
+
+		for (unsigned column = 0; column < 16U; column++) {
+			size_t x = (size_t)column * (size_t)s->w / 16U;
+			const unsigned char *pixel = s->gl_context->readback + y * stride + x * 4U;
+
+			if ((pixel[0] | pixel[1] | pixel[2]) != 0U) {
+				lit++;
+			}
+
+			for (unsigned channel = 0; channel < 4U; channel++) {
+				hash = (hash ^ pixel[channel]) * 16777619U;
+			}
+		}
+	}
+
+	fprintf(stderr, "SYNAPSE_EGL_FRAME_SAMPLE ticks=%u lit=%u/256 hash=%08x changed=%u\n",
+	        now, lit, hash, hash != s->egl_sample_hash ? 1U : 0U);
+	s->egl_sample_time = now;
+	s->egl_sample_hash = hash;
 }
 
 static int swap(_THIS, SDL_Window *w) {
 	SynapseVideo *s = _this->driverdata;
 	Uint64 t0 = SDL_GetPerformanceCounter( );
 	Uint64 t1, t2;
+	SDL_bool profile = SDL_getenv("SYNAPSE_GL_METRICS") != NULL;
 
 	struct {
 		unsigned x, y, w, h;
 	} r = { s->ox, s->oy, s->w, s->h };
 
 	if ((w->flags & SDL_WINDOW_OPENGL) != 0) {
-		glFinish( );
+		if (s->gl_context != NULL && s->gl_context->egl) {
+			Uint64 state_done = 0;
+			Uint64 fence_done = 0;
+			Uint64 read_done = 0;
+			Uint64 restore_done = 0;
+			size_t stride = (size_t)s->w * 4;
+			SDL_bool trace = SDL_getenv("SYNAPSE_GL_EGL_TRACE") != NULL &&
+			                 s->egl_trace_count < 8;
+			PFNGLBINDBUFFERPROC bind_buffer =
+			    (PFNGLBINDBUFFERPROC)eglGetProcAddress("glBindBuffer");
+			GLint pack_alignment = 4;
+			GLint pack_row_length = 0;
+			GLint pack_skip_rows = 0;
+			GLint pack_skip_pixels = 0;
+			GLint pack_buffer = 0;
+
+			if (bind_buffer == NULL) {
+				return SDL_SetError("EGL glBindBuffer unavailable");
+			}
+
+			GLenum before_error = GL_NO_ERROR;
+
+			if (trace) {
+				before_error = glGetError( );
+			}
+
+			glGetIntegerv(GL_PACK_ALIGNMENT, &pack_alignment);
+			glGetIntegerv(GL_PACK_ROW_LENGTH, &pack_row_length);
+			glGetIntegerv(GL_PACK_SKIP_ROWS, &pack_skip_rows);
+			glGetIntegerv(GL_PACK_SKIP_PIXELS, &pack_skip_pixels);
+			glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &pack_buffer);
+			bind_buffer(GL_PIXEL_PACK_BUFFER, 0);
+			glPixelStorei(GL_PACK_ALIGNMENT, 4);
+			glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+			glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+			glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+
+			if (profile) {
+				state_done = SDL_GetPerformanceCounter( );
+				fence_done = state_done;
+
+				// Отдельно измерить ожидание команд GPU без изменения обычного вывода
+				const char *split_wait = SDL_getenv("SYNAPSE_GL_SPLIT_WAIT");
+
+				if (split_wait != NULL && SDL_strcmp(split_wait, "1") == 0) {
+					PFNGLFENCESYNCPROC fence_sync =
+					    (PFNGLFENCESYNCPROC)eglGetProcAddress("glFenceSync");
+					PFNGLCLIENTWAITSYNCPROC client_wait_sync =
+					    (PFNGLCLIENTWAITSYNCPROC)eglGetProcAddress("glClientWaitSync");
+					PFNGLDELETESYNCPROC delete_sync =
+					    (PFNGLDELETESYNCPROC)eglGetProcAddress("glDeleteSync");
+
+					if (fence_sync != NULL && client_wait_sync != NULL && delete_sync != NULL) {
+						GLsync sync = fence_sync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+
+						if (sync != NULL) {
+							GLenum result = client_wait_sync(sync, GL_SYNC_FLUSH_COMMANDS_BIT,
+							                                 1000000000ULL);
+							delete_sync(sync);
+
+							if (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED) {
+								fence_done = SDL_GetPerformanceCounter( );
+								s->metric_gl_fence_frames++;
+							} else {
+								s->metric_gl_fence_failures++;
+							}
+						} else {
+							s->metric_gl_fence_failures++;
+						}
+					} else {
+						s->metric_gl_fence_failures++;
+					}
+				}
+			}
+
+			SDL_bool pbo_read = SDL_FALSE;
+
+			if (syn_pbo_init(s->gl_context, stride * (size_t)s->h)) {
+				pbo_read = syn_pbo_read_frame(s, stride * (size_t)s->h);
+			}
+
+			if (!pbo_read) {
+				glReadPixels(0, 0, s->w, s->h, GL_BGRA, GL_UNSIGNED_BYTE,
+				             s->gl_context->readback);
+			}
+
+			if (profile) {
+				read_done = SDL_GetPerformanceCounter( );
+			}
+
+			syn_egl_sample_frame(s);
+
+			if (trace) {
+				GLenum read_error = glGetError( );
+				GLint read_fb = 0;
+				GLint viewport[4] = { 0, 0, 0, 0 };
+				glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fb);
+				glGetIntegerv(GL_VIEWPORT, viewport);
+				fprintf(stderr,
+				        "SYNAPSE_EGL_READBACK before=0x%x after=0x%x read_fb=%d "
+				        "viewport=%d,%d,%d,%d size=%dx%d\n",
+				        before_error, read_error, read_fb, viewport[0], viewport[1],
+				        viewport[2], viewport[3], s->w, s->h);
+				s->egl_trace_count++;
+			}
+			glPixelStorei(GL_PACK_ALIGNMENT, pack_alignment);
+			glPixelStorei(GL_PACK_ROW_LENGTH, pack_row_length);
+			glPixelStorei(GL_PACK_SKIP_ROWS, pack_skip_rows);
+			glPixelStorei(GL_PACK_SKIP_PIXELS, pack_skip_pixels);
+			bind_buffer(GL_PIXEL_PACK_BUFFER, (GLuint)pack_buffer);
+
+			if (profile) {
+				restore_done = SDL_GetPerformanceCounter( );
+			}
+
+			for (int y = 0; y < s->h; y++) {
+				SDL_memcpy(s->pixels + (size_t)y * stride,
+				           s->gl_context->readback + (size_t)(s->h - y - 1) * stride,
+				           stride);
+			}
+
+			if (profile) {
+				Uint64 flip_done = SDL_GetPerformanceCounter( );
+				s->metric_gl_state += state_done - t0;
+				s->metric_gl_fence_wait += fence_done - state_done;
+				s->metric_gl_readback += read_done - fence_done;
+				s->metric_gl_restore += restore_done - read_done;
+				s->metric_gl_flip += flip_done - restore_done;
+			}
+		} else {
+			glFinish( );
+		}
 	}
 
 	if (s->wayland != NULL) {
+		Uint64 finished = 0;
+
+		if (profile) {
+			finished = SDL_GetPerformanceCounter( );
+		}
+
 		int result = syn_wl_present(s);
 		if (result != 0) {
 			return result;
 		}
 
-		if (SDL_getenv("SYNAPSE_GL_METRICS") != NULL) {
+		if (profile) {
 			Uint64 completed = SDL_GetPerformanceCounter( );
 			Uint32 now = SDL_GetTicks( );
 			s->metric_render += completed - t0;
+			s->metric_finish += finished - t0;
 			s->metric_frames++;
 
 			if (s->metric_start == 0) {
@@ -511,14 +1191,51 @@ static int swap(_THIS, SDL_Window *w) {
 			}
 
 			if (now - s->metric_start >= 1000) {
+				double scale = 1000.0 / SDL_GetPerformanceFrequency( ) / s->metric_frames;
+
 				fprintf(stderr,
-				        "SYNAPSE_WL_FRAME_METRIC frames=%u elapsed_ms=%u fps=%.2f swap_ms=%.2f\n",
+				        "SYNAPSE_WL_FRAME_METRIC backend=%s frames=%u elapsed_ms=%u fps=%.2f "
+				        "swap_ms=%.2f finish_ms=%.2f gl_state_ms=%.2f "
+				        "gl_fence_ms=%.2f gl_readback_ms=%.2f gl_restore_ms=%.2f gl_flip_ms=%.2f "
+				        "gl_fence_frames=%u gl_fence_failures=%u "
+				        "pbo_frames=%u pbo_fallbacks=%u pbo_enqueue_ms=%.2f "
+				        "pbo_wait_ms=%.2f pbo_map_ms=%.2f "
+				        "wait_ms=%.2f fill_ms=%.2f "
+				        "copy_ms=%.2f decor_ms=%.2f commit_ms=%.2f\n",
+				        s->gl_context != NULL && s->gl_context->egl ? "egl" : "osmesa",
 				        s->metric_frames, now - s->metric_start,
 				        s->metric_frames * 1000.0 / (now - s->metric_start),
-				        s->metric_render * 1000.0 / SDL_GetPerformanceFrequency( ) /
-				            s->metric_frames);
+				        s->metric_render * scale, s->metric_finish * scale,
+				        s->metric_gl_state * scale, s->metric_gl_fence_wait * scale,
+				        s->metric_gl_readback * scale,
+				        s->metric_gl_restore * scale, s->metric_gl_flip * scale,
+				        s->metric_gl_fence_frames, s->metric_gl_fence_failures,
+				        s->metric_pbo_frames, s->metric_pbo_fallbacks,
+				        s->metric_pbo_enqueue * scale, s->metric_pbo_wait * scale,
+				        s->metric_pbo_map * scale,
+				        s->metric_wait * scale, s->metric_fill * scale,
+				        s->metric_copy * scale, s->metric_decor * scale,
+				        s->metric_commit * scale);
 				fflush(stderr);
 				s->metric_render = 0;
+				s->metric_finish = 0;
+				s->metric_wait = 0;
+				s->metric_fill = 0;
+				s->metric_copy = 0;
+				s->metric_decor = 0;
+				s->metric_commit = 0;
+			s->metric_gl_state = 0;
+			s->metric_gl_fence_wait = 0;
+			s->metric_gl_readback = 0;
+			s->metric_gl_restore = 0;
+			s->metric_gl_flip = 0;
+			s->metric_gl_fence_frames = 0;
+			s->metric_gl_fence_failures = 0;
+			s->metric_pbo_enqueue = 0;
+			s->metric_pbo_wait = 0;
+			s->metric_pbo_map = 0;
+			s->metric_pbo_frames = 0;
+			s->metric_pbo_fallbacks = 0;
 				s->metric_frames = 0;
 				s->metric_start = now;
 			}
