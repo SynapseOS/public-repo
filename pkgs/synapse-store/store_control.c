@@ -6,7 +6,7 @@
     Описание: Передаёт имя пакета и пароль root по проверенному локальному сокету
     Подсистема: графический магазин программ
     Первое изменение: 01.11.2026
-    Последнее изменение: 01.11.2026
+    Последнее изменение: 03.11.2026
     Доступ: общедоступный
 */
 
@@ -156,6 +156,9 @@ int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--update") == 0) {
         source = STORE_SOURCE_UPDATE;
         name = "";
+    } else if (argc == 2 && strcmp(argv[1], "--debian-catalog") == 0) {
+        source = STORE_SOURCE_DEBIAN_CATALOG;
+        name = "";
     } else if (argc == 2) {
         name = argv[1];
     } else if (argc == 3 && strcmp(argv[1], "--debian") == 0) {
@@ -163,8 +166,9 @@ int main(int argc, char **argv) {
         name = argv[2];
     }
 
-    if (name == NULL || (source != STORE_SOURCE_UPDATE && !valid_name(name))) {
-        fputs("usage: synapse-store-control [--debian] PACKAGE | --update\n", stderr);
+    bool catalog = source == STORE_SOURCE_DEBIAN_CATALOG || source == STORE_SOURCE_UPDATE;
+    if (name == NULL || (!catalog && !valid_name(name))) {
+        fputs("usage: synapse-store-control [--debian] PACKAGE | --update | --debian-catalog\n", stderr);
         return 2;
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "synapse-store",
-  "version": "0.1.0-r5",
+  "version": "0.1.0-r10",
   "description": "Qt6 software catalog for SynapseOS, Flatpak and curated Debian packages",
   "build_system": "recipe",
   "status": "experimental",

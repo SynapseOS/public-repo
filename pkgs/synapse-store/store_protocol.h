@@ -6,7 +6,7 @@
     Описание: Ограниченный обмен между окном магазина и root-службой
     Подсистема: графический магазин программ
     Первое изменение: 01.11.2026
-    Последнее изменение: 01.11.2026
+    Последнее изменение: 03.11.2026
     Доступ: общедоступный
 */
 
@@ -21,6 +21,7 @@
 #define STORE_SOURCE_SETUP UINT32_C(1)
 #define STORE_SOURCE_DEBIAN UINT32_C(2)
 #define STORE_SOURCE_UPDATE UINT32_C(3)
+#define STORE_SOURCE_DEBIAN_CATALOG UINT32_C(4)
 #define STORE_MAX_NAME 128
 #define STORE_MAX_PASSWORD 256
 #define STORE_MAX_OUTPUT 4096

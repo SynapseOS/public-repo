@@ -6,7 +6,7 @@
     Описание: Проверяет клиента и запускает только установку подписанного пакета через setup
     Подсистема: графический магазин программ
     Первое изменение: 01.11.2026
-    Последнее изменение: 01.11.2026
+    Последнее изменение: 03.11.2026
     Доступ: общедоступный
 */
 
@@ -122,7 +122,7 @@ static void write_result(int descriptor, int32_t code) {
 // Проверить имя пакета до передачи его в привилегированную команду
 static bool valid_name(const struct store_request *request) {
     size_t length = request->name_length;
-    if (request->source == STORE_SOURCE_UPDATE) {
+    if (request->source == STORE_SOURCE_UPDATE || request->source == STORE_SOURCE_DEBIAN_CATALOG) {
         return length == 0 && request->name[0] == 0;
     }
 
@@ -147,7 +147,8 @@ static bool valid_name(const struct store_request *request) {
 
 // Ограничить установку Debian проверенными пакетами
 static bool valid_source(const struct store_request *request) {
-    if (request->source == STORE_SOURCE_SETUP || request->source == STORE_SOURCE_UPDATE) {
+    if (request->source == STORE_SOURCE_SETUP || request->source == STORE_SOURCE_UPDATE ||
+        request->source == STORE_SOURCE_DEBIAN_CATALOG) {
         return true;
     }
 
@@ -156,7 +157,7 @@ static bool valid_source(const struct store_request *request) {
 }
 
 // Сверить пароль root, если клиент не root
-static bool authenticate(uid_t uid, const struct store_request *request) {
+static bool authenticate_password(uid_t uid, const struct store_request *request) {
     if (uid == 0) {
         return true;
     }
@@ -190,6 +191,95 @@ static bool authenticate(uid_t uid, const struct store_request *request) {
     return actual != NULL && strcmp(actual, expected) == 0;
 }
 
+#define STORE_AUTH_SLOTS 64U
+#define STORE_AUTH_RESET_MS UINT64_C(300000)
+
+struct auth_failure {
+    uid_t uid;
+    unsigned failures;
+    uint64_t last_failure;
+    uint64_t retry_after;
+};
+
+static struct auth_failure auth_failures[STORE_AUTH_SLOTS];
+
+// Получить время для задержек, не зависящее от смены системной даты
+static bool monotonic_ms(uint64_t *value) {
+    struct timespec now;
+    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0 || now.tv_sec < 0 ||
+        (uint64_t)now.tv_sec > (UINT64_MAX - 999U) / 1000U) {
+        return false;
+    }
+
+    *value = (uint64_t)now.tv_sec * 1000U + (uint64_t)now.tv_nsec / 1000000U;
+    return true;
+}
+
+// Ограничивать попытки каждого UID отдельно, не задерживая службу целиком
+static bool authenticate(uid_t uid, const struct store_request *request) {
+    if (uid == 0) {
+        return true;
+    }
+
+    uint64_t now;
+    if (!monotonic_ms(&now)) {
+        return false;
+    }
+
+    struct auth_failure *selected = NULL;
+    struct auth_failure *oldest = &auth_failures[0];
+    for (size_t index = 0; index < STORE_AUTH_SLOTS; index++) {
+        struct auth_failure *entry = &auth_failures[index];
+        if (entry->uid == uid) {
+            selected = entry;
+            break;
+        }
+
+        if (entry->uid == 0 && selected == NULL) {
+            selected = entry;
+        }
+
+        if (entry->last_failure < oldest->last_failure) {
+            oldest = entry;
+        }
+    }
+
+    if (selected == NULL) {
+        selected = oldest;
+    }
+
+    if (selected->uid != uid || now < selected->last_failure ||
+        now - selected->last_failure >= STORE_AUTH_RESET_MS) {
+        memset(selected, 0, sizeof(*selected));
+        selected->uid = uid;
+    }
+
+    if (now < selected->retry_after) {
+        return false;
+    }
+
+    if (authenticate_password(uid, request)) {
+        memset(selected, 0, sizeof(*selected));
+        return true;
+    }
+
+    selected->last_failure = now;
+    if (selected->failures < 8U) {
+        selected->failures++;
+    }
+
+    if (selected->failures >= 3U) {
+        uint64_t delay = UINT64_C(1000) << (selected->failures - 3U);
+        if (delay > 30000U) {
+            delay = 30000U;
+        }
+
+        selected->retry_after = now > UINT64_MAX - delay ? UINT64_MAX : now + delay;
+    }
+
+    return false;
+}
+
 // Запустить одну разрешённую команду менеджера и вернуть её вывод клиенту
 static void install_package(int client, int listener, uint32_t source, const char *name) {
     int channel[2];
@@ -215,9 +305,16 @@ static void install_package(int client, int listener, uint32_t source, const cha
         }
 
         close(channel[1]);
+        if (source == STORE_SOURCE_SETUP || source == STORE_SOURCE_UPDATE) {
+            umask(0022);
+        }
+
         if (source == STORE_SOURCE_UPDATE) {
             execl("/bin/setup", "setup", "update", (char *)NULL);
             dprintf(STDERR_FILENO, "Не удалось обновить каталог setup: %s\n", strerror(errno));
+        } else if (source == STORE_SOURCE_DEBIAN_CATALOG) {
+            execl("/bin/debian-apt", "debian-apt", "catalog", (char *)NULL);
+            dprintf(STDERR_FILENO, "Не удалось подготовить каталог Debian: %s\n", strerror(errno));
         } else if (source == STORE_SOURCE_DEBIAN) {
             execl("/bin/debian-apt", "debian-apt", "install", name, (char *)NULL);
             dprintf(STDERR_FILENO, "Не удалось запустить Debian backend: %s\n", strerror(errno));
@@ -460,7 +557,7 @@ int main(void) {
     }
 
     signal(SIGPIPE, SIG_IGN);
-    umask(0177);
+    umask(0077);
     int listener = open_listener();
     if (listener < 0) {
         perror("synapse-store-helper: socket");
