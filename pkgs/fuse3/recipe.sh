@@ -3,7 +3,7 @@
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Описание: зависимость сборки Flatpak, требует драйвер /dev/fuse для монтирования
 # Подсистема: сборка пакетов
-# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Первое изменение: 25.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -11,7 +11,7 @@ prepare
 fetch "$(jq -er .linux_headers_source "$spec")" \
 	"$(jq -er .linux_headers_sha256 "$spec")" "$work/linux-libc-dev.deb"
 
-sysroot=$(mktemp -d /tmp/synapse-fuse-sysroot.XXXXXX)
+sysroot=$(mktemp -d "${TMPDIR:-/tmp}/synapse-fuse-sysroot.XXXXXX")
 trap 'rm -rf -- "$sysroot"' EXIT
 ar p "$work/linux-libc-dev.deb" data.tar.xz | tar -xJf - -C "$sysroot"
 ln -s "$sysroot/usr/include/x86_64-linux-gnu/asm" "$sysroot/usr/include/asm"
