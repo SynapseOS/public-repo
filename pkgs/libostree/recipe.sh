@@ -3,13 +3,13 @@
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Описание: библиотека и команда для локальной проверки Flatpak
 # Подсистема: сборка пакетов
-# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Первое изменение: 25.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
 export SYNAPSE_LINK_MODE=dynamic
 
-sysroot=$(mktemp -d /tmp/synapse-ostree-sysroot.XXXXXX)
+sysroot=$(mktemp -d "${TMPDIR:-/tmp}/synapse-ostree-sysroot.XXXXXX")
 trap 'rm -rf -- "$sysroot"' EXIT
 mkdir -p "$sysroot/usr/lib/pkgconfig" "$sysroot/usr/include"
 
