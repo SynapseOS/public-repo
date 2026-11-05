@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "name": "gnu-tar",
+  "version": "1.35.0-r1",
+  "description": "GNU tar for Debian archive inspection",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/gtar",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    }
+  ]
+}
