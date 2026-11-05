@@ -5,7 +5,7 @@
 // Выбор языка, первоначальные настройки и сбор сведений о системе
 // Подсистема: установка и начальная настройка системы
 // Первое изменение: до текущей уборки, исходная дата не установлена
-// Последнее изменение: 20.10.2026
+// Последнее изменение: 03.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
+#include <shadow.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -183,7 +184,58 @@ static int wait_child(pid_t child) {
     return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
 }
 
-static int run_plain(const char *path, char *const argv[], int output_fd) {
+// Ограничить ожидание сетевого клиента, не задерживая мастер настройки навсегда
+static int wait_child_bounded(pid_t child, unsigned seconds) {
+    struct timespec started;
+    if (clock_gettime(CLOCK_MONOTONIC, &started) != 0) {
+        kill(child, SIGKILL);
+        int status = 0;
+        (void)waitpid(child, &status, WNOHANG);
+        return 1;
+    }
+
+    int status = 0;
+    for (;;) {
+        pid_t result = waitpid(child, &status, WNOHANG);
+        if (result == child) {
+            return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+        }
+
+        if (result < 0 && errno != EINTR) {
+            return 1;
+        }
+
+        struct timespec now;
+        time_t deadline_sec = started.tv_sec + (time_t)seconds;
+        if (clock_gettime(CLOCK_MONOTONIC, &now) != 0 ||
+            now.tv_sec > deadline_sec ||
+            (now.tv_sec == deadline_sec && now.tv_nsec >= started.tv_nsec)) {
+            break;
+        }
+
+        const struct timespec delay = {0, 100000000};
+        nanosleep(&delay, NULL);
+    }
+
+    kill(child, SIGTERM);
+    for (int attempt = 0; attempt < 10; attempt++) {
+        pid_t result = waitpid(child, &status, WNOHANG);
+        if (result == child || (result < 0 && errno != EINTR)) {
+            return 124;
+        }
+
+        const struct timespec delay = {0, 100000000};
+        nanosleep(&delay, NULL);
+    }
+
+    kill(child, SIGKILL);
+    (void)waitpid(child, &status, WNOHANG);
+    return 124;
+}
+
+// Запустить команду и при необходимости ограничить время её работы
+static int run_plain_timeout(const char *path, char *const argv[], int output_fd,
+                             unsigned seconds) {
     pid_t child = fork();
     if (child < 0) {
         return 1;
@@ -197,7 +249,12 @@ static int run_plain(const char *path, char *const argv[], int output_fd) {
         dprintf(STDERR_FILENO, "%s: %s\n", path, strerror(errno));
         _exit(127);
     }
-    return wait_child(child);
+    return seconds == 0U ? wait_child(child) : wait_child_bounded(child, seconds);
+}
+
+// Запустить обычную команду без ограничения по времени
+static int run_plain(const char *path, char *const argv[], int output_fd) {
+    return run_plain_timeout(path, argv, output_fd, 0U);
 }
 
 static void pause_screen(void) {
@@ -482,7 +539,7 @@ static int data_sharing_page(struct settings *s) {
             title("Applying your choice", "Применение выбора");
             fflush(stdout);
             char *args[] = {"stats", enabled ? "--consent-accept" : "--consent-revoke", NULL};
-            int status = run_plain("/bin/stats", args, STDOUT_FILENO);
+            int status = run_plain_timeout("/bin/stats", args, STDOUT_FILENO, 90U);
             if (settings_load(s, "")) {
                 return 1;
             }
@@ -506,6 +563,45 @@ static int data_sharing_page(struct settings *s) {
             return 0;
         }
     }
+}
+
+// Отличить заданный владельцем пароль от пустой или закрытой записи root
+static int administrator_password_ready(void) {
+    errno = 0;
+    struct spwd *account = getspnam("root");
+    if (account == NULL || account->sp_pwdp == NULL) {
+        if (errno == 0) {
+            errno = EINVAL;
+        }
+        return -1;
+    }
+
+    const char *hash = account->sp_pwdp;
+    return hash[0] != '\0' && hash[0] != '!' && hash[0] != '*';
+}
+
+// Получить пароль через штатный passwd без передачи секрета в аргументах
+static int enroll_administrator(void) {
+    int ready = administrator_password_ready();
+    if (ready != 0) {
+        return ready > 0 ? 0 : -1;
+    }
+
+    terminal_restore();
+    title("Administrator password", "Пароль администратора");
+    puts(tr("Set your own root password and enter it twice.",
+            "Задайте свой пароль root и введите его два раза."));
+    fflush(stdout);
+    char *const arguments[] = {"passwd", "root", NULL};
+    int status = run_plain("/bin/passwd", arguments, -1);
+    int restored = tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved_termios);
+    int raw = terminal_raw();
+    if (status != 0 || restored != 0 || raw != 0 || administrator_password_ready() != 1) {
+        errno = EACCES;
+        return -1;
+    }
+
+    return 0;
 }
 
 // Настроить систему и сохранить выбор до первого запуска пользовательской сессии
@@ -548,7 +644,7 @@ static int first_run(struct settings *s) {
                 page--;
                 continue;
             }
-            if (settings_save(s) || write_complete()) {
+            if (enroll_administrator() != 0 || settings_save(s) || write_complete()) {
                 title("Cannot finish setup", "Не удалось завершить настройку");
                 printf("%s\n", s->error[0] ? s->error : strerror(errno));
                 pause_screen();
