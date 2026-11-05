@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "name": "synapse-openuri-portal",
+  "version": "0.1.0-r4",
+  "description": "OpenURI and Settings desktop portal for SynapseOS Flatpak applications",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "musl-runtime",
+    "glib-gio >= 2.84.4-r3",
+    "dbus >= 1.16.2-r1"
+  ],
+  "conflicts": [],
+  "files": []
+}

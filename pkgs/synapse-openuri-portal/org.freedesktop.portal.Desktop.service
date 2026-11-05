@@ -1,0 +1,12 @@
+# org.freedesktop.portal.Desktop.service: запуск портала ссылок
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: x86_64, ABI: synapse-x86_64-v1
+# Описание: запуск через пользовательскую шину D-Bus
+# Подсистема: графический сеанс
+# Первое изменение: 29.10.2026
+# Последнее изменение: 29.10.2026
+# Доступ: общедоступный
+
+[D-BUS Service]
+Name=org.freedesktop.portal.Desktop
+Exec=/usr/libexec/synapse-openuri-portal
