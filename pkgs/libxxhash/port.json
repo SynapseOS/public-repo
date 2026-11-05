@@ -1,0 +1,10 @@
+{
+  "name": "libxxhash",
+  "version": "0.8.3-r1",
+  "source": "https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz",
+  "sha256": "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
+  "source_directory": "xxHash-0.8.3",
+  "patches": [],
+  "license": "BSD-2-Clause",
+  "build_system": "recipe"
+}
