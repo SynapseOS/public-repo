@@ -3,14 +3,14 @@
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Описание: звуковой сервер и клиентские библиотеки для графических приложений
 # Подсистема: звуковые пакеты
-# Первое изменение: 27.10.2026, последнее изменение: 27.10.2026
+# Первое изменение: 27.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
 export SYNAPSE_LINK_MODE=dynamic
 
 # pkg-config у Meson ожидает ASCII в путях зависимостей
-ascii_root=$(mktemp -d /var/tmp/synapse-pulse-work.XXXXXX)
+ascii_root=$(mktemp -d "${TMPDIR:-/tmp}/synapse-pulse-work.XXXXXX")
 rmdir "$ascii_root"
 ln -s "$work" "$ascii_root"
 trap 'rm -f -- "$ascii_root"' EXIT
@@ -28,6 +28,7 @@ bsdtar -xf "$work/libtool.tar.xz" -C "$work/libtool-source"
 ar p "$work/linux-libc-dev.deb" data.tar.xz | tar -xJf - -C "$work/headers"
 ln -sfn "$work/headers/usr/include/x86_64-linux-gnu/asm" "$work/headers/usr/include/asm"
 
+rm -rf -- "$work/sndfile-build"
 cmake -S "$work/sndfile-source/libsndfile-1.2.2" -B "$work/sndfile-build" \
 	-DCMAKE_C_COMPILER="$CC" -DCMAKE_INSTALL_PREFIX="$ascii_root/sysroot/usr" \
 	-DCMAKE_C_FLAGS="-O2 -fPIC -isystem $(gcc -print-file-name=include)" \
