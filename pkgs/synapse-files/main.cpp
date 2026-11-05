@@ -6,12 +6,13 @@
     Описание: Просмотр каталогов и основные операции с файлами через Qt Widgets
     Подсистема: графические программы
     Первое изменение: 25.10.2026
-    Последнее изменение: 25.10.2026
+    Последнее изменение: 30.10.2026
     Доступ: общедоступный
 */
 
 #include <QAction>
 #include <QApplication>
+#include <QColor>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -25,6 +26,7 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPixmap>
+#include <QPalette>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QShortcut>
@@ -38,6 +40,46 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <cstdio>
+
+// Согласовать оформление файлового менеджера с темой рабочего стола
+static void applyDesktopTheme() {
+	QString path = QDir::homePath() + QStringLiteral("/.config/labwc/rc.xml");
+	if (!QFileInfo::exists(path)) {
+		path = QStringLiteral("/etc/xdg/labwc/rc.xml");
+	}
+
+	QFile file(path);
+	const bool loaded = file.open(QIODevice::ReadOnly | QIODevice::Text);
+	const QString config = loaded ? QString::fromUtf8(file.readAll()) : QString();
+	const bool light = config.contains(QStringLiteral("<name>Arc-Clone</name>"));
+	const bool penumbra = config.contains(QStringLiteral("<name>Penumbra</name>"));
+	const bool numix = config.contains(QStringLiteral("<name>Numix-Clone</name>"));
+	const QColor background(light ? QStringLiteral("#e7e9ed") :
+	                        penumbra ? QStringLiteral("#243842") :
+	                        numix ? QStringLiteral("#303238") : QStringLiteral("#1b2027"));
+	const QColor base(light ? QStringLiteral("#ffffff") :
+	                  penumbra ? QStringLiteral("#1b2e37") :
+	                  numix ? QStringLiteral("#26282d") : QStringLiteral("#141920"));
+	const QColor surface(light ? QStringLiteral("#d9e0e7") :
+	                     penumbra ? QStringLiteral("#304b57") :
+	                     numix ? QStringLiteral("#41434a") : QStringLiteral("#29333d"));
+	const QColor foreground(light ? QStringLiteral("#202a34") : QStringLiteral("#f3f4f5"));
+	const QColor accent(numix ? QStringLiteral("#d65d3a") :
+	                    penumbra ? QStringLiteral("#769fb4") :
+	                    QStringLiteral("#4388c5"));
+
+	QPalette palette;
+	palette.setColor(QPalette::Window, background);
+	palette.setColor(QPalette::WindowText, foreground);
+	palette.setColor(QPalette::Base, base);
+	palette.setColor(QPalette::AlternateBase, surface);
+	palette.setColor(QPalette::Text, foreground);
+	palette.setColor(QPalette::Button, surface);
+	palette.setColor(QPalette::ButtonText, foreground);
+	palette.setColor(QPalette::Highlight, accent);
+	palette.setColor(QPalette::HighlightedText, QColor(QStringLiteral("#ffffff")));
+	QApplication::setPalette(palette);
+}
 
 // Скопировать файл или каталог, не переходя по символическим ссылкам
 static bool copyPath(const QString &source, const QString &destination) {
@@ -467,6 +509,7 @@ private:
 // Запустить файловый менеджер или короткую проверку окна в гостевой системе
 int main(int argc, char **argv) {
 	QApplication application(argc, argv);
+	applyDesktopTheme();
 	QString initial = QDir::homePath();
 	QStringList arguments = application.arguments();
 
