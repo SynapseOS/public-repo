@@ -1,7 +1,49 @@
 {
-  "version": "24.3.4-r2",
+  "version": "24.3.4-r4",
   "source": "https://archive.mesa3d.org/mesa-24.3.4.tar.xz",
   "sha256": "e641ae27191d387599219694560d221b7feaa91c900bcec46bf444218ed66025",
+  "x11_assets": [
+    {
+      "name": "libxfixes-6.0.1-r4.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxfixes-6.0.1-r4.apk",
+      "sha256": "f890b8e6b55956484fe6f170037e79f0fd71447a4b38ad115ca4d437c114e04d"
+    },
+    {
+      "name": "libxfixes-dev-6.0.1-r4.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxfixes-dev-6.0.1-r4.apk",
+      "sha256": "628964f399fe79096970042892c3deddccd4f41ed1b49e47048cd33c64cf29c7"
+    },
+    {
+      "name": "libxxf86vm-1.1.7-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxxf86vm-1.1.7-r0.apk",
+      "sha256": "1c2667811094b57a2e2e81d068f207071695559163d2e955027c72a26db53385"
+    },
+    {
+      "name": "libxxf86vm-dev-1.1.7-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxxf86vm-dev-1.1.7-r0.apk",
+      "sha256": "d16d8cc343238516cf53a352631707b3d54bfa21f5363ab9818bd90212b987a5"
+    },
+    {
+      "name": "libxrandr-1.5.4-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxrandr-1.5.4-r1.apk",
+      "sha256": "523a9bec4367b0838a718eaf611b431fbab993bb6247bf76ff32f87e11482220"
+    },
+    {
+      "name": "libxrandr-dev-1.5.4-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxrandr-dev-1.5.4-r1.apk",
+      "sha256": "2e694f5974674a1e4a51bdd64e026a0e428d469d45712018ddeb0c392722a8ec"
+    },
+    {
+      "name": "libxshmfence-1.3.3-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxshmfence-1.3.3-r0.apk",
+      "sha256": "e918449bbfbc52585f29341d1dafeb217507e48ee02a0ec9080da954d5b8cd0e"
+    },
+    {
+      "name": "libxshmfence-dev-1.3.3-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxshmfence-dev-1.3.3-r0.apk",
+      "sha256": "c13c45a77f079bd88d79f451c19dda363b5d6084560dbc987d3875edc0ed5b25"
+    }
+  ],
   "llvm_assets": [
     {
       "name": "llvm-libs.apk",
