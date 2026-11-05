@@ -3,12 +3,12 @@
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Описание: связь проверки подписей с сервисом GnuPG
 # Подсистема: сборка пакетов
-# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Первое изменение: 25.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
 
-sysroot=$(mktemp -d /tmp/synapse-libassuan-sysroot.XXXXXX)
+sysroot=$(mktemp -d "${TMPDIR:-/tmp}/synapse-libassuan-sysroot.XXXXXX")
 trap 'rm -rf -- "$sysroot"' EXIT
 mkdir -p "$sysroot/usr/include" "$sysroot/usr/lib/pkgconfig" "$sysroot/usr/bin"
 cp "$BUILD_ROOT/libgpg-error/payload/usr/include/gpg-error.h" "$sysroot/usr/include/"
