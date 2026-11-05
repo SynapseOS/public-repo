@@ -1,7 +1,7 @@
 # recipe.sh: Собрать Weston и Wayland с POSIX-адаптациями SynapseOS
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 25.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 mkdir -p "$work/sdk"
@@ -38,6 +38,16 @@ done
 for file in egl.pc glesv2.pc; do
 	[[ -f $mesa_stage/lib/pkgconfig/$file ]]
 	cp "$mesa_stage/lib/pkgconfig/$file" "$work/sdk/usr/lib/pkgconfig/"
+done
+
+for file in xfixes.pc xxf86vm.pc; do
+	cp "$BUILD_ROOT/mesa/wayland-sdk/usr/lib/pkgconfig/$file" \
+		"$work/sdk/usr/lib/pkgconfig/"
+done
+
+for file in "$BUILD_ROOT/mesa/wayland-sdk/usr/lib"/libXfixes.so* \
+	"$BUILD_ROOT/mesa/wayland-sdk/usr/lib"/libXxf86vm.so*; do
+	cp -a "$file" "$work/sdk/usr/lib/"
 done
 
 fetch "$(jq -r .source "$spec")" "$(jq -r .sha256 "$spec")" "$work/weston.tar.xz"
@@ -87,6 +97,10 @@ if ! grep -q 'shell_surface_publish_task' "$source/desktop-shell/shell.c"; then
 	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/window-taskbar.patch"
 fi
 
+if ! grep -q 'window_add_widget(terminal->window, terminal)' "$source/clients/terminal.c"; then
+	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/terminal-server-decorations.patch"
+fi
+
 cp "$port/synapse-backend.inc" "$source/libweston/backend-headless/"
 cp "$port/client-timers.inc" "$port/wayland-timers.inc" "$source/clients/"
 fetch "$(jq -r .wayland_source "$spec")" "$(jq -r .wayland_sha256 "$spec")" "$work/wayland.tar.xz"
@@ -121,28 +135,36 @@ c_args = ['-D_GNU_SOURCE', '-isystem', '$(gcc -print-file-name=include)',
 c_link_args = ['-Wl,-rpath-link,$work/sdk/usr/lib']
 CROSS
 sed "s/'-D_GNU_SOURCE', //" "$work/cross.ini" >"$work/wayland-cross.ini"
-alias="/tmp/synapse-public-weston-$(printf '%s' "$ROOT" | sha256sum | cut -c1-16)"
-
-if [[ ! -e $alias ]]; then
-	ln -s "$work/sdk" "$alias"
-fi
-
-[[ $(realpath "$alias") == $(realpath "$work/sdk") ]]
+alias="$work/sdk"
 mkdir -p "$work/sdk/usr/bin"
 ln -sfn "$SDK/apps/musl/lib/libc.so" "$work/sdk/usr/lib/libc.musl-x86_64.so.1"
 ln -sfn "$(command -v wayland-scanner)" "$work/sdk/usr/bin/wayland-scanner"
 export PKG_CONFIG_SYSROOT_DIR="$alias"
 export PKG_CONFIG_LIBDIR="$alias/usr/lib/pkgconfig:$alias/usr/share/pkgconfig"
 
-if [[ ! -f $work/wayland-build/build.ninja ]]; then
-	meson setup "$work/wayland-build" "$wayland" --cross-file "$work/wayland-cross.ini" --prefix=/usr --libdir=lib \
+meson_wipe=()
+if [[ -f $work/wayland-build/build.ninja ]] &&
+	grep -q '/tmp/synapse-public-weston-' "$work/wayland-build/build.ninja"; then
+	meson_wipe=(--wipe)
+fi
+
+if [[ ! -f $work/wayland-build/build.ninja ]] || ((${#meson_wipe[@]})); then
+	meson setup "$work/wayland-build" "$wayland" "${meson_wipe[@]}" \
+		--cross-file "$work/wayland-cross.ini" --prefix=/usr --libdir=lib \
 		--buildtype=release -Dscanner=false -Dtests=false -Ddocumentation=false -Ddtd_validation=false -Dwerror=true
 fi
 
 ninja -C "$work/wayland-build" -j"$JOBS"
 
-if [[ ! -f $work/build/build.ninja ]]; then
-	meson setup "$work/build" "$source" --cross-file "$work/cross.ini" --prefix=/usr --libdir=lib \
+meson_wipe=()
+if [[ -f $work/build/build.ninja ]] &&
+	grep -q '/tmp/synapse-public-weston-' "$work/build/build.ninja"; then
+	meson_wipe=(--wipe)
+fi
+
+if [[ ! -f $work/build/build.ninja ]] || ((${#meson_wipe[@]})); then
+	meson setup "$work/build" "$source" "${meson_wipe[@]}" \
+		--cross-file "$work/cross.ini" --prefix=/usr --libdir=lib \
 		--buildtype=release -Dbackend-default=headless -Dbackend-drm=false -Dbackend-drm-screencast-vaapi=false \
 		-Dbackend-pipewire=false -Dbackend-rdp=false -Dbackend-vnc=false -Dbackend-wayland=false \
 		-Dbackend-x11=false -Drenderer-gl=true -Dxwayland=false -Dsystemd=false -Dremoting=false \
@@ -167,8 +189,14 @@ if ! grep -q 'int component_x = 0;' "$decor/src/plugins/cairo/libdecor-cairo.c";
 	patch --batch --fuzz=0 -d "$decor" -p1 -i "$port/patches/libdecor-init-size.patch"
 fi
 
-if [[ ! -f $work/libdecor-build/build.ninja ]]; then
-	meson setup "$work/libdecor-build" "$decor" --cross-file "$work/cross.ini" \
+meson_wipe=()
+if [[ -f $work/libdecor-build/build.ninja ]] &&
+	grep -q '/tmp/synapse-public-weston-' "$work/libdecor-build/build.ninja"; then
+	meson_wipe=(--wipe)
+fi
+
+if [[ ! -f $work/libdecor-build/build.ninja ]] || ((${#meson_wipe[@]})); then
+	meson setup "$work/libdecor-build" "$decor" "${meson_wipe[@]}" --cross-file "$work/cross.ini" \
 		--prefix=/usr --libdir=lib --buildtype=release -Ddbus=disabled -Dgtk=disabled \
 		-Ddemo=false -Dwerror=true
 fi

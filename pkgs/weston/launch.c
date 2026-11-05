@@ -2,12 +2,13 @@
 // Автор: Елчинян Арен Артурович, 2026
 // Архитектура: x86_64, ABI: musl и Linux
 // Подсистема: графические пакеты
-// Первое изменение: 17.10.2026, последнее изменение: 27.10.2026
+// Первое изменение: 17.10.2026, последнее изменение: 28.10.2026
 // Статус доступа: общедоступный, MIT
 #include <errno.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -180,6 +181,44 @@ static void select_terminal_shell(void) {
 	fclose(file);
 }
 
+// Добавить каталоги ярлыков Flatpak к путям данных рабочего стола
+static bool prepare_data_dirs(void) {
+	const char *current = getenv("XDG_DATA_DIRS");
+	if (current != NULL && strstr(current, "/var/lib/flatpak/exports/share") != NULL) {
+		return true;
+	}
+
+	const char *home = getenv("HOME");
+	if (home == NULL || home[0] == 0) {
+		home = "/root";
+	}
+
+	if (current == NULL || current[0] == 0) {
+		current = "/usr/local/share:/usr/share";
+	}
+
+	const char *format = "%s/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:%s";
+	size_t home_length = strlen(home);
+	size_t current_length = strlen(current);
+	size_t overhead = strlen(format) + 1;
+	if (home_length > SIZE_MAX - overhead ||
+	    current_length > SIZE_MAX - overhead - home_length) {
+		return false;
+	}
+
+	size_t capacity = home_length + current_length + overhead;
+	char *paths = malloc(capacity);
+	if (paths == NULL) {
+		return false;
+	}
+
+	int length = snprintf(paths, capacity, format, home, current);
+	bool valid = length >= 0 && (size_t)length < capacity &&
+	             setenv("XDG_DATA_DIRS", paths, 1) == 0;
+	free(paths);
+	return valid;
+}
+
 // Подготовить закрытый каталог сокетов и запустить выбранную программу
 int main(int argc, char **argv) {
 	(void)argc;
@@ -213,6 +252,11 @@ int main(int argc, char **argv) {
 	}
 
 	if (strcmp(name, "weston") == 0 || strcmp(name, "weston-extended") == 0) {
+		if (!prepare_data_dirs()) {
+			fputs("Не удалось настроить каталоги приложений Flatpak\n", stderr);
+			return 1;
+		}
+
 		prepare_session_bus(runtime);
 		prepare_audio(runtime);
 	}
