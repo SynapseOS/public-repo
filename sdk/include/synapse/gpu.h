@@ -6,7 +6,8 @@
     Описание: Запросы экрана и операций с изображением
     Подсистема: общий интерфейс ядра и приложений
     Первое изменение: 14.10.2026
-    Последнее изменение: 24.10.2026
+    Последнее изменение: 01.11.2026
+    Доступ: общедоступный
 */
 
 #ifndef SYNAPSE_GPU_USER_H
@@ -46,6 +47,9 @@ struct syn_gpu_backlight {
 #define SYN_FB_DISPLAY_QUERY_V1 0x4634
 #define SYN_FB_2D_V1 0x4635
 #define SYN_FB_MODE_SET_V1 0x4636
+#define SYN_FB_SCANOUT_CHECK_V1 0x4637
+#define SYN_FB_SCANOUT_PRESENT_V1 0x4638
+#define SYN_FB_SCANOUT_RESTORE_V1 0x4639
 #define SYN_FB_FIXED_MODE 1u
 #define SYN_FB_CPU_FILL 2u
 #define SYN_FB_CPU_COPY 4u
@@ -54,6 +58,15 @@ struct syn_gpu_backlight {
 #define SYN_FB_MODESET 32u
 #define SYN_FB_FORMAT_XRGB8888 1u
 #define SYN_FB_SOURCE_CPU 1u
+
+// CHECK проверяет ресурс без смены экрана, PRESENT показывает его, RESTORE возвращает /dev/fb0
+struct syn_fb_scanout_check_v1 {
+	uint32_t version, width, height, format;
+	int32_t prime_fd;
+	uint32_t stride, offset;
+	uint64_t modifier;
+	uint32_t reserved[4];
+};
 
 struct syn_fb_display_v1 {
 	uint32_t version, capabilities, mode_count, current_mode;
