@@ -3,7 +3,7 @@
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Описание: чтение описаний приложений для Flatpak
 # Подсистема: сборка пакетов
-# Первое изменение: 26.10.2026, последнее изменение: 27.10.2026
+# Первое изменение: 26.10.2026, последнее изменение: 01.11.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -11,7 +11,7 @@ prepare
 # Meson 1.7 возвращает void из i18n.gettext
 sed -i 's/^i18n_result = i18n.gettext(/i18n.gettext(/' "$source/po/meson.build"
 
-sysroot=$(mktemp -d /tmp/synapse-appstream-sysroot.XXXXXX)
+sysroot=$(mktemp -d "${TMPDIR:-/tmp}/synapse-appstream-sysroot.XXXXXX")
 trap 'rm -rf -- "$sysroot"' EXIT
 mkdir -p "$sysroot/usr/include" "$sysroot/usr/lib/pkgconfig"
 mkdir -p "$sysroot/usr/bin"
