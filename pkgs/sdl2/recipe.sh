@@ -1,7 +1,7 @@
 # recipe.sh: Собрать SDL2 с окнами Wayland и резервным прямым выводом
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 31.10.2026
 # Статус доступа: общедоступный
 
 fetch 'https://www.libsdl.org/release/SDL2-2.30.11.tar.gz' \
@@ -22,6 +22,7 @@ cp "$BUILD_ROOT/weston/build/protocol/xdg-shell-client-protocol.h" "$source/src/
 cp "$BUILD_ROOT/weston/build/protocol/xdg-shell-protocol.c" "$source/src/video/offscreen/synapse-xdg-shell-protocol.c"
 flags="-D_GNU_SOURCE -DSDL_VIDEO_OPENGL=1 -isystem $(gcc -print-file-name=include)"
 flags+=" -I$SDK/include -I$BUILD_ROOT/mesa/mesa-24.3.4/include"
+flags+=" -I$BUILD_ROOT/mesa/stage/usr/include"
 flags+=" -I$SDK/apps/apps/nano-x/upstream/src/drivers -I$BUILD_ROOT/weston/sdk/usr/include"
 cat >"$work/toolchain.cmake" <<CMAKE
 set(CMAKE_SYSTEM_NAME Linux)
@@ -31,6 +32,7 @@ set(CMAKE_CXX_COMPILER "$BUILD_ROOT/mesa/cxx")
 set(CMAKE_C_FLAGS "$flags")
 string(CONCAT CMAKE_SHARED_LINKER_FLAGS
     "-Wl,--no-as-needed -L$BUILD_ROOT/mesa/build/src/gallium/targets/osmesa "
+    "-L$BUILD_ROOT/mesa/stage/usr/lib -l:libEGL.so.1 -l:libgbm.so.1 "
     "-L$BUILD_ROOT/weston/client-payload/usr/lib "
     "-lOSMesa -l:libwayland-client.so.0 -l:libwayland-cursor.so.0 -l:libxkbcommon.so.0")
 set(CMAKE_FIND_ROOT_PATH "$SDK/apps/musl")

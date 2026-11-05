@@ -1,8 +1,8 @@
-// synapse-wayland.inc: окна SDL2 с OSMesa и общей памятью Wayland
+// synapse-wayland.inc: окна SDL2 с Mesa и общей памятью Wayland
 // Автор: Елчинян Арен Артурович, 2026
 // Архитектура: x86_64, ABI: musl, SDL2 и Wayland
 // Подсистема: графические приложения
-// Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+// Первое изменение: 18.10.2026, последнее изменение: 31.10.2026
 // Статус доступа: общедоступный, Zlib
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -225,11 +225,19 @@ static int syn_wl_resize(SynapseVideo *video, int width, int height) {
 		return SDL_OutOfMemory( );
 	}
 
-	OSMesaContext context = OSMesaGetCurrentContext( );
+	if (video->gl_context != NULL && video->gl_context->egl) {
+		if (syn_egl_resize(video, width, height) != 0) {
+			SDL_free(pixels);
+			return -1;
+		}
+	} else {
+		OSMesaContext context = OSMesaGetCurrentContext( );
 
-	if (context != NULL && !OSMesaMakeCurrent(context, pixels, GL_UNSIGNED_BYTE, width, height)) {
-		SDL_free(pixels);
-		return SDL_SetError("OSMesa resize failed");
+		if (context != NULL && !OSMesaMakeCurrent(context, pixels, GL_UNSIGNED_BYTE,
+		                                              width, height)) {
+			SDL_free(pixels);
+			return SDL_SetError("OSMesa resize failed");
+		}
 	}
 
 	syn_wl_buffers_destroy(video->wayland);
@@ -796,6 +804,11 @@ static void syn_wl_global(void *data, struct wl_registry *registry, uint32_t nam
                           const char *interface, uint32_t version) {
 	struct SynapseWayland *state = data;
 
+	if (SDL_getenv("SYNAPSE_WL_TRACE_PROTOCOLS") != NULL) {
+		fprintf(stderr, "SYNAPSE_WL_GLOBAL interface=%s version=%u\n", interface,
+		        version);
+	}
+
 	if (SDL_strcmp(interface, "wl_compositor") == 0 && state->compositor == NULL) {
 		state->compositor =
 		    wl_registry_bind(registry, name, &wl_compositor_interface, SDL_min(version, 4));
@@ -1131,6 +1144,8 @@ static void syn_wl_caption(SynapseVideo *video, Uint32 *pixels, int width) {
 // Передать готовый кадр, не перезаписывая ещё занятый сервером буфер
 static int syn_wl_present(SynapseVideo *video) {
 	struct SynapseWayland *state = video->wayland;
+	SDL_bool profile = SDL_getenv("SYNAPSE_GL_METRICS") != NULL;
+	Uint64 entered = profile ? SDL_GetPerformanceCounter( ) : 0;
 
 	if (syn_wl_dispatch(video) != 0) {
 		return -1;
@@ -1166,6 +1181,8 @@ static int syn_wl_present(SynapseVideo *video) {
 		return SDL_SetError("Wayland frame unavailable");
 	}
 
+	Uint64 wait_done = profile ? SDL_GetPerformanceCounter( ) : 0;
+
 	int width = video->w + 2 * state->border;
 	int height = video->h + state->caption + state->border;
 
@@ -1174,15 +1191,37 @@ static int syn_wl_present(SynapseVideo *video) {
 	}
 
 	Uint32 *frame = (Uint32 *)slot->pixels;
+	const char *fill_margins = SDL_getenv("SYNAPSE_WL_FILL_MARGINS");
 
-	for (size_t i = 0; i < slot->length / 4; i++) {
-		frame[i] = 0xcccccc;
+	if (fill_margins != NULL && SDL_strcmp(fill_margins, "1") == 0) {
+		for (int y = 0; y < height; y++) {
+			Uint32 *row = frame + (size_t)y * width;
+
+			if (y < state->caption || y >= state->caption + video->h) {
+				for (int x = 0; x < width; x++) {
+					row[x] = 0xcccccc;
+				}
+			} else {
+				for (int x = 0; x < state->border; x++) {
+					row[x] = 0xcccccc;
+					row[width - x - 1] = 0xcccccc;
+				}
+			}
+		}
+	} else {
+		for (size_t i = 0; i < slot->length / 4; i++) {
+			frame[i] = 0xcccccc;
+		}
 	}
+
+	Uint64 fill_done = profile ? SDL_GetPerformanceCounter( ) : 0;
 
 	for (int y = 0; y < video->h; y++) {
 		SDL_memcpy(slot->pixels + ((size_t)(y + state->caption) * width + state->border) * 4,
 		           video->pixels + (size_t)y * video->w * 4, (size_t)video->w * 4);
 	}
+
+	Uint64 copy_done = profile ? SDL_GetPerformanceCounter( ) : 0;
 
 	syn_wl_caption(video, frame, width);
 	unsigned char *saved_screen = video->screen;
@@ -1197,6 +1236,8 @@ static int syn_wl_present(SynapseVideo *video) {
 	video->fix.line_length = saved_stride;
 	video->screen = saved_screen;
 
+	Uint64 commit_started = profile ? SDL_GetPerformanceCounter( ) : 0;
+
 	slot->busy = SDL_TRUE;
 	wl_surface_attach(state->surface, slot->buffer, 0, 0);
 	xdg_surface_set_window_geometry(state->xdg_surface, 0, 0, width, height);
@@ -1206,6 +1247,15 @@ static int syn_wl_present(SynapseVideo *video) {
 	if (wl_display_flush(state->display) < 0 && errno != EAGAIN) {
 		state->failed = SDL_TRUE;
 		return SDL_SetError("Wayland frame flush failed");
+	}
+
+	if (profile) {
+		Uint64 commit_done = SDL_GetPerformanceCounter( );
+		video->metric_wait += wait_done - entered;
+		video->metric_fill += fill_done - wait_done;
+		video->metric_copy += copy_done - fill_done;
+		video->metric_decor += commit_started - copy_done;
+		video->metric_commit += commit_done - commit_started;
 	}
 
 	return 0;
