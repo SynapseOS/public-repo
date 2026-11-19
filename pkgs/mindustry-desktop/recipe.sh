@@ -147,7 +147,7 @@ sources=("$glew/src/glew.c" "$work/sdl-jni/"*.cpp)
 sed -i "1i#include \"$port/gl-profile.h\"" "$work/sdl-jni/arc_backend_sdl_jni_SDLGL.cpp"
 compile_objects "$work/sdl-objects" "${flags[@]}"
 "$BUILD_ROOT/mesa/cxx" -shared -Wl,--no-undefined -Wl,-soname,libsdl-arc64.so "${objects[@]}" \
-	"$BUILD_ROOT/sdl2/build/libSDL2-2.0.so.0" "$BUILD_ROOT/mesa/build/src/gallium/targets/osmesa/libOSMesa.so.8" \
+	"$BUILD_ROOT/sdl2/build/libSDL2-2.0.so.0" "$BUILD_ROOT/mesa/stage/usr/lib/libOSMesa.so.8" \
 	-o "$work/libsdl-arc64.so"
 fetch 'https://raw.githubusercontent.com/Anuken/Mindustry/v160.7/core/src/mindustry/net/Net.java' \
 	3256fd94ade9db179744bae7ee0615fad6dddb1d9d5ccca51e6b52382ad2abde "$work/net-upstream.java"
