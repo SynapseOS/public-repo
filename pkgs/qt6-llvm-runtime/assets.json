@@ -34,14 +34,14 @@
   },
   {
     "name": "libxml2",
-    "version": "2.13.9-r2",
+    "version": "2.13.9-r3",
     "license": "MIT",
     "branch": "edge",
     "repository": "main",
     "commit": "f1bd5b6767a0e7fdda380c95138a1c938eb6e102",
-    "filename": "libxml2-2.13.9-r2.apk",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/libxml2-2.13.9-r2.apk",
-    "sha256": "4b2f986159c659f014b942fe8a5d70c67af475153ca826c3dd53389eea46a300"
+    "filename": "libxml2-2.13.9-r3.apk",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/libxml2-2.13.9-r3.apk",
+    "sha256": "fadf077b7aec09034aa25f07bf76185988885b29b195b6b7dff5415467562a43"
   },
   {
     "name": "llvm20-libs",
@@ -67,14 +67,14 @@
   },
   {
     "name": "zlib",
-    "version": "1.3.2-r1",
+    "version": "1.4-r0",
     "license": "Zlib",
     "branch": "edge",
     "repository": "main",
     "commit": "ed7d11b8c5de5f1744b2cf762c160c2385f28212",
-    "filename": "zlib-1.3.2-r1.apk",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/zlib-1.3.2-r1.apk",
-    "sha256": "c0d67cf86cee987735024635ebbfc4a38ab7bfb94eeef78ed4cd357a1f16d8bb"
+    "filename": "zlib-1.4-r0.apk",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/zlib-1.4-r0.apk",
+    "sha256": "c81f2e580754a6bebb9b3a17034082d35cfa275723d5a27c47e8bfdfab18aca7"
   },
   {
     "name": "zstd-libs",
