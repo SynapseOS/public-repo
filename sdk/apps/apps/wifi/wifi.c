@@ -1,0 +1,391 @@
+/*
+    wifi.c: Консольное управление беспроводной сетью
+    Автор: Елчинян Арен Артурович 2026
+    Архитектура: x86_64, ABI: Linux-compatible userspace
+
+    Описание: Сканирование, подключение и сохранение профиля через /dev/wifi
+    Подсистема: пользовательские сетевые программы
+    Первое изменение: 16.11.2026
+    Последнее изменение: 16.11.2026
+    Доступ: общедоступный
+*/
+
+#include <lumine/wifi.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#ifndef WIFI_DEVICE
+#define WIFI_DEVICE "/dev/wifi"
+#endif
+#ifndef WIFI_PROFILE_DIR
+#define WIFI_PROFILE_DIR "/etc/network"
+#endif
+#ifndef WIFI_PROFILE
+#define WIFI_PROFILE WIFI_PROFILE_DIR "/wifi.conf"
+#endif
+
+static void wifi_wipe(void *data, size_t size) {
+    volatile uint8_t *bytes = data;
+
+    while (size-- != 0U) {
+        *bytes++ = 0U;
+    }
+}
+
+static void wifi_print_ssid(const uint8_t *ssid, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        unsigned byte = ssid[i];
+        putchar(byte >= 32U && byte <= 126U && byte != '\\' ? (int)byte : '?');
+    }
+}
+
+static void wifi_print_ipv4(uint32_t address) {
+    printf("%u.%u.%u.%u", (unsigned)(address >> 24U), (unsigned)((address >> 16U) & 255U),
+           (unsigned)((address >> 8U) & 255U), (unsigned)(address & 255U));
+}
+
+static int wifi_open(void) {
+    int fd = open(WIFI_DEVICE, O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+
+    if (fd < 0) {
+        fprintf(stderr, "wifi: %s: %s\n", WIFI_DEVICE, strerror(errno));
+    }
+
+    return fd;
+}
+
+static int wifi_scan(int fd) {
+    struct syn_wifi_scan result = {.version = SYN_WIFI_ABI_VERSION};
+
+    if (ioctl(fd, SYN_WIFI_IOCTL_SCAN, &result) < 0) {
+        perror("wifi: scan");
+        return 1;
+    }
+
+    if (result.version != SYN_WIFI_ABI_VERSION || result.count > SYN_WIFI_SCAN_LIMIT) {
+        fprintf(stderr, "wifi: invalid scan response\n");
+        return 1;
+    }
+
+    puts("SSID                             BSSID              Signal  Ch  Security");
+
+    for (uint32_t i = 0; i < result.count; i++) {
+        const struct syn_wifi_bss *network = &result.entries[i];
+
+        if (network->ssid_length > SYN_WIFI_SSID_LIMIT) {
+            continue;
+        }
+
+        wifi_print_ssid(network->ssid, network->ssid_length);
+
+        for (unsigned pad = network->ssid_length; pad < SYN_WIFI_SSID_LIMIT + 1U; pad++) {
+            putchar(' ');
+        }
+
+        for (unsigned b = 0; b < 6U; b++) {
+            printf("%02x%s", network->bssid[b], b == 5U ? "" : ":");
+        }
+
+        int signal = ((int)network->rssi_dbm + 100) * 2;
+
+        if (signal < 0) {
+            signal = 0;
+        } else if (signal > 100) {
+            signal = 100;
+        }
+
+        printf("  %3d%%   %2u  %s\n", signal, network->channel,
+               network->security == SYN_WIFI_SECURITY_WPA2_PSK ? "WPA2-PSK" : "Open");
+    }
+
+    return 0;
+}
+
+static int wifi_status(int fd) {
+    struct syn_wifi_status status = {.version = SYN_WIFI_ABI_VERSION};
+
+    if (ioctl(fd, SYN_WIFI_IOCTL_STATUS, &status) < 0) {
+        perror("wifi: status");
+        return 1;
+    }
+
+    if (status.version != SYN_WIFI_ABI_VERSION || status.ssid_length > SYN_WIFI_SSID_LIMIT) {
+        fprintf(stderr, "wifi: invalid status response\n");
+        return 1;
+    }
+
+    printf("Adapter: %s\n", status.enabled ? "on" : "off");
+
+    if (!status.associated) {
+        puts("Connection: disconnected");
+        return 0;
+    }
+
+    fputs("Connection: ", stdout);
+    wifi_print_ssid(status.ssid, status.ssid_length);
+    printf("\nBSSID: %02x:%02x:%02x:%02x:%02x:%02x\nChannel: %u\n",
+           status.bssid[0], status.bssid[1], status.bssid[2],
+           status.bssid[3], status.bssid[4], status.bssid[5], status.channel);
+    printf("Link: %u Mb/s\n", status.link_mbps);
+
+    if (status.ready) {
+        fputs("IPv4: ", stdout);
+        wifi_print_ipv4(status.ipv4);
+        fputs("\nGateway: ", stdout);
+        wifi_print_ipv4(status.gateway);
+        putchar('\n');
+    } else {
+        puts("IPv4: waiting for DHCP");
+    }
+
+    return 0;
+}
+
+static int wifi_write_all(int fd, const char *text, size_t size) {
+    while (size != 0U) {
+        ssize_t done = write(fd, text, size);
+
+        if (done < 0 && errno == EINTR) {
+            continue;
+        }
+
+        if (done <= 0) {
+            return -1;
+        }
+
+        text += done;
+        size -= (size_t)done;
+    }
+
+    return 0;
+}
+
+static bool wifi_save_profile(const struct syn_wifi_connect *request) {
+    if (mkdir(WIFI_PROFILE_DIR, 0755) < 0 && errno != EEXIST) {
+        return false;
+    }
+
+    char temporary[96];
+    int name_length = snprintf(temporary, sizeof(temporary), "%s.tmp.%ld", WIFI_PROFILE, (long)getpid());
+
+    if (name_length < 0 || (size_t)name_length >= sizeof(temporary)) {
+        return false;
+    }
+
+    int fd = open(temporary, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
+
+    if (fd < 0) {
+        return false;
+    }
+
+    char text[256];
+    size_t used = 0;
+    static const char digits[] = "0123456789abcdef";
+    const char *labels[] = {"ssid=", "password="};
+    const uint8_t *values[] = {request->ssid, request->password};
+    size_t lengths[] = {request->ssid_length, request->password_length};
+
+    for (unsigned field = 0; field < 2U; field++) {
+        size_t label_length = strlen(labels[field]);
+        memcpy(text + used, labels[field], label_length);
+        used += label_length;
+
+        for (size_t i = 0; i < lengths[field]; i++) {
+            text[used++] = digits[values[field][i] >> 4U];
+            text[used++] = digits[values[field][i] & 15U];
+        }
+
+        text[used++] = '\n';
+    }
+
+    bool okay = wifi_write_all(fd, text, used) == 0 && fsync(fd) == 0;
+    wifi_wipe(text, sizeof(text));
+
+    if (close(fd) < 0) {
+        okay = false;
+    }
+
+    if (okay) {
+        okay = rename(temporary, WIFI_PROFILE) == 0;
+    }
+
+    if (!okay) {
+        unlink(temporary);
+    }
+
+    return okay;
+}
+
+static int wifi_hex(unsigned c) {
+    if (c >= '0' && c <= '9') {
+        return (int)(c - '0');
+    }
+
+    if (c >= 'a' && c <= 'f') {
+        return (int)(c - 'a' + 10U);
+    }
+
+    return -1;
+}
+
+static bool wifi_decode(const char *text, size_t size, uint8_t *out, size_t limit, uint8_t *length) {
+    if ((size & 1U) || size / 2U > limit) {
+        return false;
+    }
+
+    for (size_t i = 0; i < size / 2U; i++) {
+        int high = wifi_hex((unsigned char)text[i * 2U]);
+        int low = wifi_hex((unsigned char)text[i * 2U + 1U]);
+
+        if (high < 0 || low < 0) {
+            return false;
+        }
+
+        out[i] = (uint8_t)((high << 4U) | low);
+    }
+
+    *length = (uint8_t)(size / 2U);
+    return true;
+}
+
+static bool wifi_load_profile(struct syn_wifi_connect *request) {
+    int fd = open(WIFI_PROFILE, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+
+    if (fd < 0) {
+        return false;
+    }
+
+    struct stat info;
+    char text[256];
+    ssize_t count = read(fd, text, sizeof(text));
+    bool okay = fstat(fd, &info) == 0 && S_ISREG(info.st_mode) &&
+                (info.st_mode & 077U) == 0U && count > 0 && count < (ssize_t)sizeof(text);
+    close(fd);
+
+    if (okay) {
+        char *second = memchr(text, '\n', (size_t)count);
+
+        if (!second || (size_t)(second - text) < 5U ||
+            memcmp(text, "ssid=", 5U) != 0 || (size_t)(second + 1 - text) + 9U > (size_t)count ||
+            memcmp(second + 1, "password=", 9U) != 0 || text[count - 1] != '\n') {
+            okay = false;
+        } else {
+            okay = wifi_decode(text + 5U, (size_t)(second - text) - 5U, request->ssid,
+                               SYN_WIFI_SSID_LIMIT, &request->ssid_length) &&
+                   wifi_decode(second + 10U, (size_t)(text + count - second - 11U), request->password,
+                               SYN_WIFI_PASSWORD_LIMIT, &request->password_length) &&
+                   request->ssid_length > 0U;
+        }
+    }
+
+    wifi_wipe(text, sizeof(text));
+    return okay;
+}
+
+static int wifi_connect(int fd, int argc, char **argv, bool automatic) {
+    struct syn_wifi_connect request = {.version = SYN_WIFI_ABI_VERSION};
+
+    if (automatic) {
+        if (!wifi_load_profile(&request)) {
+            fprintf(stderr, "wifi: no usable private profile in %s\n", WIFI_PROFILE);
+            return 1;
+        }
+    } else {
+        size_t ssid_length = strlen(argv[2]);
+        size_t password_length = argc == 4 ? strlen(argv[3]) : 0U;
+
+        if (ssid_length == 0U || ssid_length > SYN_WIFI_SSID_LIMIT ||
+            password_length > SYN_WIFI_PASSWORD_LIMIT ||
+            (password_length != 0U && password_length < 8U)) {
+            fprintf(stderr, "wifi: SSID must be 1..32 bytes; WPA2 password must be 8..63 bytes\n");
+            return 1;
+        }
+
+        memcpy(request.ssid, argv[2], ssid_length);
+        request.ssid_length = (uint8_t)ssid_length;
+
+        if (password_length != 0U) {
+            memcpy(request.password, argv[3], password_length);
+            request.password_length = (uint8_t)password_length;
+        }
+    }
+
+    int result = ioctl(fd, SYN_WIFI_IOCTL_CONNECT, &request);
+
+    if (result < 0) {
+        perror("wifi: connect");
+    } else if (!automatic && !wifi_save_profile(&request)) {
+        perror("wifi: save profile");
+        result = -1;
+    }
+
+    wifi_wipe(&request, sizeof(request));
+    return result < 0 ? 1 : 0;
+}
+
+static void wifi_usage(void) {
+    fputs("Usage: wifi scan | connect SSID [password] | status | disconnect | on | off | auto\n", stderr);
+}
+
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        wifi_usage();
+        return 2;
+    }
+
+    if (argc == 2 && !strcmp(argv[1], "--help")) {
+        wifi_usage();
+        return 0;
+    }
+
+    if (!strcmp(argv[1], "connect") && (argc < 3 || argc > 4)) {
+        wifi_usage();
+        return 2;
+    }
+
+    int fd = wifi_open();
+
+    if (fd < 0) {
+        return 1;
+    }
+
+    int result = 0;
+
+    if (!strcmp(argv[1], "scan") && argc == 2) {
+        result = wifi_scan(fd);
+    } else if (!strcmp(argv[1], "connect")) {
+        result = wifi_connect(fd, argc, argv, false);
+    } else if (!strcmp(argv[1], "auto") && argc == 2) {
+        result = wifi_connect(fd, argc, argv, true);
+    } else if (!strcmp(argv[1], "status") && argc == 2) {
+        result = wifi_status(fd);
+    } else if (!strcmp(argv[1], "disconnect") && argc == 2) {
+        if (ioctl(fd, SYN_WIFI_IOCTL_DISCONNECT, 0) < 0) {
+            perror("wifi: disconnect");
+            result = 1;
+        }
+    } else if ((!strcmp(argv[1], "on") || !strcmp(argv[1], "off")) && argc == 2) {
+        struct syn_wifi_enabled enabled = {.version = SYN_WIFI_ABI_VERSION,
+                                           .enabled = (uint32_t)!strcmp(argv[1], "on")};
+
+        if (ioctl(fd, SYN_WIFI_IOCTL_SET_ENABLED, &enabled) < 0) {
+            perror("wifi: power");
+            result = 1;
+        }
+    } else {
+        wifi_usage();
+        result = 2;
+    }
+
+    close(fd);
+    return result;
+}

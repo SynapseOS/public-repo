@@ -1,0 +1,2 @@
+# Запуск 3x-ui и управляемого им Xray под супервизором SynapseOS
+exec /bin/bash /bin/3x-ui run

@@ -1,0 +1,1 @@
+exec /bin/node /usr/libexec/skynes-pilot.js

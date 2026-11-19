@@ -11,6 +11,7 @@
 */
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QColor>
 #include <QComboBox>
 #include <QDir>
@@ -43,6 +44,12 @@
 #include <QTabWidget>
 #include <QTimer>
 #include <QToolButton>
+#include <cstring>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <lumine/wifi.h>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <cstdio>
@@ -659,7 +666,9 @@ public:
 		addDisplayPage(tabs);
 		addAppearancePage(tabs);
 		addSystemPage(tabs);
+		addServicesPage(tabs);
 		addNetworkPage(tabs);
+		addWifiPage(tabs);
 		addAboutPage(tabs);
 	}
 
@@ -763,23 +772,45 @@ private:
 		int selectedResolution = resolution->findText(configuredResolution);
 		resolution->setCurrentIndex(selectedResolution < 0 ? 0 : selectedResolution);
 		form->addRow(QStringLiteral("Разрешение"), resolution);
+
+		QCheckBox *desktopEnabled = new QCheckBox(QStringLiteral("Запускать графическую сессию при входе"), page);
+		desktopEnabled->setChecked(readSetting(QStringLiteral("Desktop.Enabled")) == QStringLiteral("1"));
+		form->addRow(QStringLiteral("Рабочий стол"), desktopEnabled);
+
+		QComboBox *serialCount = new QComboBox(page);
+		serialCount->addItems({QStringLiteral("0"), QStringLiteral("1"), QStringLiteral("2")});
+		int selSerial = serialCount->findText(readSetting(QStringLiteral("Terminal.SerialConsoles")));
+		serialCount->setCurrentIndex(selSerial < 0 ? 0 : selSerial);
+		form->addRow(QStringLiteral("Консоли COM"), serialCount);
+
 		layout->addLayout(form);
 		QPushButton *apply = new QPushButton(QStringLiteral("Применить разрешение"), page);
 		layout->addWidget(apply);
 		layout->addWidget(new QLabel(QStringLiteral("Поддерживаемые видеоустройства меняют разрешение без перезагрузки."), page));
 		layout->addStretch();
-		connect(apply, &QPushButton::clicked, this, [this, resolution]() {
-			writeSetting(this, QStringLiteral("Display.Resolution"), resolution->currentIndex() == 0
-			                                                        ? QStringLiteral("auto") : resolution->currentText());
+		connect(apply, &QPushButton::clicked, this, [this, resolution, desktopEnabled, serialCount]() {
+			if (!writeSetting(this, QStringLiteral("Display.Resolution"), resolution->currentIndex() == 0
+			                                                         ? QStringLiteral("auto") : resolution->currentText())) {
+				return;
+			}
+			if (!writeSetting(this, QStringLiteral("Desktop.Enabled"), desktopEnabled->isChecked() ? QStringLiteral("1") : QStringLiteral("0"))) {
+				return;
+			}
+			writeSetting(this, QStringLiteral("Terminal.SerialConsoles"), serialCount->currentText());
 		});
 		tabs->addTab(page, QStringLiteral("Экран"));
 	}
 
-	// Добавить язык, часовую зону и оболочку новых терминалов
+	// Добавить имя компьютера, язык, часовую зону, обновления и оболочку новых терминалов
 	void addSystemPage(QTabWidget *tabs) {
 		QWidget *page = new QWidget(tabs);
 		QVBoxLayout *layout = new QVBoxLayout(page);
 		QFormLayout *form = new QFormLayout();
+
+		QLineEdit *hostname = new QLineEdit(readSetting(QStringLiteral("System.Hostname")), page);
+		hostname->setMinimumWidth(240);
+		form->addRow(QStringLiteral("Имя компьютера"), hostname);
+
 		QComboBox *language = new QComboBox(page);
 		language->addItem(QStringLiteral("Русский"), QStringLiteral("ru"));
 		language->addItem(QStringLiteral("Английский"), QStringLiteral("en"));
@@ -795,14 +826,25 @@ private:
 
 		QLineEdit *timezone = new QLineEdit(readSetting(QStringLiteral("System.Timezone")), page);
 		form->addRow(QStringLiteral("Часовой пояс"), timezone);
+
+		QCheckBox *checkUpdates = new QCheckBox(QStringLiteral("Проверять обновления при запуске"), page);
+		checkUpdates->setChecked(readSetting(QStringLiteral("Setup.CheckUpdates")) != QStringLiteral("0"));
+		form->addRow(QStringLiteral("Обновления"), checkUpdates);
+
+		form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 		layout->addLayout(form);
 
 		QPushButton *apply = new QPushButton(QStringLiteral("Сохранить настройки системы"), page);
 		layout->addWidget(apply);
 		layout->addWidget(new QLabel(
-		    QStringLiteral("Язык применяется в новых сеансах. Часовой пояс применяется после перезагрузки."), page));
+		    QStringLiteral("Язык применяется в новых сеансах. Имя и часовой пояс применяются после перезагрузки."), page));
 		layout->addStretch();
-		connect(apply, &QPushButton::clicked, this, [this, language, shell, timezone]() {
+		connect(apply, &QPushButton::clicked, this, [this, hostname, language, shell, timezone, checkUpdates]() {
+			if (!hostname->text().trimmed().isEmpty() &&
+			    !writeSetting(this, QStringLiteral("System.Hostname"), hostname->text().trimmed())) {
+				return;
+			}
+
 			if (!writeSetting(this, QStringLiteral("System.Language"), language->currentData().toString())) {
 				return;
 			}
@@ -811,9 +853,60 @@ private:
 				return;
 			}
 
-			writeSetting(this, QStringLiteral("System.Timezone"), timezone->text());
+			if (!writeSetting(this, QStringLiteral("System.Timezone"), timezone->text())) {
+				return;
+			}
+
+			writeSetting(this, QStringLiteral("Setup.CheckUpdates"), checkUpdates->isChecked() ? QStringLiteral("1") : QStringLiteral("0"));
 		});
 		tabs->addTab(page, QStringLiteral("Система"));
+	}
+
+	// Управление системными службами (SSH, FTP, GuestAgent, телеметрия)
+	void addServicesPage(QTabWidget *tabs) {
+		QWidget *page = new QWidget(tabs);
+		QVBoxLayout *layout = new QVBoxLayout(page);
+		QFormLayout *form = new QFormLayout();
+
+		QCheckBox *sshOn = new QCheckBox(QStringLiteral("Включить сервер SSH"), page);
+		sshOn->setChecked(readSetting(QStringLiteral("SSH.Enabled")) == QStringLiteral("1"));
+		QLineEdit *sshPort = new QLineEdit(readSetting(QStringLiteral("SSH.Port")), page);
+		form->addRow(QStringLiteral("SSH"), sshOn);
+		form->addRow(QStringLiteral("Порт SSH"), sshPort);
+
+		QCheckBox *ftpOn = new QCheckBox(QStringLiteral("Включить сервер FTP"), page);
+		ftpOn->setChecked(readSetting(QStringLiteral("FTP.Enabled")) == QStringLiteral("1"));
+		QLineEdit *ftpPort = new QLineEdit(readSetting(QStringLiteral("FTP.Port")), page);
+		form->addRow(QStringLiteral("FTP"), ftpOn);
+		form->addRow(QStringLiteral("Порт FTP"), ftpPort);
+
+		QCheckBox *gaOn = new QCheckBox(QStringLiteral("Включить QEMU Guest Agent"), page);
+		gaOn->setChecked(readSetting(QStringLiteral("GuestAgent.Enabled")) == QStringLiteral("1"));
+		form->addRow(QStringLiteral("Гостевой агент"), gaOn);
+
+		QCheckBox *statsOn = new QCheckBox(QStringLiteral("Отправлять диагностические данные"), page);
+		statsOn->setChecked(readSetting(QStringLiteral("stats.stats")) == QStringLiteral("1"));
+		form->addRow(QStringLiteral("Телеметрия"), statsOn);
+
+		form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+		layout->addLayout(form);
+
+		QPushButton *apply = new QPushButton(QStringLiteral("Сохранить службы"), page);
+		layout->addWidget(apply);
+		layout->addWidget(new QLabel(QStringLiteral("Параметры служб применяются после перезагрузки."), page));
+		layout->addStretch();
+
+		connect(apply, &QPushButton::clicked, this, [this, sshOn, sshPort, ftpOn, ftpPort, gaOn, statsOn]() {
+			if (!writeSetting(this, QStringLiteral("SSH.Enabled"), sshOn->isChecked() ? QStringLiteral("1") : QStringLiteral("0")) ||
+			    !writeSetting(this, QStringLiteral("SSH.Port"), sshPort->text().trimmed()) ||
+			    !writeSetting(this, QStringLiteral("FTP.Enabled"), ftpOn->isChecked() ? QStringLiteral("1") : QStringLiteral("0")) ||
+			    !writeSetting(this, QStringLiteral("FTP.Port"), ftpPort->text().trimmed()) ||
+			    !writeSetting(this, QStringLiteral("GuestAgent.Enabled"), gaOn->isChecked() ? QStringLiteral("1") : QStringLiteral("0"))) {
+				return;
+			}
+			writeSetting(this, QStringLiteral("stats.stats"), statsOn->isChecked() ? QStringLiteral("1") : QStringLiteral("0"));
+		});
+		tabs->addTab(page, QStringLiteral("Службы"));
 	}
 
 	// Добавить основные параметры сети без изменения текущего подключения
@@ -863,6 +956,200 @@ private:
 			writeSetting(this, QStringLiteral("DNS.1"), dns->text());
 		});
 		tabs->addTab(page, QStringLiteral("Сеть"));
+	}
+
+	// Показать вкладку управления беспроводными сетями напрямую через /dev/wifi
+	void addWifiPage(QTabWidget *tabs) {
+		QWidget *page = new QWidget(tabs);
+		QVBoxLayout *layout = new QVBoxLayout(page);
+
+		QLabel *statusLabel = new QLabel(QStringLiteral("Статус: проверка..."), page);
+		statusLabel->setWordWrap(true);
+		layout->addWidget(statusLabel);
+
+		QListWidget *networks = new QListWidget(page);
+		networks->setMinimumHeight(170);
+		layout->addWidget(networks);
+
+		QFormLayout *form = new QFormLayout();
+		QLineEdit *ssidEdit = new QLineEdit(page);
+		QLineEdit *passEdit = new QLineEdit(page);
+		passEdit->setEchoMode(QLineEdit::Password);
+		form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+		form->addRow(QStringLiteral("Имя сети (SSID)"), ssidEdit);
+		form->addRow(QStringLiteral("Пароль"), passEdit);
+		layout->addLayout(form);
+
+		QHBoxLayout *buttons = new QHBoxLayout();
+		QPushButton *scanBtn = new QPushButton(QStringLiteral("Сканировать"), page);
+		QPushButton *connectBtn = new QPushButton(QStringLiteral("Подключиться"), page);
+		QPushButton *disconnectBtn = new QPushButton(QStringLiteral("Отключиться"), page);
+		buttons->addWidget(scanBtn);
+		buttons->addWidget(connectBtn);
+		buttons->addWidget(disconnectBtn);
+		layout->addLayout(buttons);
+
+		auto refreshStatus = [statusLabel]() {
+			int fd = ::open("/dev/wifi", O_RDWR);
+			if (fd < 0) {
+				statusLabel->setText(QStringLiteral("Статус: /dev/wifi недоступен"));
+				return;
+			}
+			struct syn_wifi_status st{};
+			st.version = SYN_WIFI_ABI_VERSION;
+			int rc = ::ioctl(fd, SYN_WIFI_IOCTL_STATUS, &st);
+			::close(fd);
+			if (rc < 0) {
+				statusLabel->setText(QStringLiteral("Статус: ошибка запроса /dev/wifi"));
+				return;
+			}
+			if (!st.enabled) {
+				statusLabel->setText(QStringLiteral("Адаптер выключен"));
+				return;
+			}
+			if (!st.associated || st.ssid_length == 0 || st.ssid_length > SYN_WIFI_SSID_LIMIT) {
+				statusLabel->setText(QStringLiteral("Статус: не подключено (адаптер включён)"));
+				return;
+			}
+			const QString ssid = QString::fromUtf8(reinterpret_cast<const char *>(st.ssid), st.ssid_length);
+			const QString ip = QStringLiteral("%1.%2.%3.%4")
+			    .arg((st.ipv4 >> 24) & 0xff).arg((st.ipv4 >> 16) & 0xff)
+			    .arg((st.ipv4 >> 8) & 0xff).arg(st.ipv4 & 0xff);
+			statusLabel->setText(QStringLiteral("Подключено: %1  |  Канал: %2  |  IPv4: %3  |  %4 Mb/s")
+			    .arg(ssid).arg(st.channel).arg(ip).arg(st.link_mbps));
+		};
+
+		auto refreshScan = [networks, refreshStatus]() {
+			networks->clear();
+			int fd = ::open("/dev/wifi", O_RDWR);
+			if (fd < 0) {
+				refreshStatus();
+				return;
+			}
+			struct syn_wifi_scan sc{};
+			sc.version = SYN_WIFI_ABI_VERSION;
+			int rc = ::ioctl(fd, SYN_WIFI_IOCTL_SCAN, &sc);
+			::close(fd);
+			if (rc >= 0) {
+				const unsigned cnt = sc.count <= SYN_WIFI_SCAN_LIMIT ? sc.count : SYN_WIFI_SCAN_LIMIT;
+				for (unsigned i = 0; i < cnt; i++) {
+					const struct syn_wifi_bss &b = sc.entries[i];
+					if (b.ssid_length == 0 || b.ssid_length > SYN_WIFI_SSID_LIMIT) {
+						continue;
+					}
+					const QString ssid = QString::fromUtf8(reinterpret_cast<const char *>(b.ssid), b.ssid_length);
+					const QString sec = b.security == SYN_WIFI_SECURITY_WPA2_PSK ?
+					    QStringLiteral("WPA2") : QStringLiteral("Open");
+					const QString label = QStringLiteral("%1   (%2 dBm, ch %3, %4)")
+					    .arg(ssid).arg(static_cast<int>(b.rssi_dbm)).arg(b.channel).arg(sec);
+					QListWidgetItem *item = new QListWidgetItem(label, networks);
+					item->setData(Qt::UserRole, ssid);
+				}
+			}
+			refreshStatus();
+		};
+
+		connect(networks, &QListWidget::itemClicked, this, [ssidEdit](QListWidgetItem *item) {
+			if (item) {
+				ssidEdit->setText(item->data(Qt::UserRole).toString());
+			}
+		});
+
+		connect(scanBtn, &QPushButton::clicked, this, [refreshScan]() {
+			refreshScan();
+		});
+
+		connect(connectBtn, &QPushButton::clicked, this, [this, ssidEdit, passEdit, statusLabel, refreshStatus]() {
+			const QByteArray ssidBytes = ssidEdit->text().trimmed().toUtf8();
+			const QByteArray passBytes = passEdit->text().toUtf8();
+			if (ssidBytes.isEmpty() || ssidBytes.size() > static_cast<int>(SYN_WIFI_SSID_LIMIT)) {
+				QMessageBox::warning(this, QStringLiteral("Wi-Fi"), QStringLiteral("Некорректное имя сети (SSID)"));
+				return;
+			}
+			if (passBytes.size() > static_cast<int>(SYN_WIFI_PASSWORD_LIMIT)) {
+				QMessageBox::warning(this, QStringLiteral("Wi-Fi"), QStringLiteral("Пароль слишком длинный"));
+				return;
+			}
+			int fd = ::open("/dev/wifi", O_RDWR);
+			if (fd < 0) {
+				QMessageBox::warning(this, QStringLiteral("Wi-Fi"), QStringLiteral("Не удалось открыть /dev/wifi"));
+				return;
+			}
+			struct syn_wifi_connect conn{};
+			conn.version = SYN_WIFI_ABI_VERSION;
+			conn.ssid_length = static_cast<uint8_t>(ssidBytes.size());
+			std::memcpy(conn.ssid, ssidBytes.constData(), conn.ssid_length);
+			conn.password_length = static_cast<uint8_t>(passBytes.size());
+			if (conn.password_length > 0) {
+				std::memcpy(conn.password, passBytes.constData(), conn.password_length);
+			}
+			int rc = ::ioctl(fd, SYN_WIFI_IOCTL_CONNECT, &conn);
+			::close(fd);
+			if (rc < 0) {
+				QMessageBox::warning(this, QStringLiteral("Wi-Fi"), QStringLiteral("Ошибка отправки команды подключения"));
+				return;
+			}
+			// Атомарно сохранить профиль в /etc/network/wifi.conf с правами 0600
+			if (!QDir().mkpath(QStringLiteral("/etc/network"))) {
+				QMessageBox::warning(this, QStringLiteral("Wi-Fi"),
+				                     QStringLiteral("Не удалось создать каталог /etc/network"));
+				return;
+			}
+			const QByteArray hexConf = "ssid=" + ssidBytes.toHex() + "\npassword=" + passBytes.toHex() + "\n";
+			const QByteArray tmpPath = QStringLiteral("/etc/network/wifi.conf.tmp.%1")
+			    .arg(static_cast<qulonglong>(::getpid())).toUtf8();
+			::unlink(tmpPath.constData());
+			int pfd = ::open(tmpPath.constData(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+			bool saved = false;
+			if (pfd >= 0) {
+				size_t written = 0;
+				const size_t total = static_cast<size_t>(hexConf.size());
+				bool writeOk = true;
+				while (written < total) {
+					ssize_t n = ::write(pfd, hexConf.constData() + written, total - written);
+					if (n <= 0) {
+						writeOk = false;
+						break;
+					}
+					written += static_cast<size_t>(n);
+				}
+				if (writeOk && ::fchmod(pfd, 0600) == 0 && ::fsync(pfd) == 0 && ::close(pfd) == 0) {
+					if (::rename(tmpPath.constData(), "/etc/network/wifi.conf") == 0) {
+						int dfd = ::open("/etc/network", O_RDONLY);
+						if (dfd >= 0) {
+							::fsync(dfd);
+							::close(dfd);
+						}
+						saved = true;
+					}
+				} else {
+					::close(pfd);
+				}
+				if (!saved) {
+					::unlink(tmpPath.constData());
+				}
+			}
+			if (!saved) {
+				QMessageBox::warning(this, QStringLiteral("Wi-Fi"),
+				                     QStringLiteral("Не удалось сохранить профиль в /etc/network/wifi.conf"));
+			}
+			statusLabel->setText(QStringLiteral("Подключение к %1...").arg(QString::fromUtf8(ssidBytes)));
+			QTimer::singleShot(2500, this, refreshStatus);
+			QTimer::singleShot(5000, this, refreshStatus);
+		});
+
+		connect(disconnectBtn, &QPushButton::clicked, this, [refreshStatus]() {
+			int fd = ::open("/dev/wifi", O_RDWR);
+			if (fd >= 0) {
+				uint32_t ver = SYN_WIFI_ABI_VERSION;
+				::ioctl(fd, SYN_WIFI_IOCTL_DISCONNECT, &ver);
+				::close(fd);
+			}
+			refreshStatus();
+		});
+
+		refreshScan();
+		tabs->addTab(page, QStringLiteral("Wi-Fi"));
 	}
 
 	// Показать краткую справку о доступных действиях на рабочем столе

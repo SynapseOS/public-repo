@@ -471,7 +471,7 @@ static int write_complete(void) {
 
 // Показать отдельное согласие и передать явный выбор клиенту отправки
 static int data_sharing_page(struct settings *s) {
-    bool enabled = false;
+    bool enabled = true;
     title("Current consent", "Текущее согласие");
     char *status_args[] = {"stats", "--consent-status", NULL};
     run_plain("/bin/stats", status_args, STDOUT_FILENO);

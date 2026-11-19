@@ -4,7 +4,7 @@
 // Описание: Подключить headless output к устройству /dev/fb0
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 30.10.2026
+// Последнее изменение: 16.11.2026
 // Доступ: общедоступный
 
 #include <errno.h>
@@ -19,6 +19,8 @@
 #include <unistd.h>
 
 #include <drm_fourcc.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 #include <synapse/gpu.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/render/wlr_texture.h>
@@ -50,6 +52,121 @@ static uint64_t synapse_fb_metric_copy_ns;
 static uint64_t synapse_fb_metric_flush_ns;
 static struct timespec synapse_fb_metric_started;
 static struct wl_event_source *synapse_fb_mode_timer;
+
+static struct {
+    int fd;
+    uint32_t crtc, connector, fb;
+    drmModeModeInfo mode;
+    uint8_t *pixels;
+    size_t bytes, stride;
+    bool active;
+} synapse_kms = {.fd = -1};
+
+// Закрытие DRM master возвращает прежний кадр до освобождения буфера
+static void synapse_kms_close(void) {
+    if (synapse_kms.fd < 0) {
+        return;
+    }
+    close(synapse_kms.fd);
+    if (synapse_kms.pixels != NULL) {
+        munmap(synapse_kms.pixels, synapse_kms.bytes);
+    }
+    synapse_kms.fd = -1;
+    synapse_kms.pixels = NULL;
+    synapse_kms.active = false;
+}
+
+// Найти режим eDP, который уже выводится на экран и соответствует размеру fb0
+static bool synapse_kms_find_mode(int fd, uint32_t width, uint32_t height) {
+    drmModeRes *resources = drmModeGetResources(fd);
+    if (resources == NULL) {
+        return false;
+    }
+    bool found = false;
+    for (int i = 0; i < resources->count_connectors && !found; i++) {
+        drmModeConnector *connector = drmModeGetConnectorCurrent(fd, resources->connectors[i]);
+        if (connector == NULL) {
+            continue;
+        }
+        if (connector->connection == DRM_MODE_CONNECTED && connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
+            connector->encoder_id != 0) {
+            drmModeEncoder *encoder = drmModeGetEncoder(fd, connector->encoder_id);
+            if (encoder != NULL) {
+                drmModeCrtc *crtc = drmModeGetCrtc(fd, encoder->crtc_id);
+                if (crtc != NULL && crtc->mode_valid && crtc->mode.hdisplay == width &&
+                    crtc->mode.vdisplay == height) {
+                    synapse_kms.crtc = crtc->crtc_id;
+                    synapse_kms.connector = connector->connector_id;
+                    synapse_kms.mode = crtc->mode;
+                    found = true;
+                }
+                drmModeFreeCrtc(crtc);
+                drmModeFreeEncoder(encoder);
+            }
+        }
+        drmModeFreeConnector(connector);
+    }
+    drmModeFreeResources(resources);
+    return found;
+}
+
+// Создать GTT-буфер на том же DRM-файле, который будет переключать кадры
+static bool synapse_kms_alloc(uint32_t width, uint32_t height) {
+    const int fd = synapse_kms.fd;
+    struct drm_mode_create_dumb create = {.width = width, .height = height, .bpp = 32};
+    if (ioctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &create) != 0 || create.pitch < width * 4u ||
+        create.size > SIZE_MAX || create.size < (uint64_t)create.pitch * height) {
+        return false;
+    }
+    struct drm_mode_map_dumb map = {.handle = create.handle};
+    if (drmModeAddFB(fd, width, height, 24, 32, create.pitch, create.handle, &synapse_kms.fb) != 0 ||
+        ioctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &map) != 0 || map.offset > INT64_MAX) {
+        return false;
+    }
+    void *pixels = mmap(NULL, (size_t)create.size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)map.offset);
+    if (pixels == MAP_FAILED) {
+        return false;
+    }
+    synapse_kms.pixels = pixels;
+    synapse_kms.bytes = (size_t)create.size;
+    synapse_kms.stride = create.pitch;
+    return true;
+}
+
+// Подключить экспериментальный вывод AMDGPU, сохраняя fb0 как запасной путь
+static void synapse_kms_open(uint32_t width, uint32_t height) {
+    for (unsigned i = 0; i < 10u; i++) {
+        char path[32];
+        snprintf(path, sizeof(path), "/dev/dri/card%u", i);
+        int fd = open(path, O_RDWR | O_CLOEXEC);
+        if (fd < 0) {
+            continue;
+        }
+        drmVersionPtr version = drmGetVersion(fd);
+        bool amd = version != NULL && version->name_len == 6 && memcmp(version->name, "amdgpu", 6u) == 0;
+        drmFreeVersion(version);
+        synapse_kms.fd = fd;
+        if (amd && synapse_kms_find_mode(fd, width, height) && drmSetMaster(fd) == 0 &&
+            synapse_kms_alloc(width, height)) {
+            return;
+        }
+        synapse_kms_close();
+    }
+}
+
+// Передать кадр KMS, который загружает его через SDMA и ждёт смены адреса вывода
+static bool synapse_kms_present(void) {
+    if (synapse_kms.active) {
+        return drmModePageFlip(synapse_kms.fd, synapse_kms.crtc, synapse_kms.fb, 0, NULL) == 0;
+    }
+    if (drmModeSetCrtc(synapse_kms.fd, synapse_kms.crtc, synapse_kms.fb, 0, 0,
+        &synapse_kms.connector, 1, &synapse_kms.mode) != 0) {
+        return false;
+    }
+    synapse_kms.active = true;
+    wlr_log(WLR_INFO, "SynapseOS AMDGPU KMS scanout initialized (%ux%u)", synapse_fb_width, synapse_fb_height);
+    return true;
+}
 
 struct synapse_fb_dirty_rect {
     uint32_t x;
@@ -142,13 +259,17 @@ static bool synapse_fb_open(unsigned int *width, unsigned int *height) {
     synapse_fb_metrics = getenv("SYNAPSE_FB_METRICS") != NULL;
     const char *direct_scanout = getenv("SYNAPSE_FB_DIRECT_SCANOUT");
     synapse_fb_direct_scanout = direct_scanout != NULL && strcmp(direct_scanout, "0") != 0;
+    synapse_kms_open(variable.xres, variable.yres);
+    if (synapse_kms.fd >= 0) {
+        synapse_fb_direct_scanout = false;
+    }
     synapse_fb_buffer_reported = false;
     if (synapse_fb_metrics &&
         clock_gettime(CLOCK_MONOTONIC, &synapse_fb_metric_started) != 0) {
         synapse_fb_metrics = false;
     }
     struct syn_fb_display_v1 display = {.version = 1};
-    synapse_fb_modeset = ioctl(synapse_fb_fd, SYN_FB_DISPLAY_QUERY_V1, &display) == 0 &&
+    synapse_fb_modeset = synapse_kms.fd < 0 && ioctl(synapse_fb_fd, SYN_FB_DISPLAY_QUERY_V1, &display) == 0 &&
         (display.capabilities & SYN_FB_MODESET) != 0;
     *width = variable.xres;
     *height = variable.yres;
@@ -170,6 +291,7 @@ static void synapse_fb_close(void) {
     if (synapse_fb_fd < 0) {
         return;
     }
+    synapse_kms_close();
 
     free(synapse_fb_readback_pixels);
     synapse_fb_readback_pixels = NULL;
@@ -442,7 +564,7 @@ static int synapse_fb_try_direct_scanout(struct wlr_buffer *buffer) {
 
 // Прочитать изменившиеся области из буфера видеокарты
 static bool synapse_fb_readback(struct wlr_renderer *renderer, struct wlr_buffer *buffer,
-    const pixman_box32_t *boxes, int count, bool full) {
+    const pixman_box32_t *boxes, int count, bool full, uint8_t *target, size_t target_stride) {
     if (renderer == NULL || buffer == NULL) {
         return false;
     }
@@ -461,7 +583,7 @@ static bool synapse_fb_readback(struct wlr_renderer *renderer, struct wlr_buffer
         int32_t y2 = full ? (int32_t)synapse_fb_height : boxes[index].y2;
         size_t row_bytes = (size_t)(x2 - x1) * 4U;
         size_t rows = (size_t)(y2 - y1);
-        bool direct = x1 == 0 && synapse_fb_stride == row_bytes;
+        bool direct = x1 == 0 && target_stride == row_bytes;
 
         if (!direct) {
             if (rows > SIZE_MAX / row_bytes) {
@@ -483,7 +605,7 @@ static bool synapse_fb_readback(struct wlr_renderer *renderer, struct wlr_buffer
         }
 
         struct wlr_texture_read_pixels_options options = {
-            .data = direct ? synapse_fb_pixels : synapse_fb_readback_pixels,
+            .data = direct ? target : synapse_fb_readback_pixels,
             .format = DRM_FORMAT_XRGB8888,
             .stride = row_bytes,
             .dst_x = 0,
@@ -498,7 +620,7 @@ static bool synapse_fb_readback(struct wlr_renderer *renderer, struct wlr_buffer
 
         if (!direct) {
             for (size_t row = 0; row < rows; row++) {
-                memcpy(synapse_fb_pixels + ((size_t)y1 + row) * synapse_fb_stride +
+                memcpy(target + ((size_t)y1 + row) * target_stride +
                     (size_t)x1 * 4U, synapse_fb_readback_pixels + row * row_bytes, row_bytes);
             }
         }
@@ -604,6 +726,9 @@ static bool synapse_fb_present(struct wlr_output *output, const struct wlr_outpu
         clock_gettime(CLOCK_MONOTONIC, &copy_started);
     }
 
+    const bool kms = synapse_kms.fd >= 0;
+    uint8_t *target = kms ? synapse_kms.pixels : synapse_fb_pixels;
+    size_t target_stride = kms ? synapse_kms.stride : synapse_fb_stride;
     uint64_t bytes_copied = 0;
     if (valid && direct) {
         int rectangles = full ? 1 : count;
@@ -614,7 +739,7 @@ static bool synapse_fb_present(struct wlr_output *output, const struct wlr_outpu
             int32_t y2 = full ? (int32_t)synapse_fb_height : boxes[index].y2;
             size_t row_bytes = (size_t)(x2 - x1) * 4U;
             for (int32_t row = y1; row < y2; row++) {
-                memcpy(synapse_fb_pixels + (size_t)row * synapse_fb_stride + (size_t)x1 * 4U,
+                memcpy(target + (size_t)row * target_stride + (size_t)x1 * 4U,
                     (uint8_t *)pixels + (size_t)row * stride + (size_t)x1 * 4U, row_bytes);
             }
 
@@ -625,7 +750,7 @@ static bool synapse_fb_present(struct wlr_output *output, const struct wlr_outpu
     if (direct) {
         wlr_buffer_end_data_ptr_access(buffer);
     } else {
-        valid = synapse_fb_readback(output->renderer, buffer, boxes, count, full);
+        valid = synapse_fb_readback(output->renderer, buffer, boxes, count, full, target, target_stride);
         if (valid) {
             int rectangles = full ? 1 : count;
             for (int index = 0; index < rectangles; index++) {
@@ -645,6 +770,29 @@ static bool synapse_fb_present(struct wlr_output *output, const struct wlr_outpu
     struct timespec copy_finished = {0};
     if (synapse_fb_metrics) {
         clock_gettime(CLOCK_MONOTONIC, &copy_finished);
+    }
+
+    if (kms) {
+        if (synapse_kms_present()) {
+            synapse_fb_force_full = false;
+            if (synapse_fb_metrics) {
+                struct timespec flipped;
+                if (clock_gettime(CLOCK_MONOTONIC, &flipped) == 0) {
+                    synapse_fb_report(bytes_copied,
+                        synapse_fb_nanoseconds(&copy_finished) - synapse_fb_nanoseconds(&copy_started),
+                        synapse_fb_nanoseconds(&flipped) - synapse_fb_nanoseconds(&copy_finished));
+                }
+            }
+            return true;
+        }
+        wlr_log(WLR_ERROR, "SynapseOS AMDGPU KMS present failed, switching to framebuffer: %s", strerror(errno));
+        const size_t row_bytes = (size_t)synapse_fb_width * 4U;
+        for (uint32_t row = 0; row < synapse_fb_height; row++) {
+            memcpy(synapse_fb_pixels + (size_t)row * synapse_fb_stride,
+                target + (size_t)row * target_stride, row_bytes);
+        }
+        synapse_kms_close();
+        full = true;
     }
 
     int rectangles = full ? 1 : count;

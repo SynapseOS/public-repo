@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "libpcap",
-  "version": "1.10.5-r2",
+  "version": "1.10.5-r3",
   "description": "libpcap for SynapseOS native packet capture",
   "kind": "application",
   "arch": "x86_64",

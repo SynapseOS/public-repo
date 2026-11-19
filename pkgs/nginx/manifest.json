@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "nginx",
-  "version": "1.30.5-r6",
+  "version": "1.30.7-r1",
   "description": "Static nginx HTTP/HTTPS server with PCRE2 rewrite and zlib gzip",
   "kind": "application",
   "arch": "x86_64",

@@ -3,7 +3,7 @@
 // Подсистема: Счётчики и статистика системы в пользовательском пространстве
 // Архитектура: x86_64, ABI: Linux (ELF64)
 // Первое изменение: 09.10.2026
-// Последнее изменение: 27.10.2026
+// Последнее изменение: 19.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -28,7 +28,13 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#ifdef STATS_LINUX
+#define STATS_SETTINGS_ROOT "/var/lib/synapse-stats"
+#define LOG_FILE_PATH "/var/log/synapse-stats/monitoring.log"
+#else
+#define STATS_SETTINGS_ROOT ""
 #define LOG_FILE_PATH "/var/log/monitoring.log"
+#endif
 #define LOG_MAX_SIZE (1024 * 1024)
 
 static FILE *log_fp = NULL;
@@ -202,6 +208,63 @@ static void get_pci_dump_raw(char *out_buf, size_t max_len) {
 
     out_buf[0] = '\0';
     size_t current_len = 0;
+#ifdef STATS_LINUX
+    // Linux предоставляет идентификаторы PCI через sysfs
+    DIR *devices = opendir("/sys/bus/pci/devices");
+    if (devices == NULL) {
+        LOG("Cannot read PCI sysfs: %s", strerror(errno));
+        return;
+    }
+
+    int dev_count = 0;
+    struct dirent *entry;
+    while ((entry = readdir(devices)) != NULL) {
+        if (entry->d_name[0] == '.') {
+            continue;
+        }
+
+        unsigned ids[2] = {0};
+        const char *fields[] = {"vendor", "device"};
+        bool valid = true;
+        for (size_t i = 0; i < 2; ++i) {
+            char path[512];
+            int n = snprintf(path, sizeof(path), "/sys/bus/pci/devices/%s/%s", entry->d_name, fields[i]);
+            if (n < 0 || (size_t)n >= sizeof(path)) {
+                valid = false;
+                break;
+            }
+
+            FILE *file = fopen(path, "r");
+            if (file == NULL) {
+                valid = false;
+                break;
+            }
+
+            int matched = fscanf(file, "%x", &ids[i]);
+            fclose(file);
+            if (matched != 1 || ids[i] > 0xfffe || (i == 0 && ids[i] == 0)) {
+                valid = false;
+                break;
+            }
+        }
+
+        if (!valid) {
+            continue;
+        }
+
+        int n = snprintf(out_buf + current_len, max_len - current_len,
+            "%s%04x:%04x", current_len == 0 ? "" : ",", ids[0], ids[1]);
+        if (n < 0 || (size_t)n >= max_len - current_len) {
+            out_buf[current_len] = '\0';
+            break;
+        }
+
+        current_len += (size_t)n;
+        dev_count++;
+    }
+
+    closedir(devices);
+#else
     FILE *pci = fopen("/proc/pci", "r");
     if (pci == NULL) {
         LOG("Cannot read /proc/pci: %s", strerror(errno));
@@ -235,6 +298,7 @@ static void get_pci_dump_raw(char *out_buf, size_t max_len) {
     }
 
     fclose(pci);
+#endif
     LOG("PCI snapshot complete. Found %d valid devices.", dev_count);
 }
 
@@ -423,7 +487,7 @@ static bool consent_state(struct settings *s, const char *state, bool enabled) {
 // Записать явный выбор до сети, повторить незавершённое действие без отправки отчётов
 static int consent_change(bool accept, bool explicit_choice) {
     struct settings s;
-    if (settings_load(&s, "")) {
+    if (settings_load(&s, STATS_SETTINGS_ROOT)) {
         return 1;
     }
     const char *token = settings_get(&s, "DataConsent", "Token");
@@ -500,7 +564,7 @@ static ssize_t udp_send(const char *host_ip, uint16_t port, const char *json) {
         return (ssize_t)strlen(json);
     }
     struct settings s;
-    if (settings_load(&s, "") || strcmp(settings_get(&s, "DataConsent", "State"), "active") ||
+    if (settings_load(&s, STATS_SETTINGS_ROOT) || strcmp(settings_get(&s, "DataConsent", "State"), "active") ||
         strcmp(settings_get(&s, "stats", "stats"), "1") ||
         strcmp(settings_get(&s, "DataConsent", "Token"), consent_token)) {
         return -1;
@@ -513,7 +577,7 @@ static ssize_t udp_send(const char *host_ip, uint16_t port, const char *json) {
 // Показать состояние и идентификатор для обращения, не раскрывая секретный ключ
 static int consent_status(void) {
     struct settings s;
-    if (settings_load(&s, "")) {
+    if (settings_load(&s, STATS_SETTINGS_ROOT)) {
         return 1;
     }
     printf("Consent state: %s\n", settings_get(&s, "DataConsent", "State"));
@@ -598,7 +662,7 @@ int main(int argc, char **argv) {
     }
 
     struct settings initial;
-    if (settings_load(&initial, "")) {
+    if (settings_load(&initial, STATS_SETTINGS_ROOT)) {
         return 1;
     }
     const char *initial_state = settings_get(&initial, "DataConsent", "State");
@@ -612,14 +676,14 @@ int main(int argc, char **argv) {
     if (!strcmp(initial_state, "pending")) {
         while (consent_change(true, false)) {
             struct settings current;
-            if (settings_load(&current, "") ||
+            if (settings_load(&current, STATS_SETTINGS_ROOT) ||
                 strcmp(settings_get(&current, "DataConsent", "State"), "pending") ||
                 strcmp(settings_get(&current, "DataConsent", "Version"), DATA_CONSENT_VERSION)) {
                 return 1;
             }
             sleep(30);
         }
-        if (settings_load(&initial, "")) {
+        if (settings_load(&initial, STATS_SETTINGS_ROOT)) {
             return 1;
         }
     }
@@ -631,7 +695,7 @@ int main(int argc, char **argv) {
         }
 
         sleep(30);
-        if (settings_load(&initial, "")) {
+        if (settings_load(&initial, STATS_SETTINGS_ROOT)) {
             return 1;
         }
     }
@@ -663,7 +727,7 @@ int main(int argc, char **argv) {
 
     for (;;) {
         struct settings current;
-        if (settings_load(&current, "")) {
+        if (settings_load(&current, STATS_SETTINGS_ROOT)) {
             return 1;
         }
         if (strcmp(settings_get(&current, "stats", "stats"), "1") ||
@@ -720,7 +784,7 @@ int main(int argc, char **argv) {
         for (unsigned waited = 0; waited < interval; ++waited) {
             sleep(1);
             struct settings latest;
-            if (settings_load(&latest, "") || strcmp(settings_get(&latest, "stats", "stats"), "1") ||
+            if (settings_load(&latest, STATS_SETTINGS_ROOT) || strcmp(settings_get(&latest, "stats", "stats"), "1") ||
                 strcmp(settings_get(&latest, "DataConsent", "State"), "active")) {
                 break;
             }

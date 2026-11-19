@@ -6,7 +6,7 @@
     Описание: Запуск программ, перенаправления и условные списки команд
     Подсистема: пользовательская командная оболочка
     Первое изменение: исходная дата не установлена
-    Последнее изменение: 17.10.2026
+    Последнее изменение: 14.11.2026
     Доступ: общедоступный
 */
 
@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <setjmp.h>
 #include <glob.h>
+#include <limits.h>
 #include <sys/stat.h>
 
 enum { EXEC = 1, REDIR, PIPE, LIST, BACK, AND, OR, SUBSHELL };
@@ -46,6 +47,7 @@ struct redircmd {
     char       *efile;
     int         mode;
     int         fd;
+    int         duplicate;
 };
 
 struct pipecmd {
@@ -73,7 +75,7 @@ static struct cmd *parsecmd(char *s);
 
 static struct cmd *execcmd(void);
 static struct cmd *redircmd(struct cmd *sub, char *file, char *efile,
-                            int mode, int fd);
+                            int mode, int fd, int duplicate);
 static struct cmd *pipecmd(struct cmd *left, struct cmd *right);
 static struct cmd *listcmd(struct cmd *left, struct cmd *right);
 static struct cmd *backcmd(struct cmd *sub);
@@ -82,7 +84,8 @@ static struct cmd *parseline(char **ps, char *es);
 static struct cmd *parsepipe(char **ps, char *es);
 static struct cmd *parseandor(char **ps, char *es);
 static struct cmd *parseexec(char **ps, char *es);
-static struct cmd *parseredirs(struct cmd *cmd, char **ps, char *es);
+static struct cmd **parseredirs(struct cmd **tail, char **ps, char *es);
+static int fd_number(const char *start, const char *end);
 static struct cmd *parseblock(char **ps, char *es);
 static struct cmd *nulterminate(struct cmd *cmd);
 static int         gettoken(char **ps, char *es, char **q, char **eq);
@@ -166,6 +169,28 @@ static _Noreturn void runcmd(struct cmd *cmd) {
         case REDIR: {
             struct redircmd *redirect = (struct redircmd *)cmd;
             expand_word(redirect->file, redirect->efile, &redirect->file, 1);
+            if (redirect->duplicate) {
+                const char *word = redirect->file;
+                if (strcmp(word, "-") == 0) {
+                    if (close(redirect->fd) < 0 && errno != EBADF) {
+                        perror("sh: close");
+                        exit(1);
+                    }
+                } else {
+                    int source = fd_number(word, word + strlen(word));
+                    if (source < 0) {
+                        fprintf(stderr, "sh: invalid file descriptor: %s\n", word);
+                        exit(1);
+                    }
+                    if (dup2(source, redirect->fd) < 0) {
+                        perror("sh: dup2");
+                        exit(1);
+                    }
+                }
+                cmd = redirect->cmd;
+                break;
+            }
+
             int fd = open(redirect->file, redirect->mode, 0644);
             if (fd < 0) {
                 fprintf(stderr, "open %s failed: %s\n", redirect->file, strerror(errno));
@@ -578,15 +603,27 @@ static int getcmd(char *buf, size_t nbuf) {
 }
 
 int main(int argc, char **argv) {
-    if (argc >= 3 && strcmp(argv[1], "-c") == 0) {
-        char *command = strdup(argv[2]);
+    int login = argv[0] && argv[0][0] == '-';
+    int arg = 1;
+    while (arg < argc && (!strcmp(argv[arg], "-l") || !strcmp(argv[arg], "--login"))) {
+        login = 1;
+        arg++;
+    }
+    if (login) {
+        unsetenv("SHELL_TTY");
+    }
+    if (arg + 1 < argc && strcmp(argv[arg], "-c") == 0) {
+        char *command = strdup(argv[arg + 1]);
         if (!command) panic("out of memory");
         runcmd(parsecmd(command));
     }
-    if (argc == 2) {
-        int script = open(argv[1], O_RDONLY);
+    if (arg < argc && strcmp(argv[arg], "--") == 0) {
+        arg++;
+    }
+    if (arg < argc) {
+        int script = open(argv[arg], O_RDONLY);
         if (script < 0) {
-            fprintf(stderr, "sh: %s: %s\n", argv[1], strerror(errno));
+            fprintf(stderr, "sh: %s: %s\n", argv[arg], strerror(errno));
             return 1;
         }
         if (dup2(script, STDIN_FILENO) < 0) { close(script); return 1; }
@@ -684,7 +721,7 @@ static struct cmd *execcmd(void) {
     return (struct cmd *)cmd;
 }
 
-static struct cmd *redircmd(struct cmd *sub, char *file, char *efile, int mode, int fd) {
+static struct cmd *redircmd(struct cmd *sub, char *file, char *efile, int mode, int fd, int duplicate) {
     struct redircmd *cmd = calloc(1, sizeof(*cmd));
     if (cmd == NULL) panic("out of memory");
     cmd->type = REDIR;
@@ -693,6 +730,7 @@ static struct cmd *redircmd(struct cmd *sub, char *file, char *efile, int mode, 
     cmd->efile = efile;
     cmd->mode = mode;
     cmd->fd   = fd;
+    cmd->duplicate = duplicate;
     return (struct cmd *)cmd;
 }
 
@@ -857,30 +895,50 @@ static struct cmd *parsepipe(char **ps, char *es) {
     return cmd;
 }
 
-static struct cmd *parseredirs(struct cmd *cmd, char **ps, char *es) {
-    char *q, *eq;
-
-    while (peek(ps, es, "<>")) {
-        int tok = gettoken(ps, es, NULL, NULL);
-        if (gettoken(ps, es, &q, &eq) != 'a')
-            panic("missing file for redirection");
-
-        switch (tok) {
-        case '<':
-            cmd = redircmd(cmd, q, eq, O_RDONLY, STDIN_FILENO);
-            break;
-        case '>':
-            cmd = redircmd(cmd, q, eq,
-                           O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO);
-            break;
-        case '+':
-            cmd = redircmd(cmd, q, eq,
-                           O_WRONLY | O_CREAT | O_APPEND, STDOUT_FILENO);
-            break;
-        }
+static int fd_number(const char *start, const char *end) {
+    int fd = 0;
+    if (start == end) {
+        return -1;
     }
+    for (; start < end; start++) {
+        int digit = *start - '0';
+        if (digit < 0 || digit > 9 || fd > (INT_MAX - digit) / 10) {
+            return -1;
+        }
+        fd = fd * 10 + digit;
+    }
+    return fd;
+}
 
-    return cmd;
+// Оставлять обычный числовой аргумент, если оператор отделён пробелом
+static struct cmd **parseredirs(struct cmd **tail, char **ps, char *es) {
+    peek(ps, es, "");
+    for (;;) {
+        char *start = *ps;
+        char *op = start + strspn(start, "0123456789");
+        if (*op != '<' && *op != '>') {
+            return tail;
+        }
+        int fd = op == start ? (*op == '<' ? STDIN_FILENO : STDOUT_FILENO) : fd_number(start, op);
+        if (fd < 0) {
+            panic("invalid redirection descriptor");
+        }
+        int duplicate = op + 1 < es && op[1] == '&';
+        *ps = op;
+        int tok = gettoken(ps, es, NULL, NULL);
+        if (duplicate) {
+            (*ps)++;
+        }
+
+        char *q, *eq;
+        if (gettoken(ps, es, &q, &eq) != 'a') {
+            panic(duplicate ? "missing descriptor for redirection" : "missing file for redirection");
+        }
+        int mode = tok == '<' ? O_RDONLY : O_WRONLY | O_CREAT | (tok == '+' ? O_APPEND : O_TRUNC);
+        // Дерево выполняется снаружи внутрь, поэтому добавлять в порядке записи
+        *tail = redircmd(*tail, q, eq, mode, fd, duplicate);
+        tail = &((struct redircmd *)*tail)->cmd;
+    }
 }
 
 static struct cmd *parseblock(char **ps, char *es) {
@@ -896,7 +954,7 @@ static struct cmd *parseblock(char **ps, char *es) {
 
     struct cmd *group = backcmd(cmd);
     group->type = SUBSHELL;
-    group = parseredirs(group, ps, es);
+    parseredirs(&group, ps, es);
     return group;
 }
 
@@ -908,7 +966,7 @@ static struct cmd *parseexec(char **ps, char *es) {
     struct execcmd *cmd = (struct execcmd *)ret;
     int argc = 0;
 
-    ret = parseredirs(ret, ps, es);
+    struct cmd **tail = parseredirs(&ret, ps, es);
 
     while (!peek(ps, es, "|)&;")) {
         char *q, *eq;
@@ -925,7 +983,7 @@ static struct cmd *parseexec(char **ps, char *es) {
         cmd->eargv[argc] = eq;
         argc++;
 
-        ret = parseredirs(ret, ps, es);
+        tail = parseredirs(tail, ps, es);
     }
 
     cmd->argv[argc]  = NULL;

@@ -89,42 +89,59 @@ user(struct passwd *pw)
 	putchar('\n');
 }
 
+// Использовать код возврата, чтобы не принять побочное значение errno за ошибку поиска
 static void
-usernam(const char *nam)
+lookup(const char *name, uid_t id)
 {
-	struct passwd *pw;
+	struct passwd account, *pw;
+	size_t size = 1024;
+	char *buf = NULL;
+	int error;
 
-	errno = 0;
-	pw = getpwnam(nam);
-	if (!pw) {
-		if (errno)
-			eprintf("getpwnam %s:", nam);
-		else
-			eprintf("getpwnam %s: no such user\n", nam);
+	do {
+		buf = erealloc(buf, size);
+		errno = 0;
+		error = name ? getpwnam_r(name, &account, buf, size, &pw)
+		             : getpwuid_r(id, &account, buf, size, &pw);
+		if (error == ERANGE) {
+			if (size > (size_t)-1 / 2) {
+				eprintf("passwd record too large\n");
+			}
+			size *= 2;
+		}
+	} while (error == ERANGE);
+
+	if (error != 0 && error != ENOENT && error != ESRCH) {
+		errno = error;
+		if (name) {
+			eprintf("getpwnam %s:", name);
+		}
+		eprintf("getpwuid %u:", id);
 	}
-	if (Gflag)
+	if (error != 0 || pw == NULL) {
+		if (name) {
+			eprintf("getpwnam %s: no such user\n", name);
+		}
+		eprintf("getpwuid %u: no such user\n", id);
+	}
+	if (Gflag) {
 		groupid(pw);
-	else
+	} else {
 		user(pw);
+	}
+	free(buf);
+}
+
+static void
+usernam(const char *name)
+{
+	lookup(name, 0);
 }
 
 static void
 userid(uid_t id)
 {
-	struct passwd *pw;
-
-	errno = 0;
-	pw = getpwuid(id);
-	if (!pw) {
-		if (errno)
-			eprintf("getpwuid %d:", id);
-		else
-			eprintf("getpwuid %d: no such user\n", id);
-	}
-	if (Gflag)
-		groupid(pw);
-	else
-		user(pw);
+	lookup(NULL, id);
 }
 
 static void

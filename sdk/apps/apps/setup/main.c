@@ -5,11 +5,29 @@
 // Разбор аргументов, просмотр каталога и последовательное обновление пакетов
 // Подсистема: пользовательский пакетный менеджер
 // Первое изменение в истории Git: 09.10.2026
-// Последнее изменение: 03.11.2026
+// Последнее изменение: 14.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
 #include <sys/wait.h>
+// Повторять только конфликт с другой транзакцией, а не ошибки файловой системы
+static int lock_setup(int fd) {
+    for (unsigned attempt = 0; ; attempt++) {
+        if (flock(fd, LOCK_EX | LOCK_NB) == 0) {
+            return 0;
+        }
+        if ((errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR) || attempt == 6) {
+            return -1;
+        }
+        struct timespec delay = {0, 500000000L};
+        while (nanosleep(&delay, &delay) < 0) {
+            if (errno != EINTR) {
+                return -1;
+            }
+        }
+    }
+}
+
 static void help(void) {
     char notice[4096];
     path(notice, "var/lib/setup/updates.txt");
@@ -26,6 +44,7 @@ static void help(void) {
          "  install   reinstall     upgrade      remove    verify\n"
          "  auto      check [--notify]         recover       repo list     auth "
          "[status|logout]\n"
+         "  clean-kernels (alias: clean)\n"
          "Options: --yes, --dry-run");
 }
 static int catalog_best(int index) {
@@ -223,8 +242,12 @@ int main(int argc, char **argv) {
         upgrade = !strcmp(cmd, "upgrade"), update = !strcmp(cmd, "update"),
         recovery = !strcmp(cmd, "recover"), reinstall = !strcmp(cmd, "reinstall");
     int check = !strcmp(cmd, "check");
+    int clean = !strcmp(cmd, "clean-kernels") || !strcmp(cmd, "clean");
+    if (clean && count != 1) {
+        fail("usage: setup clean-kernels [--dry-run|--yes]");
+    }
     int mutate = check || update || recovery ||
-                 ((install || remove || upgrade || reinstall) && !dry_run);
+                 ((install || remove || upgrade || reinstall || clean) && !dry_run);
     if (mutate) {
         if (geteuid() != 0 && !*root) {
             fail("administrative privileges required");
@@ -238,13 +261,13 @@ int main(int argc, char **argv) {
         if (candidate < 0) {
             fail("setup lock is unavailable");
         }
-        if (flock(candidate, LOCK_EX | LOCK_NB)) {
+        if (lock_setup(candidate)) {
             close(candidate);
             fail("another setup operation is running or lock is unavailable");
         }
         lock = candidate;
         // Проверка индекса не меняет установленные пакеты
-        if (!check && !update) {
+        if (!check && !update && !clean) {
             invalidate_public_catalog();
         }
 
@@ -263,6 +286,10 @@ int main(int argc, char **argv) {
             publish_public_catalog(installed, ninstalled);
             return 0;
         }
+    }
+    if (clean) {
+        clean_kernels();
+        return 0;
     }
     struct stat root_stat;
     int owned_root = *root != 0 && stat(root, &root_stat) == 0 && root_stat.st_uid == geteuid();

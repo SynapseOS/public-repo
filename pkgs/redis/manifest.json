@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "name": "redis",
+  "version": "7.4.12-r1",
+  "description": "Redis server and command-line client",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.949-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/redis-server",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "bin/redis-cli",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "etc/redis/redis.conf",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "etc/services/redis",
+      "type": "file",
+      "mode": 420,
+      "config": true
+    },
+    {
+      "path": "usr/share/licenses/redis/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

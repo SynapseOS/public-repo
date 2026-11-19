@@ -6,7 +6,8 @@
     Описание: Захват сетевых кадров
     Подсистема: сеть
     Первое изменение: 12.10.2026
-    Последнее изменение: 18.10.2026
+    Последнее изменение: 06.11.2026
+    Доступ: общедоступный
 */
 
 #ifndef SYN_PACKET_CAPTURE_H
@@ -15,6 +16,9 @@
 #include <stdint.h>
 
 #define SYN_CAPTURE_VERSION 1
+// Верхний бит INFO flags означает IP без Ethernet, размеры структур ABI не меняются
+#define SYN_CAPTURE_F_RAW_IP UINT32_C(0x80000000)
+#define SYN_CAPTURE_MAX_INTERFACES 12u
 #define SYN_CAPTURE_BIND 0x53500001u
 #define SYN_CAPTURE_INFO 0x53500002u
 #define SYN_CAPTURE_STATS 0x53500003u

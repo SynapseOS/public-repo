@@ -5,7 +5,7 @@
 // Структуры каталога, плана установки и состояния транзакции
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 03.11.2026
+// Последнее изменение: 13.11.2026
 // Доступ: общедоступный
 
 #ifndef SYNAPSE_SETUP_H
@@ -106,6 +106,9 @@ int version_cmp(const char *a, const char *b);
 int satisfies(const char *version, const char *constraint);
 void solve(int argc, char **argv, int upgrade);
 void plan_remove(int argc, char **argv);
+int kernel_boot_has_space(const struct package *p);
+void clean_kernels(void);
+void kernel_clean_hint(void);
 void transact(void);
 void recover(void);
 void verify(int argc, char **argv);

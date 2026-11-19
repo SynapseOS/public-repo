@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "settings",
-  "version": "1.0.0-r5",
-  "description": "Russian/English system settings TUI and shared configuration module",
+  "version": "1.0.0-r6",
+  "description": "Russian/English system settings and Wi-Fi management TUI",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",

@@ -1,0 +1,68 @@
+#!/bin/bash
+# hw-report: сохранить аппаратную диагностику на подключённом носителе
+# Автор: Елчинян Арен Артурович 2026
+# Архитектура: x86_64, ABI: пользовательская утилита SynapseOS
+# Описание: Архив журнала, ACPI, PCI и состояния Wi-Fi
+# Подсистема: беспроводная сеть
+# Первое изменение: 16.11.2026, последнее изменение: 16.11.2026
+# Доступ: общедоступный
+
+set -eu
+umask 077
+
+if [ "$#" -ne 1 ] || [ ! -d "$1" ] || [ ! -w "$1" ]; then
+    echo "Usage: hw-report /path/to/mounted/usb" >&2
+    exit 2
+fi
+
+destination=$(cd "$1" && pwd)
+temporary=$(mktemp -d "${TMPDIR:-/var/tmp}/hw-report.XXXXXX")
+trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+root=${HW_REPORT_ROOT:-/}
+
+copy_if_present() {
+    source=$1
+    name=$2
+
+    if [ -f "$root$source" ]; then
+        cat "$root$source" > "$temporary/$name" 2>/dev/null || true
+    fi
+}
+
+copy_if_present /var/log/boot.log boot.log
+copy_if_present /proc/net-interfaces net-interfaces.txt
+copy_if_present /proc/acpi acpi.txt
+copy_if_present /proc/pci pci.txt
+copy_if_present /proc/modules modules.txt
+
+if [ -d "$root/sys/firmware/acpi/tables" ]; then
+    mkdir -p "$temporary/acpi-tables"
+    cp -R "$root/sys/firmware/acpi/tables/." "$temporary/acpi-tables/" 2>/dev/null || true
+fi
+
+if [ -r "$root/dev/dmesg" ]; then
+    cat "$root/dev/dmesg" > "$temporary/dmesg.log" 2>/dev/null || true
+fi
+
+if command -v hwinfo >/dev/null 2>&1; then
+    hwinfo > "$temporary/hwinfo.txt" 2>&1 || true
+fi
+
+if command -v wifi >/dev/null 2>&1; then
+    wifi status > "$temporary/wifi-status.txt" 2>&1 || true
+fi
+
+if [ -e "$root/dev/wifi" ]; then
+    echo present > "$temporary/wifi-device.txt"
+else
+    echo absent > "$temporary/wifi-device.txt"
+fi
+
+archive="$destination/rtw88-hp-$(date +%Y%m%d-%H%M%S).tar"
+if [ -e "$archive" ]; then
+    echo "hw-report: destination already exists: $archive" >&2
+    exit 1
+fi
+
+(cd "$temporary" && tar -cf "$archive" .)
+echo "$archive"

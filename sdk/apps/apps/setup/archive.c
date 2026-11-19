@@ -5,7 +5,7 @@
 // Проверка заголовков tar и извлечение содержимого пакета
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 03.11.2026
+// Последнее изменение: 14.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -147,7 +147,56 @@ done:
     return error;
 }
 
-// Проверить каждый член USTAR без выделения памяти размером с архив или файл
+// Прочитать локальный PAX-заголовок без изменения размера, типа или прав члена
+static int archive_pax_path(const char *body, size_t size, char *path, size_t capacity) {
+    size_t offset = 0;
+    while (offset < size) {
+        size_t cursor = offset;
+        size_t length = 0;
+        while (cursor < size && body[cursor] >= '0' && body[cursor] <= '9') {
+            length = length * 10U + (size_t)(body[cursor++] - '0');
+            if (length > size - offset) {
+                return 0;
+            }
+        }
+
+        size_t end = offset + length;
+        if (cursor == offset || cursor + 3U >= end || body[cursor++] != ' ' || body[end - 1U] != '\n') {
+            return 0;
+        }
+        const char *key = body + cursor;
+        const char *equal = memchr(key, '=', end - cursor - 1U);
+        if (equal == NULL) {
+            return 0;
+        }
+        size_t key_len = (size_t)(equal - key);
+        const char *value = equal + 1;
+        size_t value_len = (size_t)(body + end - 1U - value);
+        if (key_len == 4U && memcmp(key, "path", 4) == 0) {
+            if (*path != 0 || value_len == 0 || value_len >= capacity || memchr(value, 0, value_len)) {
+                return 0;
+            }
+            memcpy(path, value, value_len);
+            path[value_len] = 0;
+        } else {
+            const char *const ignored[] = {"atime", "ctime", "mtime", "uname", "gname"};
+            int known = 0;
+            for (size_t i = 0; i < sizeof(ignored) / sizeof(ignored[0]); i++) {
+                if (strlen(ignored[i]) == key_len && memcmp(key, ignored[i], key_len) == 0) {
+                    known = 1;
+                    break;
+                }
+            }
+            if (!known) {
+                return 0;
+            }
+        }
+        offset = end;
+    }
+    return 1;
+}
+
+// Проверить каждый член tar без выделения памяти размером с архив или файл
 void extract(struct package *p, const char *archive, const char *stage) {
     int fd = open(archive, O_RDONLY | O_NOFOLLOW);
     if (fd < 0) {
@@ -164,6 +213,8 @@ void extract(struct package *p, const char *archive, const char *stage) {
 
     int seen[MAXFILES] = {0}, manifest = 0, ended = 0;
     size_t offset = 0;
+    char extended[sizeof(p->files[0].path) + sizeof("payload/")];
+    int extension = 0;
     mkdirs(stage);
     while (offset + 512 <= len) {
         unsigned char h[512];
@@ -171,7 +222,7 @@ void extract(struct package *p, const char *archive, const char *stage) {
             archive_reject(fd, "truncated tar header");
         }
         if (zeros(h, 512)) {
-            if (offset + 1024 > len || !archive_zeros(fd, offset, len - offset)) {
+            if (extension || offset + 1024 > len || !archive_zeros(fd, offset, len - offset)) {
                 archive_reject(fd, "invalid tar end marker");
             }
             ended = 1;
@@ -184,8 +235,9 @@ void extract(struct package *p, const char *archive, const char *stage) {
         if (sum != octal((void *)h + 148, 8)) {
             archive_reject(fd, "tar checksum mismatch");
         }
-        if (memcmp(h + 257, "ustar", 5) || h[262] != 0) {
-            archive_reject(fd, "only USTAR packages are accepted");
+        int gnu = memcmp(h + 257, "ustar  \0", 8) == 0;
+        if (!gnu && memcmp(h + 257, "ustar\0" "00", 8) != 0) {
+            archive_reject(fd, "unsupported tar format");
         }
         uint64_t size = octal((void *)h + 124, 12), mode = octal((void *)h + 100, 8);
         if (size > PACKAGE_LIMIT || size > len - offset - 512 || mode & ~0777 ||
@@ -193,28 +245,55 @@ void extract(struct package *p, const char *archive, const char *stage) {
             archive_reject(fd, "invalid tar metadata");
         }
 
-        char name[512], part[101], prefix[156];
-        if (!memchr(h, 0, 100) || !memchr(h + 345, 0, 155)) {
-            archive_reject(fd, "unterminated tar path");
+        size_t padded = (size + 511) & ~(size_t)511;
+        if (padded > len - offset - 512) {
+            archive_reject(fd, "truncated tar padding");
         }
-        memcpy(part, h, 100);
-        part[100] = 0;
-        memcpy(prefix, h + 345, 155);
-        prefix[155] = 0;
-        if (*prefix) {
-            snprintf(name, sizeof name, "%s/%s", prefix, part);
+        if (!archive_zeros(fd, offset + 512 + size, padded - size)) {
+            archive_reject(fd, "nonzero tar padding");
+        }
+
+        if (h[156] == 'L' || h[156] == 'x') {
+            char body[4096];
+            if (!manifest || extension || size == 0 || size > sizeof(body) ||
+                archive_read_at(fd, offset + 512, body, (size_t)size) != 0) {
+                archive_reject(fd, "invalid tar path extension");
+            }
+            extended[0] = 0;
+            if (h[156] == 'L') {
+                if (!gnu || memcmp(h, "././@LongLink", sizeof("././@LongLink")) != 0 ||
+                    size < 2 || size > sizeof(extended) || body[size - 1U] != 0 ||
+                    memchr(body, 0, (size_t)size - 1U)) {
+                    archive_reject(fd, "invalid GNU tar long path");
+                }
+                memcpy(extended, body, (size_t)size);
+            } else if (!archive_pax_path(body, (size_t)size, extended, sizeof(extended))) {
+                archive_reject(fd, "invalid or unsupported PAX metadata");
+            }
+            extension = 1;
+            offset += 512 + padded;
+            continue;
+        }
+
+        char name[sizeof(extended)];
+        if (extension && *extended != 0) {
+            memcpy(name, extended, strlen(extended) + 1U);
+        } else if (!gnu && h[345] != 0) {
+            snprintf(name, sizeof(name), "%.155s/%.100s", (const char *)h + 345, (const char *)h);
         } else {
-            snprintf(name, sizeof name, "%s", part);
+            snprintf(name, sizeof(name), "%.100s", (const char *)h);
         }
+        extension = 0;
 
         int type = h[156] == '5' ? 1 : 0;
         if (h[156] != 0 && h[156] != '0' && h[156] != '5') {
-            archive_reject(fd, "links/devices/PAX records are forbidden");
+            archive_reject(fd, "unsupported tar member type");
         }
         if (type && *name && name[strlen(name) - 1] == '/') {
             name[strlen(name) - 1] = 0;
         }
-        if (!safe_path(name)) {
+        const char *relative = strncmp(name, "payload/", 8) == 0 ? name + 8 : name;
+        if (!safe_path(relative)) {
             archive_reject(fd, "unsafe tar path");
         }
         if (!strcmp(name, "manifest.json")) {
@@ -273,13 +352,6 @@ void extract(struct package *p, const char *archive, const char *stage) {
             }
         }
 
-        size_t padded = (size + 511) & ~(size_t)511;
-        if (padded > len - offset - 512) {
-            archive_reject(fd, "truncated tar padding");
-        }
-        if (!archive_zeros(fd, offset + 512 + size, padded - size)) {
-            archive_reject(fd, "nonzero tar padding");
-        }
         offset += 512 + padded;
     }
     if (!ended || !manifest) {

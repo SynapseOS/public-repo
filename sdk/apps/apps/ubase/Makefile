@@ -30,7 +30,8 @@ LIBUTILOBJ  := $(patsubst libutil/%.c,$(OBJ_DIR)/libutil/%.o,$(LIBUTILSRC))
 LIBUTIL_A   := $(OBJ_DIR)/libutil.a
 
 # Целевые бинарники в apps-bin/
-TARGETS := $(addprefix $(OUTPUT_DIR)/,$(filter-out dd mknod,$(BIN))) $(OUTPUT_DIR)/ubase-dd $(OUTPUT_DIR)/ubase-mknod
+TARGETS := $(addprefix $(OUTPUT_DIR)/,$(filter-out dd mknod,$(BIN))) $(OUTPUT_DIR)/ubase-dd $(OUTPUT_DIR)/ubase-mknod \
+           $(OUTPUT_DIR)/reboot $(OUTPUT_DIR)/poweroff $(addprefix $(OUTPUT_DIR)/,useradd adduser usermod groupadd)
 
 # ============================================================
 # Флаги компиляции
@@ -91,6 +92,13 @@ $(OUTPUT_DIR)/%: $(OBJ_DIR)/%.o $(LIBUTIL_A)
 	    $(CRTN) \
 	    -T $(COMMON_DIR)/apps.ld \
 	    -o $@
+
+# Упаковщик базового образа принимает обычные файлы
+$(OUTPUT_DIR)/reboot $(OUTPUT_DIR)/poweroff: $(OUTPUT_DIR)/halt
+	cp -- $< $@
+
+$(addprefix $(OUTPUT_DIR)/,useradd adduser usermod groupadd): $(OUTPUT_DIR)/passwd
+	cp -- $< $@
 
 # Keep both implementations without parallel builds overwriting sbase.
 $(OUTPUT_DIR)/ubase-%: $(OBJ_DIR)/%.o $(LIBUTIL_A)

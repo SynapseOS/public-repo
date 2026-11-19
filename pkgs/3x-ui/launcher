@@ -1,0 +1,52 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+state=/var/lib/3x-ui
+payload=/usr/libexec/3x-ui
+export XUI_DB_FOLDER="$state/db"
+export XUI_BIN_FOLDER="$state/bin"
+export XUI_LOG_FOLDER="$state/log"
+# Используем общий формат SQLite без WAL и разделяемого mmap
+export XUI_DB_JOURNAL_MODE=DELETE
+export XRAY_LOCATION_ASSET="$XUI_BIN_FOLDER"
+
+# Только пользователь с правами на чтение базы должен видеть начальный пароль
+if (( EUID != 0 )); then
+    printf '3x-ui: требуется root\n' >&2
+    exit 1
+fi
+
+if [[ ! -d $state ]]; then
+    mkdir -- "$state"
+fi
+chmod 700 "$state"
+mkdir -p -- "$XUI_DB_FOLDER" "$XUI_BIN_FOLDER" "$XUI_LOG_FOLDER"
+cd "$state"
+
+# Повторяем только незавершённую настройку новой базы
+if [[ ! -e $XUI_DB_FOLDER/x-ui.db || -e $state/.initializing ]]; then
+    : >"$state/.initializing"
+    "$payload/x-ui" setting -listenIP 127.0.0.1 -port 2053 -webBasePath /
+    /bin/sqlite3 -batch -bail "$XUI_DB_FOLDER/x-ui.db" <<'SQL'
+BEGIN IMMEDIATE;
+DELETE FROM settings WHERE key IN ('webListen', 'webPort', 'webBasePath', 'subEnable');
+INSERT INTO settings(key,value) VALUES
+  ('webListen','127.0.0.1'), ('webPort','2053'), ('webBasePath','/'), ('subEnable','false');
+COMMIT;
+SQL
+    rm -- "$state/.initializing"
+fi
+
+if [[ ${1:-run} == run ]]; then
+    # Geodata обновляется с пакетом, если администратор не заменил ссылку своим файлом
+    for asset in xray-linux-amd64 geoip.dat geosite.dat; do
+        if [[ ! -e $XUI_BIN_FOLDER/$asset && ! -L $XUI_BIN_FOLDER/$asset ]]; then
+            ln -s -- "$payload/$asset" "$XUI_BIN_FOLDER/$asset"
+        fi
+    done
+
+    # Upstream печатает случайный пароль при первом запуске
+    exec "$payload/x-ui" run >>"$XUI_LOG_FOLDER/panel.log" 2>&1
+fi
+exec "$payload/x-ui" "$@"

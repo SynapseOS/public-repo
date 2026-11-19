@@ -5,13 +5,17 @@
 // Журналирование изменений файлов и подготовка загрузочных записей
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 03.11.2026
+// Последнее изменение: 13.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
 #include "../common/boot/limine-menu.h"
 #include <sys/statvfs.h>
 #include <elf.h>
+#include <inttypes.h>
+#include <strings.h>
+#include <sys/utsname.h>
+#include <sys/vfs.h>
 #define MAXOPS 4096
 struct operation {
     char relative[512], stage[4096], backup[4096];
@@ -401,6 +405,647 @@ void recover(void) {
     remove_tree(txn);
     sync_parent(txn);
 }
+// Проверить свободные кластеры с резервом для атомарной замены меню и маркера
+int kernel_boot_has_space(const struct package *p) {
+    char boot[4096], dest[4096], relative[512];
+    struct statvfs space;
+    struct stat st;
+
+    path(boot, "boot");
+    if (!p->nfile || statvfs(boot, &space) || !space.f_frsize) {
+        return 1;
+    }
+
+    snprintf(relative, sizeof relative, "boot/boot/kernels/%s/kernel", p->version);
+    path(dest, relative);
+    uint64_t kernel_bytes = lstat(dest, &st) == 0 && S_ISREG(st.st_mode) ? 0 : p->files[0].size;
+    uint64_t bytes = kernel_bytes + 1024U * 1024U;
+    uint64_t blocks = bytes / space.f_frsize + (bytes % space.f_frsize != 0);
+    return space.f_bavail >= blocks;
+}
+
+#define KERNEL_DIR "boot/boot/kernels"
+#define KERNEL_LIMIT 256
+struct kernel_item {
+    char version[64];
+    uint64_t bytes;
+    int listed, protected, candidate;
+};
+struct clean_plan {
+    char *menu, *next;
+    size_t len;
+    mode_t mode;
+    struct kernel_item items[KERNEL_LIMIT];
+    size_t count;
+    uint64_t bytes;
+    int current, rollback;
+};
+
+static int kernel_revision(const char *v) {
+    for (int i = 0; i < 4; i++) {
+        if (*v < '0' || *v > '9' || (*v == '0' && v[1] >= '0' && v[1] <= '9')) {
+            return 0;
+        }
+        uint64_t n = 0;
+        while (*v >= '0' && *v <= '9') {
+            n = n * 10 + (unsigned)(*v++ - '0');
+            if (n > UINT32_MAX) {
+                return 0;
+            }
+        }
+        const char *sep = i < 2 ? "." : i == 2 ? "-r" : "";
+        size_t len = strlen(sep);
+        if (strncmp(v, sep, len)) {
+            return 0;
+        }
+        v += len;
+    }
+    return !*v;
+}
+
+static int same_release(const char *version, const char *release) {
+    size_t len = strlen(release);
+    return !strcmp(version, release) || (!strncmp(version, release, len) && !strncmp(version + len, "-r", 2));
+}
+
+static char *trim_line(char *line) {
+    while (*line == ' ' || *line == '\t') {
+        line++;
+    }
+    size_t n = strlen(line);
+    while (n && strchr(" \t\r", line[n - 1])) {
+        line[--n] = 0;
+    }
+    return line;
+}
+
+// procfs может сообщать нулевой st_size, читаем содержимое через read
+static int boot_identity(char *cmdline, char *release) {
+    char file[4096];
+    path(file, "proc/cmdline");
+    int fd = open(file, O_RDONLY | O_NOFOLLOW);
+    if (fd < 0) {
+        return 0;
+    }
+    size_t used = 0;
+    while (used < 4095) {
+        ssize_t n = read(fd, cmdline + used, 4095 - used);
+        if (n < 0 && errno == EINTR) {
+            continue;
+        }
+        if (n < 0) {
+            close(fd);
+            return 0;
+        }
+        if (!n) {
+            break;
+        }
+        used += (size_t)n;
+    }
+    close(fd);
+    if (!used || used == 4095 || memchr(cmdline, 0, used)) {
+        return 0;
+    }
+    if (cmdline[used - 1] == '\n') {
+        used--;
+    }
+    cmdline[used] = 0;
+    char *trimmed = trim_line(cmdline);
+    memmove(cmdline, trimmed, strlen(trimmed) + 1);
+    if (!*root) {
+        struct utsname uts;
+        if (uname(&uts) || strlen(uts.release) >= 64) {
+            return 0;
+        }
+        strcpy(release, uts.release);
+    } else {
+        path(file, "proc/version");
+        FILE *f = fopen(file, "r");
+        if (!f) {
+            return 0;
+        }
+        int found = fscanf(f, "SynapseOS version %63s", release);
+        fclose(f);
+        if (found != 1) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int boot_token(const char *cmdline, const char *key, char value[64]) {
+    size_t key_len = strlen(key);
+    value[0] = 0;
+    while (*cmdline) {
+        cmdline += strspn(cmdline, " \t");
+        size_t len = strcspn(cmdline, " \t");
+        if (len >= key_len && !memcmp(cmdline, key, key_len)) {
+            size_t n = len - key_len;
+            if (*value || !n || n >= 64) {
+                return 0;
+            }
+            memcpy(value, cmdline + key_len, n);
+            value[n] = 0;
+        }
+        cmdline += len;
+    }
+    return !*value || kernel_revision(value);
+}
+
+static uint64_t allocated_bytes(const struct stat *st, unsigned long unit, int synapse_fat) {
+    if (!synapse_fat) {
+        return (uint64_t)st->st_blocks * 512;
+    }
+    uint64_t n = (uint64_t)st->st_size;
+    return (n / unit + (n % unit != 0)) * unit;
+}
+
+// Удаляем только каталоги штатного формата, без симлинков, вложений и чужих файлов
+static int inspect_kernel(const char *full, unsigned long unit, int synapse_fat, uint64_t *bytes) {
+    struct stat directory, file;
+    if (lstat(full, &directory) || !S_ISDIR(directory.st_mode)) {
+        return 0;
+    }
+    DIR *d = opendir(full);
+    if (!d) {
+        return 0;
+    }
+    int count = 0, invalid = 0;
+    struct dirent *e;
+    for (;;) {
+        errno = 0;
+        e = readdir(d);
+        if (!e) {
+            invalid |= errno != 0;
+            break;
+        }
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) {
+            continue;
+        }
+        char payload[4096];
+        join_path(payload, sizeof payload, full, "kernel");
+        if (strcmp(e->d_name, "kernel") || lstat(payload, &file) || !S_ISREG(file.st_mode) ||
+            file.st_nlink != 1 || file.st_size <= 0 || file.st_dev != directory.st_dev) {
+            invalid = 1;
+            break;
+        }
+        count++;
+    }
+    closedir(d);
+    if (invalid || count != 1) {
+        return 0;
+    }
+    *bytes = allocated_bytes(&file, unit, synapse_fat) + allocated_bytes(&directory, unit, synapse_fat);
+    return 1;
+}
+
+static const char *next_boot_entry(const char *p) {
+    for (; *p; p++) {
+        if (*p == '\n' && p[1] == '/') {
+            return p + 1;
+        }
+    }
+    return p;
+}
+
+// Разбираем только плоское меню с первой записью по умолчанию
+// Неизвестные поля и любые ссылки из других записей защищают версию
+static int parse_boot_entry(char *entry, struct clean_plan *plan, const char *cmdline,
+                            const char *release, int *running, int *base) {
+    int id = -1, paths = 0, protocol = 0, commands = 0, matched = 0, recovery = 0, extra = 0;
+    int base_path = 0, other_path = 0;
+    char *cursor = entry;
+    char *title = trim_line(strsep(&cursor, "\n"));
+    if (strcasestr(title, "recovery") || strcasestr(title, "rescue")) {
+        recovery = 1;
+    }
+    for (char *line; (line = strsep(&cursor, "\n")) != NULL;) {
+        line = trim_line(line);
+        if (!strncmp(line, "path:", 5)) {
+            const char *value = trim_line(line + 5);
+            paths++;
+            if (!strcmp(value, "boot():/boot/kernel")) {
+                base_path = 1;
+            } else if (!strcmp(value, "boot():/boot/kernel.pre-necro")) {
+                other_path = 1;
+            }
+            static const char prefix[] = "boot():/boot/kernels/";
+            if (!base_path && !other_path) {
+                const char *leaf = strncmp(value, prefix, sizeof prefix - 1) ? NULL : value + sizeof prefix - 1;
+                const char *suffix = leaf ? strchr(leaf, '/') : NULL;
+                char version[64];
+                if (!suffix || suffix == leaf || (size_t)(suffix - leaf) >= sizeof version ||
+                    strcmp(suffix, "/kernel")) {
+                    return -2;
+                }
+                memcpy(version, leaf, (size_t)(suffix - leaf));
+                version[suffix - leaf] = 0;
+                if (!kernel_revision(version)) {
+                    return -2;
+                }
+            }
+            for (size_t j = 0; j < plan->count; j++) {
+                char expected[128];
+                snprintf(expected, sizeof expected, "boot():/boot/kernels/%s/kernel", plan->items[j].version);
+                if (!strcmp(value, expected)) {
+                    id = (int)j;
+                    break;
+                }
+            }
+        } else if (!strcmp(line, "protocol: limine")) {
+            protocol++;
+        } else if (!strncmp(line, "cmdline:", 8)) {
+            commands++;
+            matched = !strcmp(trim_line(line + 8), cmdline);
+        } else if (*line == '/' || !strncmp(line, "module_path:", 12)) {
+            return -2;
+        } else if (*line && strncmp(line, "comment:", 8) && strncmp(line, "kaslr:", 6)) {
+            extra = 1;
+        }
+    }
+    if (paths != 1 || protocol != 1) {
+        return -2;
+    }
+    *base = base_path;
+    if ((base_path || other_path || id < 0) && commands == 1 && matched) {
+        *running = 1;
+    }
+    if (id >= 0) {
+        struct kernel_item *k = &plan->items[id];
+        k->listed = 1;
+        if (commands == 1 && matched && same_release(k->version, release)) {
+            *running = 1;
+        }
+        char expected[96];
+        snprintf(expected, sizeof expected, "/SynapseOS %s", k->version);
+        if (!recovery && !extra && commands <= 1 && !strcmp(title, expected)) {
+            return id;
+        }
+    }
+    return -1;
+}
+
+static void free_clean_plan(struct clean_plan *plan) {
+    free(plan->menu);
+    free(plan->next);
+    free(plan);
+}
+
+static int has_boot_default(const char *menu, const char *end) {
+    int defaults = 0;
+    while (menu < end) {
+        const char *line_end = strchr(menu, '\n');
+        if (!line_end || line_end > end) {
+            line_end = end;
+        }
+        while (menu < line_end && (*menu == ' ' || *menu == '\t')) {
+            menu++;
+        }
+        if (!strncmp(menu, "default_entry:", 14)) {
+            const char *value = menu + 14;
+            while (value < line_end && (*value == ' ' || *value == '\t')) {
+                value++;
+            }
+            if (value == line_end || *value++ != '1') {
+                return 0;
+            }
+            while (value < line_end && strchr(" \t\r", *value)) {
+                value++;
+            }
+            if (value != line_end || ++defaults > 1) {
+                return 0;
+            }
+        }
+        menu = line_end < end ? line_end + 1 : end;
+    }
+    return 1;
+}
+
+// Подсказка не должна прерывать установку пакетов при недоступном меню
+static char *read_boot_file(const char *path_name, size_t limit, size_t *len) {
+    int fd = open(path_name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
+    if (fd < 0) {
+        return NULL;
+    }
+    struct stat st;
+    if (fstat(fd, &st) || !S_ISREG(st.st_mode) || st.st_size <= 0 || (uint64_t)st.st_size > limit) {
+        close(fd);
+        return NULL;
+    }
+    char *buf = malloc((size_t)st.st_size + 1);
+    if (!buf) {
+        close(fd);
+        return NULL;
+    }
+    *len = 0;
+    while (*len < (size_t)st.st_size) {
+        ssize_t n = read(fd, buf + *len, (size_t)st.st_size - *len);
+        if (n < 0 && errno == EINTR) {
+            continue;
+        }
+        if (n <= 0) {
+            break;
+        }
+        *len += (size_t)n;
+    }
+    char extra;
+    int valid = *len == (size_t)st.st_size && read(fd, &extra, 1) == 0 && !memchr(buf, 0, *len);
+    close(fd);
+    if (!valid) {
+        free(buf);
+        return NULL;
+    }
+    buf[*len] = 0;
+    return buf;
+}
+
+static int boot_directory(const char *relative) {
+    char file[4096];
+    struct stat st;
+    path(file, relative);
+    return !lstat(file, &st) && S_ISDIR(st.st_mode);
+}
+
+static int build_clean_plan(struct clean_plan *plan, int update_probe) {
+    char file[4096], cmdline[4096], release[64], marker[64] = "";
+    if (!boot_identity(cmdline, release) || !boot_directory("boot") || !boot_directory("boot/boot") ||
+        !boot_directory(KERNEL_DIR) || !boot_directory("boot/boot/limine")) {
+        return 0;
+    }
+    char actual[64], previous[64];
+    if (!boot_token(cmdline, "setup_kernel=", actual) || !boot_token(cmdline, "setup_rollback=", previous)) {
+        return 0;
+    }
+    path(file, "boot/syngitf.txt");
+    size_t len;
+    char *metadata = read_boot_file(file, 4096, &len);
+    if (!metadata) {
+        return 0;
+    }
+    int valid = 1;
+    char *cursor = metadata;
+    for (char *line; (line = strsep(&cursor, "\n")) != NULL;) {
+        if (!strncmp(line, "version=", 8)) {
+            const char *v = trim_line(line + 8);
+            if (*marker || strlen(v) >= sizeof marker || !*v) {
+                valid = 0;
+                break;
+            }
+            strcpy(marker, v);
+        }
+    }
+    free(metadata);
+    if (!valid || !kernel_revision(marker) || !same_release(marker, release) || (*actual && strcmp(actual, marker))) {
+        return 0;
+    }
+
+    struct statvfs space;
+    struct statfs fs;
+    path(file, "boot");
+    if (statvfs(file, &space) || !space.f_frsize || statfs(file, &fs)) {
+        return 0;
+    }
+    int synapse_fat = !*root && fs.f_type == 0x4d44;
+    path(file, KERNEL_DIR);
+    DIR *dir = opendir(file);
+    if (!dir) {
+        return 0;
+    }
+    for (;;) {
+        errno = 0;
+        struct dirent *e = readdir(dir);
+        if (!e) {
+            int error = errno;
+            closedir(dir);
+            if (error) {
+                return 0;
+            }
+            break;
+        }
+        if (strlen(e->d_name) >= sizeof marker || !kernel_revision(e->d_name)) {
+            continue;
+        }
+        if (plan->count == KERNEL_LIMIT) {
+            closedir(dir);
+            return 0;
+        }
+        char full[4096];
+        join_path(full, sizeof full, file, e->d_name);
+        struct kernel_item *k = &plan->items[plan->count];
+        if (inspect_kernel(full, space.f_frsize, synapse_fat, &k->bytes)) {
+            strcpy(k->version, e->d_name);
+            plan->count++;
+        }
+    }
+
+    path(file, boot_config_path);
+    struct stat st;
+    if (lstat(file, &st) || !S_ISREG(st.st_mode)) {
+        return 0;
+    }
+    plan->mode = st.st_mode & 0777;
+    plan->menu = read_boot_file(file, 65536, &len);
+    if (!plan->menu || strchr(plan->menu, '~') || strstr(plan->menu, "..") ||
+        strstr(plan->menu, SESSION_BEGIN)) {
+        return 0;
+    }
+    const char *first = plan->menu[0] == '/' ? plan->menu : next_boot_entry(plan->menu);
+    if (!*first || !has_boot_default(plan->menu, first)) {
+        return 0;
+    }
+    int current = -1, recovery = 0, running_entries = 0;
+    for (size_t j = 0; j < plan->count; j++) {
+        const char *ref = strcasestr(plan->menu, plan->items[j].version);
+        if (ref && ref < first) {
+            plan->items[j].protected = 1;
+        }
+    }
+    for (const char *entry = first; *entry;) {
+        if (entry[1] == '/') {
+            return 0;
+        }
+        const char *end = next_boot_entry(entry);
+        size_t size = (size_t)(end - entry);
+        char *raw = strndup(entry, size);
+        char *copy = strndup(entry, size);
+        if (!raw || !copy) {
+            fail("out of memory");
+        }
+        int running = 0, base = 0;
+        int id = parse_boot_entry(copy, plan, cmdline, release, &running, &base);
+        free(copy);
+        if (id == -2) {
+            free(raw);
+            return 0;
+        }
+        running_entries += running;
+        if (entry == first) {
+            // Маркер установки не доказывает, что ядро уже загружено
+            if (!running || id < 0 || strcmp(plan->items[id].version, marker)) {
+                free(raw);
+                return 0;
+            }
+            current = id;
+        }
+        recovery |= base;
+        for (size_t j = 0; j < plan->count; j++) {
+            if (((int)j != id && strcasestr(raw, plan->items[j].version)) ||
+                (running && (int)j == id)) {
+                plan->items[j].protected = 1;
+            }
+        }
+        free(raw);
+        entry = end;
+    }
+    path(file, "boot/boot/kernel");
+    if (current < 0 || running_entries != 1) {
+        return 0;
+    }
+    plan->current = current;
+    if (update_probe) {
+        return 1;
+    }
+    if (!*actual || !*previous || !recovery || lstat(file, &st) || !S_ISREG(st.st_mode) || st.st_size <= 0) {
+        return 0;
+    }
+
+    int rollback = -1;
+    for (size_t j = 0; j < plan->count; j++) {
+        struct kernel_item *k = &plan->items[j];
+        if (k->listed && !strcmp(k->version, previous) && version_cmp(k->version, marker) < 0) {
+            rollback = (int)j;
+        }
+    }
+    if (rollback < 0) {
+        return 0;
+    }
+    plan->current = current;
+    plan->rollback = rollback;
+    plan->items[rollback].protected = 1;
+    for (size_t j = 0; j < plan->count; j++) {
+        struct kernel_item *k = &plan->items[j];
+        if (k->listed && !k->protected && version_cmp(k->version, previous) < 0) {
+            k->candidate = 1;
+            plan->bytes += k->bytes;
+        }
+    }
+
+    plan->next = malloc(len + 1);
+    if (!plan->next) {
+        fail("out of memory");
+    }
+    plan->len = (size_t)(first - plan->menu);
+    memcpy(plan->next, plan->menu, plan->len);
+    for (const char *entry = first; *entry;) {
+        const char *end = next_boot_entry(entry);
+        size_t size = (size_t)(end - entry);
+        char *copy = strndup(entry, size);
+        if (!copy) {
+            fail("out of memory");
+        }
+        int running = 0, base = 0;
+        int id = parse_boot_entry(copy, plan, cmdline, release, &running, &base);
+        free(copy);
+        if (id < 0 || !plan->items[id].candidate) {
+            memcpy(plan->next + plan->len, entry, size);
+            plan->len += size;
+        }
+        entry = end;
+    }
+    plan->next[plan->len] = 0;
+    return 1;
+}
+
+void kernel_clean_hint(void) {
+    struct clean_plan *plan = calloc(1, sizeof *plan);
+    if (plan && build_clean_plan(plan, 0) && plan->bytes) {
+        fprintf(stderr, "Run setup clean-kernels --dry-run: %" PRIu64 " bytes can be freed in /boot\n",
+                plan->bytes);
+    } else {
+        fputs("Run setup clean-kernels --dry-run to inspect /boot; no reclaimable space confirmed\n", stderr);
+    }
+    if (plan) {
+        free_clean_plan(plan);
+    }
+}
+
+void clean_kernels(void) {
+    struct clean_plan *plan = calloc(1, sizeof *plan);
+    if (!plan) {
+        fail("out of memory");
+    }
+    if (!build_clean_plan(plan, 0)) {
+        free_clean_plan(plan);
+        fail("cannot confirm running kernel, rollback and recovery from the boot menu; nothing removed");
+    }
+    printf("Running kernel (protected): %s\nRollback kernel (protected): %s\nRecovery entries: protected\n",
+           plan->items[plan->current].version, plan->items[plan->rollback].version);
+    for (size_t j = 0; j < plan->count; j++) {
+        const struct kernel_item *k = &plan->items[j];
+        if (k->candidate) {
+            printf("Obsolete: %s (%" PRIu64 " allocated bytes)\n", k->version, k->bytes);
+        }
+    }
+    printf("Reclaimable from kernel directories: %" PRIu64 " bytes\n", plan->bytes);
+    if (dry_run || !plan->bytes) {
+        free_clean_plan(plan);
+        return;
+    }
+    if (!yes) {
+        char answer[32];
+        fprintf(stderr, "Remove these kernels? [y/N] ");
+        if (!fgets(answer, sizeof answer, stdin) || (answer[0] != 'y' && answer[0] != 'Y')) {
+            free_clean_plan(plan);
+            fail("cancelled");
+        }
+    }
+
+    char file[4096], temporary[4096];
+    path(file, boot_config_path);
+    size_t len;
+    char *current = read_bytes(file, 65536, &len);
+    if (len != strlen(plan->menu) || memcmp(current, plan->menu, len)) {
+        fail("boot menu changed; nothing removed");
+    }
+    free(current);
+    if (strcmp(plan->menu, plan->next)) {
+        path(temporary, "boot/boot/limine/limine.conf.setup-clean");
+        int fd = open(temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, plan->mode);
+        if (fd < 0) {
+            fail("cannot stage boot menu: %s", strerror(errno));
+        }
+        FILE *output = fdopen(fd, "wb");
+        if (!output) {
+            close(fd);
+            unlink(temporary);
+            fail("cannot open staged boot menu");
+        }
+        int error = fwrite(plan->next, 1, plan->len, output) != plan->len ||
+                    fflush(output) || fchmod(fd, plan->mode) || fsync(fd);
+        if (fclose(output) || error || rename(temporary, file)) {
+            unlink(temporary);
+            fail("cannot replace boot menu; no kernels removed");
+        }
+    }
+    // Меню должно быть записано на диск до удаления файлов, на которые оно ссылалось
+    sync_parent(file);
+    char directory[4096];
+    path(directory, KERNEL_DIR);
+    for (size_t j = 0; j < plan->count; j++) {
+        if (!plan->items[j].candidate) {
+            continue;
+        }
+        char full[4096], payload[4096];
+        join_path(full, sizeof full, directory, plan->items[j].version);
+        join_path(payload, sizeof payload, full, "kernel");
+        if (unlink(payload) || rmdir(full)) {
+            fail("cannot remove obsolete kernel %s: %s", plan->items[j].version, strerror(errno));
+        }
+        sync_parent(full);
+    }
+    free_clean_plan(plan);
+}
+
 // Ядро хранится в отдельном каталоге версии на корневой файловой системе
 // Обновление ядра и загрузочного маркера разрешено только официальному пакету
 static void plan_kernel(struct package *p, int index) {
@@ -423,8 +1068,7 @@ static void plan_kernel(struct package *p, int index) {
         }
     }
 
-    char full[4096], boot[4096];
-    path(boot, "boot");
+    char full[4096];
     path(full, "boot/syngitf.txt");
     size_t marker_len;
     char *marker = read_bytes(full, 4096, &marker_len);
@@ -470,6 +1114,16 @@ static void plan_kernel(struct package *p, int index) {
                      "version=%s\n", p->version);
     }
     free(marker);
+    char previous[64] = "";
+    if (!*root) {
+        struct clean_plan *plan = calloc(1, sizeof *plan);
+        if (plan && build_clean_plan(plan, 1) && version_cmp(plan->items[plan->current].version, p->version) < 0) {
+            strcpy(previous, plan->items[plan->current].version);
+        }
+        if (plan) {
+            free_clean_plan(plan);
+        }
+    }
     path(full, boot_config_path);
     size_t len;
     char *config = read_bytes(full, 65536, &len);
@@ -517,7 +1171,7 @@ static void plan_kernel(struct package *p, int index) {
     size_t used = first;
     used +=
         snprintf(boot_config + used, capacity - used, "/SynapseOS %s\n", p->version);
-    int replaced_path = 0, limine_protocol = 0;
+    int replaced_path = 0, limine_protocol = 0, has_cmdline = 0;
     for (size_t pos = title_end < len ? title_end + 1 : len; pos < section_end;) {
         size_t end = pos;
         while (end < section_end && config[end] != '\n') {
@@ -535,6 +1189,29 @@ static void plan_kernel(struct package *p, int index) {
             used += snprintf(boot_config + used, capacity - used,
                              "    path: boot():/boot/kernels/%s/kernel\n", p->version);
             replaced_path++;
+        } else if (end - trim >= 8 && !memcmp(config + trim, "cmdline:", 8)) {
+            if (has_cmdline++) {
+                fail("first boot entry contains multiple command lines");
+            }
+            used += snprintf(boot_config + used, capacity - used, "    cmdline:");
+            for (size_t j = trim + 8; j < end;) {
+                while (j < end && strchr(" \t\r", config[j])) {
+                    j++;
+                }
+                size_t start = j;
+                while (j < end && !strchr(" \t\r", config[j])) {
+                    j++;
+                }
+                if (j > start && (j - start < 13 || memcmp(config + start, "setup_kernel=", 13)) &&
+                    (j - start < 15 || memcmp(config + start, "setup_rollback=", 15))) {
+                    used += snprintf(boot_config + used, capacity - used, " %.*s", (int)(j - start), config + start);
+                }
+            }
+            used += snprintf(boot_config + used, capacity - used, " setup_kernel=%s", p->version);
+            if (*previous) {
+                used += snprintf(boot_config + used, capacity - used, " setup_rollback=%s", previous);
+            }
+            boot_config[used++] = '\n';
         } else {
             size_t count = end - pos + (end < section_end);
             memcpy(boot_config + used, config + pos, count);
@@ -544,6 +1221,16 @@ static void plan_kernel(struct package *p, int index) {
     }
     if (!limine_protocol || replaced_path != 1) {
         fail("first boot entry must contain one Limine kernel path");
+    }
+    if (!has_cmdline) {
+        if (used && boot_config[used - 1] != '\n') {
+            boot_config[used++] = '\n';
+        }
+        used += snprintf(boot_config + used, capacity - used, "    cmdline: setup_kernel=%s", p->version);
+        if (*previous) {
+            used += snprintf(boot_config + used, capacity - used, " setup_rollback=%s", previous);
+        }
+        boot_config[used++] = '\n';
     }
     if (used && boot_config[used - 1] != '\n') {
         boot_config[used++] = '\n';
@@ -572,9 +1259,8 @@ static void plan_kernel(struct package *p, int index) {
         }
     }
 
-    struct statvfs space;
-    if (!statvfs(boot, &space) && space.f_frsize &&
-        space.f_bavail < (p->files[0].size + 1024 * 1024) / space.f_frsize + 1) {
+    if (!kernel_boot_has_space(p)) {
+        kernel_clean_hint();
         fail("insufficient space on boot partition");
     }
     if (!kernel_exists) {
@@ -772,15 +1458,34 @@ void transact(void) {
                     }
                     strcat(relative, ".setup-new");
                     path(full, relative);
-                    if (!lstat(full, &st)) {
-                        if (S_ISREG(st.st_mode)) {
+                    int already_staged = 0;
+                    size_t companion_len = strlen(relative);
+                    for (int alternate = 0;; alternate++) {
+                        if (lstat(full, &st)) {
+                            if (errno != ENOENT) {
+                                fail("cannot inspect config companion: %s", relative);
+                            }
+                            if (old_owner(relative) < 0) {
+                                break;
+                            }
+                        } else if (S_ISREG(st.st_mode) && old_owner(relative) < 0) {
                             sha_file(full, h);
                             if (!strcmp(h, f->hash)) {
-                                continue;
+                                already_staged = 1;
+                                break;
                             }
                         }
-                        fail("config companion exists: %s", relative);
+                        if (alternate >= 999 ||
+                            snprintf(relative + companion_len, sizeof relative - companion_len,
+                                     ".%d", alternate + 1) >= (int)(sizeof relative - companion_len)) {
+                            fail("no available config companion path: %s", f->path);
+                        }
+                        path(full, relative);
                     }
+                    if (already_staged) {
+                        continue;
+                    }
+                    fprintf(stderr, "Preserving %s; new package configuration: %s\n", f->path, relative);
                 }
             }
 

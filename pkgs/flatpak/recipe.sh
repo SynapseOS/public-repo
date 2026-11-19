@@ -272,7 +272,7 @@ export PKG_CONFIG_LIBDIR="$sysroot/usr/lib/pkgconfig"
 export PKG_CONFIG_SYSROOT_DIR="$sysroot"
 
 meson setup "$work/build" "$source" --wipe --cross-file "$work/cross.ini" \
-	--prefix=/usr --bindir=/bin --libdir=lib --buildtype=release --wrap-mode=nofallback \
+	--prefix=/usr --bindir=/bin --libdir=lib --sysconfdir=/etc --buildtype=release --wrap-mode=nofallback \
 	-Ddefault_library=static -Dtests=false -Dinstalled_tests=false \
 	-Dsystem_helper=disabled -Dsystemd=disabled -Ddconf=disabled \
 	-Dmalcontent=disabled -Dlibzstd=disabled -Dgir=disabled -Dgtkdoc=disabled \
@@ -287,6 +287,8 @@ ninja -C "$work/build" -j"$JOBS" app/flatpak portal/flatpak-portal \
 copy "$work/build/app/flatpak" bin/flatpak
 copy "$port/uname-linux.sh" usr/libexec/flatpak/uname-linux
 chmod 755 "$payload/usr/libexec/flatpak/uname-linux"
+copy "$port/flathub.flatpakrepo" etc/flatpak/remotes.d/flathub.flatpakrepo
+chmod 644 "$payload/etc/flatpak/remotes.d/flathub.flatpakrepo"
 copy "$work/build/portal/flatpak-portal" usr/libexec/flatpak-portal
 copy "$work/build/session-helper/flatpak-session-helper" usr/libexec/flatpak-session-helper
 copy "$work/build/portal/org.freedesktop.portal.Flatpak.service" \

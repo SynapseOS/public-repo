@@ -1,0 +1,7 @@
+{
+  "name": "nodejs22",
+  "upstream_version": "22.23.5",
+  "source": "https://nodejs.org/dist/v22.23.5/node-v22.23.5-linux-x64-musl.tar.xz",
+  "sha256": "aef6690916d4b4210b55618ea0beeb927d67184257879b1ebec6e309285f3c08",
+  "source_directory": "node-v22.23.5-linux-x64-musl"
+}

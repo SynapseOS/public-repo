@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "name": "nodejs",
+  "version": "20.20.2-r1",
+  "description": "Node.js 20 LTS runtime, npm and npx",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.949-r1",
+    "glibc >= 2.44.0-r6",
+    "bash >= 5.3.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/node",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/nodejs/libgcc_s.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/nodejs/libstdc++.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/nodejs/node",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nodejs/GCC-copyright",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nodejs/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "name": "postgresql",
+  "version": "16.16.0-r2",
+  "description": "PostgreSQL 16 server and client",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.949-r1",
+    "musl-runtime >= 0.0.0-r948"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "etc/services/postgres",
+      "type": "file",
+      "mode": 436,
+      "config": true
+    },
+    {
+      "path": "usr/lib/postgresql/16/bin/initdb",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/postgresql/16/bin/pg_ctl",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/postgresql/16/bin/postgres",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/postgresql/16/bin/psql",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/libexec/postgres-start",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    }
+  ]
+}

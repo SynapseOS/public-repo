@@ -1,0 +1,10 @@
+{
+  "name": "postgresql",
+  "upstream_version": "16.16",
+  "source": "https://ftp.postgresql.org/pub/source/v16.16/postgresql-16.16.tar.bz2",
+  "sha256": "9d5cd8633043b75740d5d59749c6b7365e6aeb53c47098b1a5e80bb18f87881a",
+  "source_directory": "postgresql-16.16",
+  "patches": [
+    "musl-no-linux-fs.patch"
+  ]
+}

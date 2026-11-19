@@ -1,0 +1,12 @@
+--- a/src/bin/pg_upgrade/file.c
++++ b/src/bin/pg_upgrade/file.c
+@@ -16,7 +16,9 @@
+ #endif
+ #ifdef __linux__
+ #include <sys/ioctl.h>
++#if __has_include(<linux/fs.h>)
+ #include <linux/fs.h>
++#endif
+ #endif
+ 
+ #include "access/visibilitymapdefs.h"

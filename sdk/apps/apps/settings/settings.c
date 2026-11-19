@@ -11,6 +11,7 @@
 #define _GNU_SOURCE
 #include "../common/settings/settings.h"
 #include <synapse/gpu.h>
+#include <lumine/wifi.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -19,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 static struct termios saved;
@@ -98,14 +100,252 @@ static bool dirty(struct settings *s) {
     return false;
 }
 static const char *const category_names_en[] = {
-    "General", "Display", "Network", "Services", "Privacy"
+    "General", "Display", "Network", "Services", "Privacy", "Wi-Fi"
 };
 
 static const char *const category_names_ru[] = {
-    "Общие", "Экран", "Сеть", "Службы", "Приватность"
+    "Общие", "Экран", "Сеть", "Службы", "Приватность", "Wi-Fi"
 };
 
-#define CATEGORY_COUNT 5
+#define CATEGORY_COUNT 6
+
+static struct syn_wifi_scan wifi_networks = {.version = SYN_WIFI_ABI_VERSION};
+
+static unsigned wifi_count(void) {
+    return wifi_networks.count <= SYN_WIFI_SCAN_LIMIT ? wifi_networks.count : 0U;
+}
+
+static void wifi_wipe(void *memory, size_t size) {
+    volatile uint8_t *bytes = memory;
+
+    while (size--) {
+        *bytes++ = 0U;
+    }
+}
+
+static void wifi_text(const uint8_t *data, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        unsigned c = data[i];
+        putchar(c >= 32U && c <= 126U && c != '\\' ? (int)c : '?');
+    }
+}
+
+static bool wifi_profile_store(const struct syn_wifi_connect *connection) {
+    if (mkdir("/etc/network", 0755) < 0 && errno != EEXIST) {
+        return false;
+    }
+
+    char temporary[80];
+    snprintf(temporary, sizeof(temporary), "/etc/network/wifi.conf.tmp.%ld", (long)getpid());
+    int fd = open(temporary, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
+
+    if (fd < 0) {
+        return false;
+    }
+
+    char text[256];
+    size_t used = 0;
+    static const char digits[] = "0123456789abcdef";
+    const char *names[] = {"ssid=", "password="};
+    const uint8_t *values[] = {connection->ssid, connection->password};
+    size_t lengths[] = {connection->ssid_length, connection->password_length};
+
+    for (unsigned field = 0; field < 2U; field++) {
+        size_t name_length = strlen(names[field]);
+        memcpy(text + used, names[field], name_length);
+        used += name_length;
+
+        for (size_t i = 0; i < lengths[field]; i++) {
+            text[used++] = digits[values[field][i] >> 4U];
+            text[used++] = digits[values[field][i] & 15U];
+        }
+
+        text[used++] = '\n';
+    }
+
+    size_t position = 0;
+
+    while (position < used) {
+        ssize_t count = write(fd, text + position, used - position);
+
+        if (count < 0 && errno == EINTR) {
+            continue;
+        }
+
+        if (count <= 0) {
+            break;
+        }
+
+        position += (size_t)count;
+    }
+
+    bool okay = position == used && fsync(fd) == 0;
+    wifi_wipe(text, sizeof(text));
+
+    if (close(fd) != 0) {
+        okay = false;
+    }
+
+    if (okay) {
+        okay = rename(temporary, "/etc/network/wifi.conf") == 0;
+    }
+
+    if (!okay) {
+        unlink(temporary);
+    }
+
+    return okay;
+}
+
+static void wifi_draw(bool ru, int selection, int top, int rows, const char *status) {
+    struct syn_wifi_status state = {.version = SYN_WIFI_ABI_VERSION};
+    int fd = open("/dev/wifi", O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+    bool available = fd >= 0 && ioctl(fd, SYN_WIFI_IOCTL_STATUS, &state) == 0 &&
+                     state.version == SYN_WIFI_ABI_VERSION;
+
+    printf("\033[H\033[2J\033[1;36m%s\033[0m   [ru/en]\n",
+           ru ? "Настройки системы" : "System settings");
+
+    for (int c = 0; c < CATEGORY_COUNT; c++) {
+        printf("%s%s\033[0m  ", c == 5 ? "\033[7m" : "", ru ? category_names_ru[c] : category_names_en[c]);
+    }
+
+    printf("\n\n%s: %s\n", ru ? "Адаптер" : "Adapter",
+           !available ? (ru ? "не найден" : "not found") : state.enabled ? "on" : "off");
+
+    if (available && state.associated && state.ssid_length <= SYN_WIFI_SSID_LIMIT) {
+        printf("%s: ", ru ? "Подключено" : "Connected");
+        wifi_text(state.ssid, state.ssid_length);
+
+        if (state.ready) {
+            printf(" (%u.%u.%u.%u)", state.ipv4 >> 24U, (state.ipv4 >> 16U) & 255U,
+                   (state.ipv4 >> 8U) & 255U, state.ipv4 & 255U);
+        } else {
+            printf(" (%s)", ru ? "Получение IP-адреса..." : "Getting IP address...");
+        }
+
+        putchar('\n');
+    }
+
+    for (int row = 0; row < rows && top + row < (int)wifi_count() + 3; row++) {
+        int position = top + row;
+        printf("%s", position == selection ? "\033[7m" : "");
+
+        if (position == 0) {
+            printf("%s", ru ? "Сканировать" : "Scan");
+        } else if (position == 1) {
+            printf("%s", ru ? "Включить / выключить" : "Turn on / off");
+        } else if (position == 2) {
+            printf("%s", ru ? "Отключиться" : "Disconnect");
+        } else {
+            const struct syn_wifi_bss *network = &wifi_networks.entries[position - 3];
+            unsigned signal = (unsigned)((network->rssi_dbm + 100) * 2);
+
+            if (signal > 100U) {
+                signal = network->rssi_dbm < -100 ? 0U : 100U;
+            }
+
+            wifi_text(network->ssid, network->ssid_length <= SYN_WIFI_SSID_LIMIT ? network->ssid_length : 0U);
+            printf("  %u%%  ch %u  %s", signal, network->channel,
+                   network->security == SYN_WIFI_SECURITY_WPA2_PSK ? "WPA2-PSK" : "Open");
+        }
+
+        fputs("\033[0m\033[K\n", stdout);
+    }
+
+    printf("\033[%d;1H%s\033[K\n%s\033[K", rows + 7,
+           ru ? "←/→: раздел   ↑/↓: выбор   Enter: действие   Q: выход"
+              : "Left/Right: category   Up/Down: select   Enter: action   Q: quit", status);
+    fflush(stdout);
+
+    if (fd >= 0) {
+        close(fd);
+    }
+}
+
+static void wifi_action(bool ru, int selection, int row, char status[256]) {
+    int fd = open("/dev/wifi", O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+
+    if (fd < 0) {
+        snprintf(status, 256, "%s", ru ? "Адаптер Wi-Fi не найден" : "Wi-Fi adapter not found");
+        return;
+    }
+
+    int result = -1;
+
+    if (selection == 0) {
+        wifi_networks = (struct syn_wifi_scan){.version = SYN_WIFI_ABI_VERSION};
+        result = ioctl(fd, SYN_WIFI_IOCTL_SCAN, &wifi_networks);
+
+        if (result == 0 && wifi_networks.count > SYN_WIFI_SCAN_LIMIT) {
+            result = -1;
+        }
+    } else if (selection == 1) {
+        struct syn_wifi_status state = {.version = SYN_WIFI_ABI_VERSION};
+        struct syn_wifi_enabled enabled = {.version = SYN_WIFI_ABI_VERSION};
+
+        if (ioctl(fd, SYN_WIFI_IOCTL_STATUS, &state) == 0) {
+            enabled.enabled = !state.enabled;
+            result = ioctl(fd, SYN_WIFI_IOCTL_SET_ENABLED, &enabled);
+        }
+    } else if (selection == 2) {
+        result = ioctl(fd, SYN_WIFI_IOCTL_DISCONNECT, 0);
+    } else if ((unsigned)(selection - 3) < wifi_count()) {
+        const struct syn_wifi_bss *network = &wifi_networks.entries[selection - 3];
+
+        if (!network->ssid_length || network->ssid_length > SYN_WIFI_SSID_LIMIT ||
+            network->security > SYN_WIFI_SECURITY_WPA2_PSK) {
+            close(fd);
+            snprintf(status, 256, "%s", ru ? "Некорректная сеть" : "Invalid network");
+            return;
+        }
+
+        struct syn_wifi_connect connection = {.version = SYN_WIFI_ABI_VERSION};
+        connection.ssid_length = network->ssid_length;
+        memcpy(connection.ssid, network->ssid, connection.ssid_length);
+
+        if (network->security == SYN_WIFI_SECURITY_WPA2_PSK) {
+            printf("\033[%d;1H\033[K%s: \033[?25h", row,
+                   ru ? "Пароль Wi-Fi" : "Wi-Fi password");
+            fflush(stdout);
+            int key;
+
+            while ((key = input()) >= 0 && key != '\r' && key != '\n' && key != 27) {
+                if (key == 127 || key == 8) {
+                    if (connection.password_length) {
+                        connection.password_length--;
+                        fputs("\b \b", stdout);
+                    }
+                } else if (key >= 32 && key < 127 && connection.password_length < SYN_WIFI_PASSWORD_LIMIT) {
+                    connection.password[connection.password_length++] = (uint8_t)key;
+                    putchar('*');
+                }
+
+                fflush(stdout);
+            }
+
+            fputs("\033[?25l", stdout);
+
+            if (key == 27 || connection.password_length < 8U) {
+                wifi_wipe(&connection, sizeof(connection));
+                close(fd);
+                return;
+            }
+        }
+
+        result = ioctl(fd, SYN_WIFI_IOCTL_CONNECT, &connection);
+
+        if (result == 0 && !wifi_profile_store(&connection)) {
+            result = -1;
+        }
+        wifi_wipe(&connection, sizeof(connection));
+    }
+
+    snprintf(status, 256, "%s",
+             result == 0 ? (ru ? "Готово" : "Done")
+                         : (ru ? "Операция Wi-Fi не выполнена" : "Wi-Fi operation failed"));
+    close(fd);
+}
 
 // Найти категорию настройки по её разделу
 static int setting_category(int index) {
@@ -314,7 +554,11 @@ int main(int argc, char **argv) {
         if (selected >= top + rows) {
             top = selected - rows + 1;
         }
-        draw(&s, category, selected, top, rows, status);
+        if (category == 5) {
+            wifi_draw(s.ru, selected, top, rows, status);
+        } else {
+            draw(&s, category, selected, top, rows, status);
+        }
         int c = input();
         if (c < 0) {
             break;
@@ -328,15 +572,25 @@ int main(int argc, char **argv) {
                 selected--;
             }
         } else if (c == 1002 || c == '\t') {
-            if (selected < category_size(category) - 1) {
+            int count = category == 5 ? (int)wifi_count() + 3 : category_size(category);
+            if (selected < count - 1) {
                 selected++;
             } else {
                 selected = 0;
             }
         } else if (c == '\r' || c == '\n') {
-            int index = category_setting(category, selected);
-            if (index >= 0) {
-                edit(&s, index, rows + 6);
+            if (category == 5) {
+                wifi_action(s.ru, selected, rows + 6, status);
+
+                if (selected >= (int)wifi_count() + 3) {
+                    selected = 0;
+                    top = 0;
+                }
+            } else {
+                int index = category_setting(category, selected);
+                if (index >= 0) {
+                    edit(&s, index, rows + 6);
+                }
             }
         } else if (c == 's' || c == 'S' || c == 19) {
             int display = settings_find("Display", "Resolution");

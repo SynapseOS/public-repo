@@ -5,7 +5,7 @@
 // Построение плана установки с учётом конфликтов и установленных версий
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 23.10.2026
+// Последнее изменение: 13.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -130,6 +130,8 @@ static struct {
     int explicit, upgrade;
 } requests[MAXPKG];
 static int nrequest, steps;
+static int kernel_requested;
+static int kernel_deferred;
 static struct package *selected[MAXPKG];
 static int nselected;
 static int lookup(const char *name) {
@@ -160,8 +162,14 @@ static int admissible(struct package *p) {
     if (old && strcmp(old->url, r->id)) {
         return 0;
     }
-    if (!strcmp(p->kind, "kernel") && (strcmp(p->name, "kernel") || !r->official)) {
-        return 0;
+    if (!strcmp(p->kind, "kernel")) {
+        if (strcmp(p->name, "kernel") || !r->official) {
+            return 0;
+        }
+        if (!kernel_requested && (!old || !package_same(old, p)) && !kernel_boot_has_space(p)) {
+            kernel_deferred = 1;
+            return 0;
+        }
     }
     return 1;
 }
@@ -379,6 +387,9 @@ void solve(int argc, char **argv, int upgrade) {
         if (!valid_name(s)) {
             fail("invalid package request");
         }
+        if (!strcmp(s, "kernel")) {
+            kernel_requested = 1;
+        }
         strcpy(requests[nrequest].name, s);
         requests[nrequest].explicit = 1;
         requests[nrequest].upgrade = 1;
@@ -401,7 +412,12 @@ void solve(int argc, char **argv, int upgrade) {
             nrequest++;
         }
     }
-    if (!search()) {
+    int solved = search();
+    if (kernel_deferred) {
+        fputs("Kernel update deferred: insufficient space on boot partition\n", stderr);
+        kernel_clean_hint();
+    }
+    if (!solved) {
         fail("no dependency solution (missing package, incompatible constraints, "
              "source, ABI, "
              "conflict or cycle)");

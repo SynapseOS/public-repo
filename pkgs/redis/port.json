@@ -1,0 +1,7 @@
+{
+  "name": "redis",
+  "upstream_version": "7.4.12",
+  "source": "https://download.redis.io/releases/redis-7.4.12.tar.gz",
+  "sha256": "56588ee1648539556f2b6cf4e873e3734afbbe40fa952fec2fcd6b6d7dae2924",
+  "source_directory": "redis-7.4.12"
+}

@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "3x-ui",
+  "version": "3.11.0-r1",
+  "description": "3x-ui management panel with Xray-core and a SynapseOS service",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["kernel >= 0.1.949-r5", "bash", "sqlite"],
+  "conflicts": [],
+  "files": [
+    {"path": "bin/3x-ui", "type": "file", "mode": 493, "config": false},
+    {"path": "etc/services/3x-ui", "type": "file", "mode": 420, "config": true}
+  ]
+}

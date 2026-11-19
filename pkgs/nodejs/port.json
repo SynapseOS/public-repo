@@ -1,0 +1,7 @@
+{
+  "name": "nodejs",
+  "upstream_version": "20.20.2",
+  "source": "https://nodejs.org/dist/v20.20.2/node-v20.20.2-linux-x64.tar.xz",
+  "sha256": "df770b2a6f130ed8627c9782c988fda9669fa23898329a61a871e32f965e007d",
+  "source_directory": "node-v20.20.2-linux-x64"
+}

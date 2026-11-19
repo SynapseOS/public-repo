@@ -1,0 +1,40 @@
+{
+  "format": 1,
+  "name": "nodejs22",
+  "version": "22.23.5-r1",
+  "description": "Node.js 22 LTS for musl (command node22)",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.949-r2",
+    "musl-runtime >= 0.0.0-r948"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/node22",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/lib/nodejs22/libstdc++.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/nodejs22/libgcc_s.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/nodejs22/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

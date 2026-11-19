@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "name": "node-api",
+  "version": "1.0.0-r1",
+  "description": "Node.js HTTP health-check API for PostgreSQL and Redis",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "nodejs >= 20.20.2-r1",
+    "postgresql >= 16.16.0-r1",
+    "redis >= 7.4.12-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "etc/services/node-api",
+      "type": "file",
+      "mode": 436,
+      "config": true
+    },
+    {
+      "path": "usr/libexec/skynes-pilot.js",
+      "type": "file",
+      "mode": 436,
+      "config": false
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "flatpak",
-  "version": "1.18.3-r19",
+  "version": "1.18.3-r20",
   "description": "Flatpak package manager, experimental port",
   "kind": "application",
   "arch": "x86_64",

@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "reboot.h"
@@ -19,6 +20,13 @@ main(int argc, char *argv[])
 {
 	int pflag = 0, rflag = 0;
 	int cmd = LINUX_REBOOT_CMD_HALT;
+	const char *name = strrchr(argv[0], '/');
+	name = name ? name + 1 : argv[0];
+	if (strcmp(name, "reboot") == 0) {
+		cmd = LINUX_REBOOT_CMD_RESTART;
+	} else if (strcmp(name, "poweroff") == 0) {
+		cmd = LINUX_REBOOT_CMD_POWER_OFF;
+	}
 
 	ARGBEGIN {
 	case 'p':

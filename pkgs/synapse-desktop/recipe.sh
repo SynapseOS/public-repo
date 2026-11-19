@@ -13,6 +13,7 @@ mkdir -p "$payload/usr/libexec/qt6"
 
 bash "$ROOT/build/cxx-shared.sh" \
 	-std=c++20 -O2 -Wall -Wextra -Werror \
+	-I"$SDK/include" \
 	-I"$probe/usr/include/qt6" \
 	-I"$probe/usr/include/qt6/QtWidgets" \
 	-I"$probe/usr/include/qt6/QtGui" \

@@ -1,0 +1,8 @@
+{
+  "name": "3x-ui",
+  "upstream_version": "3.11.0",
+  "source": "https://github.com/MHSanaei/3x-ui/releases/download/v3.11.0/x-ui-linux-amd64.tar.gz",
+  "sha256": "0ddfa4702f595442e2962acd81addc768fdacaa4ff2672c971a0463dae744916",
+  "license_source": "https://raw.githubusercontent.com/MHSanaei/3x-ui/v3.11.0/LICENSE",
+  "license_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+}

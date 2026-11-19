@@ -1,4 +1,14 @@
-/* Synapse native capture backend, backed by independent /dev/packet queues. */
+/*
+    pcap-synapse.c: Захват Ethernet и IP через очереди /dev/packet
+    Автор: Елчинян Арен Артурович, 2026
+    Архитектура: x86_64, ABI: пользовательский ABI SynapseOS
+
+    Описание: Интерфейс libpcap для физических карт и TUN
+    Подсистема: пользовательская сеть
+    Первое изменение: 18.10.2026
+    Последнее изменение: 06.11.2026
+    Доступ: общедоступный
+*/
 #include <config.h>
 #include "pcap-int.h"
 #include <dev/packet_capture.h>
@@ -19,15 +29,22 @@ struct syn_priv {
 };
 
 static int info_name(int fd, const char *name, struct syn_capture_info *info) {
-	for (unsigned i = 0; i < 8; i++) {
+	for (unsigned i = 0; i < SYN_CAPTURE_MAX_INTERFACES; i++) {
 		memset(info, 0, sizeof(*info));
 		info->version = SYN_CAPTURE_VERSION;
 		info->ifindex = i;
 
-		if (ioctl(fd, SYN_CAPTURE_INFO, info) < 0)
-			break;
-		if (!strcmp(name, info->name))
+		if (ioctl(fd, SYN_CAPTURE_INFO, info) < 0) {
+			if (errno == ENODEV) {
+				continue;
+			}
+
+			return -1;
+		}
+
+		if (!strcmp(name, info->name)) {
 			return 0;
+		}
 	}
 
 	errno = ENODEV;
@@ -160,7 +177,7 @@ static int syn_activate(pcap_t *p) {
 		return PCAP_ERROR;
 	}
 
-	p->linktype = DLT_EN10MB;
+	p->linktype = (info.flags & SYN_CAPTURE_F_RAW_IP) != 0U ? DLT_RAW : DLT_EN10MB;
 	p->selectable_fd = p->fd;
 	p->read_op = syn_read;
 	p->inject_op = syn_inject;
@@ -201,12 +218,20 @@ int pcapint_platform_finddevs(pcap_if_list_t *list, char *errbuf) {
 		return -1;
 	}
 
-	for (unsigned i = 0; i < 8; i++) {
+	for (unsigned i = 0; i < SYN_CAPTURE_MAX_INTERFACES; i++) {
 		struct syn_capture_info info = { .version = SYN_CAPTURE_VERSION, .ifindex = i };
 
-		if (ioctl(fd, SYN_CAPTURE_INFO, &info) < 0)
-			break;
+		if (ioctl(fd, SYN_CAPTURE_INFO, &info) < 0) {
+			if (errno == ENODEV) {
+				continue;
+			}
+
+			close(fd);
+			return -1;
+		}
+
 		pcap_if_t *dev = pcapint_add_dev(list, info.name, PCAP_IF_UP | PCAP_IF_RUNNING,
+		                                 (info.flags & SYN_CAPTURE_F_RAW_IP) != 0U ? "Synapse IP capture" :
 		                                 "Synapse Ethernet capture", errbuf);
 		if (!dev) {
 			close(fd);
