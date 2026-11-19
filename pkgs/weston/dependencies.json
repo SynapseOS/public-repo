@@ -120,17 +120,17 @@
   },
   {
     "name": "expat",
-    "version": "2.9.0-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/expat-2.9.0-r0.apk",
-    "sha256": "3ba03b94b2a58ada0dfbd06a18e4b8ea18d22df81feca244206cd2c01b086bad",
-    "filename": "expat-2.9.0-r0.apk"
+    "version": "2.10.0-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/expat-2.10.0-r0.apk",
+    "sha256": "9efa00201f7b7ccd8775121b8dd3e0c71c5e227904407096c1984c4b6c7018c9",
+    "filename": "expat-2.10.0-r0.apk"
   },
   {
     "name": "expat-dev",
-    "version": "2.9.0-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/expat-dev-2.9.0-r0.apk",
-    "sha256": "b1257d315ea45085eededcefc3f5f20f872670631dc2a8d1087554672d7f6774",
-    "filename": "expat-dev-2.9.0-r0.apk"
+    "version": "2.10.0-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/expat-dev-2.10.0-r0.apk",
+    "sha256": "c94f09d429261495477994dfca24f79a525161f2dd667210f70ae98c32ca46ea",
+    "filename": "expat-dev-2.10.0-r0.apk"
   },
   {
     "name": "fontconfig",
@@ -400,10 +400,10 @@
   },
   {
     "name": "libexpat",
-    "version": "2.9.0-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libexpat-2.9.0-r0.apk",
-    "sha256": "4c9fb621d455d12475767e261821a4be7b4e91e2ba19c20a02e7fa99189b0d6d",
-    "filename": "libexpat-2.9.0-r0.apk"
+    "version": "2.10.0-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libexpat-2.10.0-r0.apk",
+    "sha256": "8ff83a897b5393832edbd2a7500c37bab685a17d7821925d95460f01747dbac2",
+    "filename": "libexpat-2.10.0-r0.apk"
   },
   {
     "name": "libfdisk",
@@ -736,10 +736,10 @@
   },
   {
     "name": "libxslt",
-    "version": "1.1.43-r3",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxslt-1.1.43-r3.apk",
-    "sha256": "7c76e094b30a7da6f3325b66562c8e6d3816dde2d5a8958b8b87910f771ce850",
-    "filename": "libxslt-1.1.43-r3.apk"
+    "version": "1.1.43-r4",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxslt-1.1.43-r4.apk",
+    "sha256": "4d5456a606f5cc3335216df16e2d93e9602ef84e5a641c45994b144c253dae31",
+    "filename": "libxslt-1.1.43-r4.apk"
   },
   {
     "name": "linux-pam",
@@ -841,10 +841,10 @@
   },
   {
     "name": "python3",
-    "version": "3.12.15-r0",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/python3-3.12.15-r0.apk",
-    "sha256": "65abdc4bef40a80beb0cad8238c984937d334cfcdd2719651fe7c3a3f6c909e8",
-    "filename": "python3-3.12.15-r0.apk"
+    "version": "3.12.16-r0",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/python3-3.12.16-r0.apk",
+    "sha256": "4bd1bf5b980cdf906c04a507258cfae8b44b3070d82b7c4cbf77ef2552bbdb06",
+    "filename": "python3-3.12.16-r0.apk"
   },
   {
     "name": "readline",
@@ -1010,8 +1010,8 @@
   {
     "name": "zlib",
     "version": "1.3.2-r1",
-    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/zlib-1.3.2-r1.apk",
-    "sha256": "af24e502645e2b392cae833856d776691ac21655362e5db69d7b89f147f76216",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zlib-1.3.2-r1.apk",
+    "sha256": "ee62e1864c235901e2aa4d1868c7ae8f7cc5d0740a98c48a2525332eb4bfda73",
     "filename": "zlib-1.3.2-r1.apk"
   },
   {
