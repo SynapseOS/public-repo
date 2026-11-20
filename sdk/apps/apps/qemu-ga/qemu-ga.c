@@ -6,7 +6,7 @@
     Описание: Обработка запросов QEMU через VirtIO или последовательный порт
     Подсистема: гостевой агент
     Первое изменение: 11.10.2026
-    Последнее изменение: 03.11.2026
+    Последнее изменение: 20.11.2026
     Доступ: общедоступный
 */
 
@@ -48,6 +48,8 @@
 #define NET_NAME 106001
 #define NET_IPV4 106002
 #define NET_MAC 106009
+// Сколько секунд ждать появления транспорта до вывода об отсутствии канала
+#define TRANSPORT_WAIT_SECONDS 15
 
 static char frame[FRAME_MAX + 1], response[RESPONSE_MAX];
 static size_t response_len;
@@ -1175,6 +1177,33 @@ static void handle_frame(size_t len) {
 	send_response( );
 }
 
+// Попросить супервизор больше не перезапускать агента в этой загрузке
+// Запись уходит в тот же request-файл, что и у service disable, но без постоянного .disabled
+static void service_disable_self(const char *name) {
+	// Без супервизора просьбу обрабатывать некому
+	if (!name || !*name) {
+		return;
+	}
+
+	char dir[256], path[384], temp[448];
+	snprintf(dir, sizeof(dir), "/var/run/services/%s", name);
+	mkdir(dir, 0700);
+	snprintf(path, sizeof(path), "%s/request", dir);
+	snprintf(temp, sizeof(temp), "%s.%ld", path, (long)getpid());
+
+	FILE *f = fopen(temp, "w");
+
+	if (!f) {
+		return;
+	}
+
+	fprintf(f, "disable\n");
+
+	if (fclose(f) || rename(temp, path)) {
+		unlink(temp);
+	}
+}
+
 // Обслуживать команды хоста и вывод запущенных процессов
 int main(int argc, char **argv) {
 	const char *path = "/dev/virtio-ports/org.qemu.guest_agent.0", *method = "virtio-serial";
@@ -1204,6 +1233,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+	// Супервизор передаёт имя службы в окружении до service_log_start
+	const char *service = getenv("LUMINE_LOG_SERVICE");
 	service_log_start("qga", 0);
 	signal(SIGPIPE, SIG_IGN);
 	log_msg("Starting %s", VERSION);
@@ -1214,10 +1245,27 @@ int main(int argc, char **argv) {
 	} else {
 		log_msg("Waiting for %s", path);
 
-		while ((transport_in = open(path, O_RDWR | O_NONBLOCK | O_NOCTTY | O_CLOEXEC)) < 0) {
+		// Порт создаётся при настройке virtio-console до запуска служб
+		// Если за это время он не появился, хост не предоставил канал
+		for (unsigned attempt = 0;; ++attempt) {
+			transport_in = open(path, O_RDWR | O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
+
+			if (transport_in >= 0) {
+				break;
+			}
+
 			if (errno != ENOENT && errno != ENODEV) {
 				log_msg("Open transport failed: %s", strerror(errno));
 				return 1;
+			}
+
+			if (attempt >= TRANSPORT_WAIT_SECONDS) {
+				log_msg("Transport %s did not appear, disabling agent", path);
+				service_disable_self(service);
+
+				// Даём супервизору шаг цикла на запрос, его SIGTERM завершит нас сам
+				sleep(2);
+				return 0;
 			}
 
 			sleep(1);
