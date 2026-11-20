@@ -3,7 +3,7 @@
 // Подсистема: Счётчики и статистика системы в пользовательском пространстве
 // Архитектура: x86_64, ABI: Linux (ELF64)
 // Первое изменение: 09.10.2026
-// Последнее изменение: 19.11.2026
+// Последнее изменение: 20.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -302,7 +302,7 @@ static void get_pci_dump_raw(char *out_buf, size_t max_len) {
     LOG("PCI snapshot complete. Found %d valid devices.", dev_count);
 }
 
-static ssize_t udp_send(const char *host_ip, uint16_t port, const char *json);
+static ssize_t https_send(const char *host_ip, uint16_t port, const char *json);
 
 // Отправить PCI-идентификаторы частями в пределах одного сеанса
 static void send_pci_chunks(const char *server_ip, uint16_t port,
@@ -360,7 +360,7 @@ static void send_pci_chunks(const char *server_ip, uint16_t port,
             if (n > 0 && (size_t)n < sizeof(json)) {
                 LOG("PCI chunk %zu/%zu payload: [%s]", chunk_num, total_chunks,
                     chunk_data);
-                udp_send(server_ip, port, json);
+                https_send(server_ip, port, json);
             }
 
             chunk_num++;
@@ -389,7 +389,7 @@ static void send_pci_chunks(const char *server_ip, uint16_t port,
 
         if (n > 0 && (size_t)n < sizeof(json)) {
             LOG("PCI chunk %zu/%zu payload: [%s]", chunk_num, total_chunks, chunk_data);
-            udp_send(server_ip, port, json);
+            https_send(server_ip, port, json);
         }
     }
 }
@@ -555,8 +555,8 @@ static int consent_change(bool accept, bool explicit_choice) {
     return consent_state(&s, "revoked", false) ? 0 : 1;
 }
 
-// Перечитывать локальный отзыв перед каждым пакетом и не передавать ключ по UDP
-static ssize_t udp_send(const char *host_ip, uint16_t port, const char *json) {
+// Проверить согласие перед отправкой отчёта через HTTPS
+static ssize_t https_send(const char *host_ip, uint16_t port, const char *json) {
     (void)host_ip;
     (void)port;
     if (print_packets) {
@@ -635,7 +635,7 @@ int main(int argc, char **argv) {
         char *end;
         long port = strtol(port_text, &end, 10);
         if (!*port_text || *end || port < 1 || port > 65535) {
-            fprintf(stderr, "Invalid UDP port\n");
+            fprintf(stderr, "Invalid monitoring port\n");
             return 1;
         }
         server_port = (uint16_t)port;
@@ -738,7 +738,7 @@ int main(int argc, char **argv) {
             return 0;
         }
         if (simd_n > 0 && (size_t)simd_n < sizeof(simd_json)) {
-            udp_send(server_ip, server_port, simd_json);
+            https_send(server_ip, server_port, simd_json);
         }
         send_pci_chunks(server_ip, server_port, anon_uuid);
         struct sysinfo s_i;
@@ -779,7 +779,7 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        udp_send(server_ip, server_port, json);
+        https_send(server_ip, server_port, json);
 
         for (unsigned waited = 0; waited < interval; ++waited) {
             sleep(1);

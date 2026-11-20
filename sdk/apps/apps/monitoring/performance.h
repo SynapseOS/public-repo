@@ -2,7 +2,7 @@
 // Автор: Елчинян Арен Артурович, 2026
 // Подсистема: Счётчики и статистика системы в пользовательском пространстве
 // Первое изменение: 13.10.2026
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 20.11.2026
 // Доступ: общедоступный
 
 #define PERF_MAX_CPUS 256
@@ -121,6 +121,6 @@ static void send_performance(const char *ip, uint16_t port, const char *hostname
             return;
         }
         memcpy(json + used, "]}", 3);
-        udp_send(ip, port, json);
+        https_send(ip, port, json);
     }
 }
