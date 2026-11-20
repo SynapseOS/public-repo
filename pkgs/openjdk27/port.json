@@ -1,0 +1,13 @@
+{
+  "name": "openjdk27",
+  "version": "27.0.1-r1",
+  "source": "https://corretto.aws/downloads/resources/27.0.1.1.4/amazon-corretto-27.0.1.1.4-alpine-linux-x64.tar.gz",
+  "sha256": "997e7034557815fdb803394f3ee0958b5027cfcd27c858324ae8fffdd5d97574",
+  "zlib": {
+    "name": "zlib",
+    "version": "1.3.2-r1",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zlib-1.3.2-r1.apk",
+    "sha256": "ee62e1864c235901e2aa4d1868c7ae8f7cc5d0740a98c48a2525332eb4bfda73"
+  },
+  "build_system": "recipe"
+}
