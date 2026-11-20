@@ -5,7 +5,8 @@
   "sha256": "b6a6f0b6d07b9a48885c6c2af682ca52b70ad701b18786dd901d5d1465b471b0",
   "source_directory": "PureDOOM-355cfbd16fac119718879239336ee2ea408886bd",
   "patches": [
-    "patches/0001-synapse-framebuffer-port.patch"
+    "patches/0001-synapse-framebuffer-port.patch",
+    "patches/0002-fix-action-prototypes.patch"
   ],
   "sources": [
     "synapse.c"
