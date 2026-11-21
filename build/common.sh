@@ -99,6 +99,11 @@ pack() {
 		rel=${file#"$tree/"}
 
 		if [[ $(od -An -tx1 -N4 "$file" | tr -d ' \n') == 7f454c46 ]]; then
+			if [[ $TARGET_ARCH == aarch64 ]] && ! LC_ALL=C readelf -hW "$file" |
+				grep -Eq 'Machine:[[:space:]]+AArch64$'; then
+				echo "Foreign ELF in AArch64 package $name: $rel" >&2
+				return 1
+			fi
 			if ! package_uses_glibc "$manifest" && readelf -d "$file" 2>/dev/null |
 				grep -E '\[(libc\.so\.6|libm\.so\.6|libpthread\.so\.0|ld-linux[^]]*)\]' >/dev/null; then
 				echo "Host glibc dependency in $rel" >&2
@@ -128,6 +133,11 @@ pack() {
 			mode=493
 		fi
 
+		case "$name:$rel" in
+			sudo:bin/sudo) mode=$((04755)) ;;
+			sudo:etc/sudoers) mode=$((0440)) ;;
+		esac
+
 		config=false
 
 		if [[ $rel == etc/* ]]; then
@@ -135,8 +145,7 @@ pack() {
 		fi
 
 		mkdir -p "$(dirname "$stage/payload/$rel")"
-		cp -- "$file" "$stage/payload/$rel"
-		chmod "$(printf '%o' "$mode")" "$stage/payload/$rel"
+		install -m "$(printf '%o' "$mode")" -- "$file" "$stage/payload/$rel"
 		# Ненавижу это место
 		jq -cn --arg path "$rel" --arg sha "$(sha256sum "$file" | cut -d' ' -f1)" \
 			--argjson size "$(stat -c %s "$file")" --argjson mode "$mode" --argjson config "$config" \
@@ -150,8 +159,10 @@ pack() {
 	fi
 
 	jq -cs '.' "$stage/files.jsonl" >"$stage/files.json"
-	jq -c --slurpfile files "$stage/files.json" '.files=$files[0]' "$manifest" >"$stage/manifest.json"
-	jq -e '.format==1 and .arch=="x86_64" and .abi=="synapse-x86_64-v1" and
+	jq -c --arg arch "$TARGET_ARCH" --slurpfile files "$stage/files.json" \
+		'.files=$files[0] | .arch=$arch | .abi=("synapse-"+$arch+"-v1")' "$manifest" >"$stage/manifest.json"
+	jq -e -L "$ROOT/build" --arg arch "$TARGET_ARCH" --arg owner "$name" 'include "package-policy";
+        .name==$owner and check_privileged_elf and all(.files[]; package_permissions($owner)) and .format==1 and .arch==$arch and .abi==("synapse-"+$arch+"-v1") and
         (.name|test("^[a-z0-9_.-]{1,63}$")) and
         (.version|test("^[0-9]+\\.[0-9]+\\.[0-9]+-r[0-9]+$")) and
         (.kind=="application" or .kind=="library" or .kind=="tool" or .kind=="kernel") and

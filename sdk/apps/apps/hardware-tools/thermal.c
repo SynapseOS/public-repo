@@ -1,11 +1,11 @@
 // thermal.c: Чтение температурных зон
 // Автор: Елчинян Арен Артурович, 2026
-// Архитектура: x86_64, ABI: Linux (ELF64)
+// Архитектура: x86_64 и AArch64, ABI: Linux (ELF64)
 //
-// Просмотр доступных зон ACPI и их состояния
+// Просмотр доступных температурных зон и их состояния
 // Подсистема: пользовательские системные утилиты
 // Первое изменение: до текущей уборки, исходная дата не установлена
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 21.11.2026
 // Доступ: общедоступный
 
 #include <synapse/thermal.h>
@@ -21,11 +21,11 @@ static int show(int raw) {
         return 1;
     }
     if (!n) {
-        puts("No ACPI thermal zones reported by firmware.");
+        puts("No thermal zones reported by firmware.");
         return 1;
     }
     puts(raw ? "zone temperature_millicelsius errno"
-             : "ACPI zone                         Temperature");
+             : "Thermal zone                      Temperature");
     for (int i = 0; i < n; i++) {
         if (raw) {
             printf("%s %d %d\n", samples[i].path, samples[i].temperature_millicelsius,
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     }
     do {
         if (interval) {
-            printf("\n--- ACPI temperatures, epoch %lld ---\n", (long long)time(NULL));
+            printf("\n--- Temperatures, epoch %lld ---\n", (long long)time(NULL));
         }
 
         int result = show(raw);

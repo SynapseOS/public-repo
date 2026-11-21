@@ -4,7 +4,7 @@
 //
 // Подсистема: Пассивный FTP-сервер в пользовательском пространстве
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 20.11.2026
 // Доступ: общедоступный
 
 // FTP по IPv4, пассивная передача для аккаунтов администратора
@@ -21,6 +21,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 static int first_port = 40000, last_port = 40009;
 static int ready(int fd, short events, int seconds) {
@@ -124,10 +125,23 @@ static int authenticate(const char *user, const char *password) {
     }
 
     char *result = crypt(password, hash);
-    return result && !strcmp(result, hash);
+    if (!result) {
+        return 0;
+    }
+
+    size_t len = strlen(hash);
+    if (strlen(result) != len) {
+        return 0;
+    }
+
+    unsigned char diff = 0;
+    for (size_t i = 0; i < len; i++) {
+        diff |= (unsigned char)(result[i] ^ hash[i]);
+    }
+    return diff == 0;
 }
 static int data_accept(int passive, struct in_addr peer) {
-    if (passive < 0 || !ready(passive, POLLIN, 30)) {
+    if (passive < 0 || !ready(passive, POLLIN, 10)) {
         return -1;
     }
 
@@ -264,6 +278,86 @@ static int transfer(int data, int file, int upload, int ascii) {
     }
     return 0;
 }
+// Собрать канонический абсолютный путь из рабочего каталога и аргумента команды
+static void ftp_resolve(const char *cwd, const char *arg, char *out, size_t cap) {
+    char combined[8192];
+    if (arg[0] == '/') {
+        (void)snprintf(combined, sizeof(combined), "%s", arg);
+    } else {
+        (void)snprintf(combined, sizeof(combined), "%s/%s", cwd, arg);
+    }
+
+    size_t used = 0;
+    out[used++] = '/';
+    out[used] = 0;
+    char *save = NULL;
+    for (char *part = strtok_r(combined, "/", &save); part != NULL;
+         part = strtok_r(NULL, "/", &save)) {
+        if (!strcmp(part, ".") || !*part) {
+            continue;
+        }
+
+        if (!strcmp(part, "..")) {
+            if (used > 1) {
+                used--;
+                while (used > 1 && out[used - 1] != '/') {
+                    used--;
+                }
+                if (used > 1 && out[used - 1] == '/') {
+                    used--;
+                }
+                out[used] = 0;
+            }
+            continue;
+        }
+
+        size_t need = strlen(part) + 2U;
+        if (used + need >= cap) {
+            break;
+        }
+
+        if (used > 1) {
+            out[used++] = '/';
+        }
+        strcpy(out + used, part);
+        used += strlen(part);
+        out[used] = 0;
+    }
+}
+
+// Запись запрещена в системные и загрузочные каталоги, чтение не ограничено
+static bool ftp_write_allowed(const char *path) {
+    static const char *const denied[] = {
+        "/boot", "/etc", "/bin", "/sbin", "/usr", "/lib", "/lib64", "/lib32",
+        "/libexec", "/proc", "/sys", "/dev", "/var", "/root", "/home", "/run",
+        "/mnt", "/media", "/opt", "/srv", "/lost+found", NULL
+    };
+
+    for (size_t i = 0; denied[i] != NULL; i++) {
+        size_t n = strlen(denied[i]);
+        if (!strncmp(path, denied[i], n) && (path[n] == '/' || path[n] == '\0')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Ответить отказом, если команда записи целится в запрещённый каталог
+static int ftp_write_guard(int control, const char *arg) {
+    char cwd[4096], resolved[8192];
+    if (!getcwd(cwd, sizeof(cwd))) {
+        reply(control, 550, "Cannot get directory");
+        return -1;
+    }
+
+    ftp_resolve(cwd, arg, resolved, sizeof(resolved));
+    if (!ftp_write_allowed(resolved)) {
+        reply(control, 550, "Permission denied");
+        return -1;
+    }
+    return 0;
+}
+
 static void session(int control, struct sockaddr_in peer) {
     int logged = 0, passive = -1, ascii = 1, failures = 0;
     off_t restart = 0;
@@ -437,11 +531,18 @@ static void session(int control, struct sockaddr_in peer) {
                 reply(control, 213, "%s", date);
             }
         } else if (!strcmp(line, "MKD")) {
-            reply(control, mkdir(arg, 0755) ? 550 : 257, "Directory creation");
+            if (ftp_write_guard(control, arg) == 0) {
+                reply(control, mkdir(arg, 0755) ? 550 : 257, "Directory creation");
+            }
         } else if (!strcmp(line, "RMD")) {
-            reply(control, rmdir(arg) ? 550 : 250, "Directory removal");
+            if (ftp_write_guard(control, arg) == 0) {
+                reply(control, rmdir(arg) ? 550 : 250, "Directory removal");
+            }
         } else if (!strcmp(line, "DELE")) {
             struct stat st;
+            if (ftp_write_guard(control, arg) != 0) {
+                continue;
+            }
             reply(control,
                   lstat(arg, &st) || S_ISDIR(st.st_mode) || unlink(arg) ? 550 : 250,
                   "File removal");
@@ -458,6 +559,12 @@ static void session(int control, struct sockaddr_in peer) {
                 continue;
             }
             if (!list) {
+                if (upload && ftp_write_guard(control, arg) != 0) {
+                    close(passive);
+                    passive = -1;
+                    continue;
+                }
+
                 struct stat st;
                 if (stat(arg, &st) == 0) {
                     if (!S_ISREG(st.st_mode)) {
@@ -529,6 +636,22 @@ static void session(int control, struct sockaddr_in peer) {
     close(control);
     _exit(0);
 }
+// Отследить пару pid и адрес пира для ограничения числа сессий с одного источника
+struct ftpd_child {
+    pid_t pid;
+    uint32_t addr;
+};
+
+static size_t ftpd_child_forget(struct ftpd_child *children, size_t count, pid_t pid) {
+    for (size_t i = 0; i < count; i++) {
+        if (children[i].pid == pid) {
+            children[i] = children[count - 1U];
+            return count - 1U;
+        }
+    }
+    return count;
+}
+
 int main(int argc, char **argv) {
     int port = 21;
     for (int i = 1; i < argc; i++) {
@@ -564,11 +687,15 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[ftpd] listening on port %d, passive %d-%d\n", port, first_port,
             last_port);
     int children = 0;
+    struct ftpd_child peers[16];
+    size_t peer_count = 0;
     for (;;) {
-        while (waitpid(-1, NULL, WNOHANG) > 0) {
+        pid_t reaped;
+        while ((reaped = waitpid(-1, NULL, WNOHANG)) > 0) {
             if (children) {
                 children--;
             }
+            peer_count = ftpd_child_forget(peers, peer_count, reaped);
         }
         if (!ready(server, POLLIN, 1)) {
             continue;
@@ -586,6 +713,18 @@ int main(int argc, char **argv) {
             continue;
         }
 
+        unsigned same_ip = 0;
+        for (size_t i = 0; i < peer_count; i++) {
+            if (peers[i].addr == peer.sin_addr.s_addr) {
+                same_ip++;
+            }
+        }
+        if (same_ip >= 3) {
+            reply(control, 421, "Too many sessions from this address");
+            close(control);
+            continue;
+        }
+
         pid_t pid = fork();
         if (pid == 0) {
             close(server);
@@ -595,6 +734,11 @@ int main(int argc, char **argv) {
             reply(control, 421, "Cannot start session");
         } else {
             children++;
+            if (peer_count < sizeof(peers) / sizeof(peers[0])) {
+                peers[peer_count].pid = pid;
+                peers[peer_count].addr = peer.sin_addr.s_addr;
+                peer_count++;
+            }
         }
         close(control);
     }

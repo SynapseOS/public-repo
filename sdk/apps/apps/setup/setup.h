@@ -33,7 +33,15 @@ struct download_progress {
 };
 void progress_start(struct download_progress *, uint64_t);
 void progress_update(struct download_progress *, uint64_t, int);
+#if defined(__aarch64__)
+#define SETUP_ARCH "aarch64"
+#define SETUP_ELF_MACHINE EM_AARCH64
+#define ABI "synapse-aarch64-v1"
+#else
+#define SETUP_ARCH "x86_64"
+#define SETUP_ELF_MACHINE EM_X86_64
 #define ABI "synapse-x86_64-v1"
+#endif
 #define MAXPKG 512
 #define MAXFILES 4096
 #define MAXDEP 32
@@ -84,11 +92,16 @@ void sha_file(const char *p, char out[65]);
 void sha_bytes(const void *p, size_t n, char out[65]);
 int unhex(const char *s, unsigned char *out, size_t len);
 int safe_path(const char *s);
+struct stat;
+int sudo_path(const char *path);
+int sudo_metadata(const struct file *file, const struct stat *st);
 int valid_name(const char *s);
 struct json *parse_json(const char *s, size_t len);
 void object_fields(struct json *j, int t, const char *allowed);
 void jstr(struct json *j, int t, const char *key, char *out, size_t cap);
 uint64_t jnum(struct json *j, int t, const char *key);
+enum package_origin { PackageArchive, PackageInstalled, PackageSummary };
+struct package *parse_manifest(struct json *j, int t, enum package_origin origin);
 struct package *parse_package(struct json *j, int t);
 void load_state(void);
 void load_public_catalog(void);

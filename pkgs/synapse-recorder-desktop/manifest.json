@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "name": "synapse-recorder-desktop",
+  "version": "1.0.0-r2",
+  "description": "Graphical screen recorder and Wayland capture for SynapseOS Desktop",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "synapse-recorder",
+    "qt6-base",
+    "qt6-wayland",
+    "labwc"
+  ],
+  "conflicts": [],
+  "files": []
+}

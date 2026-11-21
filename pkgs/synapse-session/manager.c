@@ -9,6 +9,7 @@
 
 #define _GNU_SOURCE
 #include <errno.h>
+#include "../labwc/posix-profile.h"
 #include <crypt.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -348,6 +349,7 @@ static bool clear_session_children(void) {
 
 // Запустить графическую оболочку после полного снижения привилегий
 static bool run_user_session(const struct session_account *account) {
+    if (prepare_posix_profile(account->uid, account->gid)) perror("POSIX session profile");
     // Сохранить выбранный init часовой пояс до очистки окружения пользователя
     char timezone[128] = "MSK-3";
     const char *configured_timezone = getenv("TZ");

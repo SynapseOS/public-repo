@@ -35,11 +35,25 @@
         <keybind key="W-s">
             <action name="Execute" command="synapse-desktop --settings" />
         </keybind>
+        <keybind key="W-F9">
+            <action name="Execute" command="recorder pause" />
+        </keybind>
+        <keybind key="W-F10">
+            <action name="Execute" command="recorder snapshot" />
+        </keybind>
+        <keybind key="W-F11">
+            <action name="Execute" command="recorder stop" />
+        </keybind>
     </keyboard>
     <mouse>
         <default />
     </mouse>
     <windowRules>
         <windowRule identifier="org.freedesktop.weston.wayland-terminal" serverDecoration="yes" />
+        <windowRule title="Synapse Recorder HUD">
+            <skipTaskbar>yes</skipTaskbar>
+            <action name="MoveTo" x="20" y="20" />
+            <action name="ToggleAlwaysOnTop" />
+        </windowRule>
     </windowRules>
 </labwc_config>

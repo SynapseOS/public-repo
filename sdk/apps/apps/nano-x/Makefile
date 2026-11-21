@@ -10,7 +10,7 @@ SRC := $(CURDIR)/upstream/src
 .PHONY: all clean
 all: $(OUTPUT_DIR)/nano-x
 $(SRC)/lib/libnano-X.a: $(shell find upstream/src/include upstream/src/drivers upstream/src/engine upstream/src/nanox upstream/src/fonts -type f \( -name '*.c' -o -name '*.h' -o -name '*.rules' \)) $(SRC)/config
-	$(MAKE) -C $(SRC)/nanox CC='$(NANO_CC)' AR=ar HOSTCC=gcc
+	$(MAKE) -C $(SRC)/nanox ARCH=LINUX-NATIVE CC='$(NANO_CC)' AR=ar HOSTCC=gcc
 $(OUTPUT_DIR)/nano-x: demo.c $(SRC)/lib/libnano-X.a
 	mkdir -p $(OUTPUT_DIR)
 	$(NANO_CC) -O2 -I$(SRC)/include demo.c $(SRC)/lib/libnano-X.a -lm -o $@

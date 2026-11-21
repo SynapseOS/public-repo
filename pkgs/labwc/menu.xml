@@ -20,6 +20,9 @@
             <item label="Терминал">
                 <action name="Execute" command="weston-terminal" />
             </item>
+            <item label="Запись экрана">
+                <action name="Execute" command="recorder-desktop" />
+            </item>
             <item label="Монитор системы">
                 <action name="Execute" command="weston-terminal --shell=/bin/htop" />
             </item>

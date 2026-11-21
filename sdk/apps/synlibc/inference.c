@@ -6,6 +6,7 @@
 
 #include <synapse/inference.h>
 #include <synapse/orbit.h>
+#if defined(__x86_64__)
 #include "q8-dot.h"
 
 static unsigned cached_backend; // 0 до инициализации, затем backend + 1
@@ -43,6 +44,12 @@ unsigned syn_inference_backend(void) {
 	return backend;
 }
 
+#else
+unsigned syn_inference_backend(void) {
+	return SYN_INFER_BACKEND_SCALAR;
+}
+#endif
+
 static void gemv_scalar(float *out, const int8_t *x, const float *xs, const int8_t *w,
                         const float *ws, size_t n, size_t rows, size_t group) {
 	for (size_t row = 0; row < rows; row++) {
@@ -62,6 +69,7 @@ static void gemv_scalar(float *out, const int8_t *x, const float *xs, const int8
 	}
 }
 
+#if defined(__x86_64__)
 __attribute__((target("avx2,fma"))) static void gemv_avx2(float *out, const int8_t *x,
                                                           const float *xs, const int8_t *w,
                                                           const float *ws, size_t n, size_t rows) {
@@ -80,6 +88,8 @@ __attribute__((target("avx2,fma"))) static void gemv_avx2(float *out, const int8
 	__asm__ volatile("vzeroupper" ::: "memory");
 }
 
+#endif
+
 int syn_q8_gemv(float *out, const int8_t *x, const float *xs, const int8_t *w, const float *ws,
                 size_t n, size_t rows, size_t group, unsigned flags) {
 	if (!out || !x || !xs || !w || !ws || !n || !group || group > 1024 || n % group ||
@@ -92,12 +102,14 @@ int syn_q8_gemv(float *out, const int8_t *x, const float *xs, const int8_t *w, c
 		return -SYN_EOVERFLOW;
 	}
 
+#if defined(__x86_64__)
 	if (group == 64 && !(flags & SYN_INFER_FORCE_SCALAR) &&
 	    syn_inference_backend( ) == SYN_INFER_BACKEND_AVX2_FMA) {
 		gemv_avx2(out, x, xs, w, ws, n, rows);
-	} else {
-		gemv_scalar(out, x, xs, w, ws, n, rows, group);
+		return 0;
 	}
+#endif
+	gemv_scalar(out, x, xs, w, ws, n, rows, group);
 
 	return 0;
 }

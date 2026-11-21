@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<protocol name="synapse_window_capture">
+  <interface name="synapse_window_capture_v1" version="1">
+    <description summary="capture one mapped application surface tree">
+      Identifiers are compositor-issued foreign toplevel identifiers. Each request completes
+      within one Wayland roundtrip. No screen contents outside the surface tree are copied.
+    </description>
+    <request name="list"/>
+    <request name="size"><arg name="id" type="string"/></request>
+    <request name="copy"><arg name="id" type="string"/><arg name="target" type="object" interface="wl_buffer"/><arg name="include_cursor" type="uint"/></request>
+    <event name="window"><arg name="id" type="string"/><arg name="title" type="string"/></event>
+    <event name="geometry"><arg name="width" type="uint"/><arg name="height" type="uint"/></event>
+    <event name="result"><arg name="ok" type="uint"/></event>
+  </interface>
+</protocol>

@@ -1,0 +1,371 @@
+--- /dev/null
++++ b/include/sudo_synapse_tty.h
+@@ -0,0 +1,16 @@
++/* SynapseOS controlling-terminal access for sudo and its policy plugin. */
++#ifndef SUDO_SYNAPSE_TTY_H
++#define SUDO_SYNAPSE_TTY_H
++#include <fcntl.h>
++#include <stdio.h>
++#include <sudo_util.h>
++#include <pathnames.h>
++
++#ifdef __synapse__
++sudo_dso_public int sudo_open_session_tty(int flags, bool foreground);
++sudo_dso_public FILE *sudo_session_tty_stream(void);
++#else
++#define sudo_open_session_tty(flags, foreground) open(_PATH_TTY, (flags))
++#define sudo_session_tty_stream() fopen(_PATH_TTY, "w")
++#endif
++#endif
+--- a/lib/util/ttyname_dev.c
++++ b/lib/util/ttyname_dev.c
+@@ -335,3 +335,73 @@
+     debug_return_str(ret);
+ }
+ #endif
++
++#ifdef __synapse__
++#include <sys/vfs.h>
++#include <termios.h>
++#include <sudo_synapse_tty.h>
++
++static bool
++session_terminal(int fd, pid_t sid, pid_t pgid, bool foreground)
++{
++    return tcgetsid(fd) == sid && (!foreground || tcgetpgrp(fd) == pgid);
++}
++
++/*
++ * /dev/tty on SynapseOS is the serial device.  Resolve a verified inherited
++ * descriptor through procfs to get an independent open file description.
++ * PTY forwarding changes O_NONBLOCK and must not change the shell's flags.
++ */
++int
++sudo_open_session_tty(int flags, bool foreground)
++{
++    struct statfs fs;
++    struct stat src, dst;
++    pid_t sid = getsid(0), pgid = getpgrp();
++    int dir, fd = -1;
++
++    if (sid <= 0 || pgid <= 0)
++        goto absent;
++    dir = open("/proc/self/fd", O_RDONLY | O_CLOEXEC | O_DIRECTORY);
++    if (dir == -1)
++        goto absent;
++    if (fstatfs(dir, &fs) == 0 && fs.f_type == 0x9fa0) {
++        for (int i = 0; i <= STDERR_FILENO; i++) {
++            const char name[] = {(char)('0' + i), '\0'};
++            if (fstat(i, &src) == -1 || !S_ISCHR(src.st_mode) ||
++                !session_terminal(i, sid, pgid, foreground))
++                continue;
++            fd = openat(dir, name, flags | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
++            if (fd == -1)
++                continue;
++            if (fstat(fd, &dst) == 0 && S_ISCHR(dst.st_mode) &&
++                src.st_dev == dst.st_dev && src.st_ino == dst.st_ino &&
++                src.st_rdev == dst.st_rdev && session_terminal(fd, sid, pgid, foreground)) {
++                int mode = fcntl(fd, F_GETFL);
++                if (mode != -1 && fcntl(fd, F_SETFL, mode & ~O_NONBLOCK) == 0)
++                    break;
++            }
++            close(fd);
++            fd = -1;
++        }
++    }
++    close(dir);
++    if (fd != -1)
++        return fd;
++absent:
++    errno = ENXIO;
++    return -1;
++}
++
++FILE *
++sudo_session_tty_stream(void)
++{
++    int fd = sudo_open_session_tty(O_WRONLY, false);
++    if (fd == -1)
++        return NULL;
++    FILE *fp = fdopen(fd, "w");
++    if (fp == NULL)
++        close(fd);
++    return fp;
++}
++#endif
+--- a/plugins/sudoers/policy.c
++++ b/plugins/sudoers/policy.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -1089,7 +1090,7 @@
+     
+     if (ctx->user.tcpgid == 0 && ctx->user.ttypath == NULL) {
+ 	/* No job control or terminal, check /dev/tty. */
+-	int fd = open(_PATH_TTY, O_RDWR);
++	int fd = sudo_open_session_tty(O_RDWR, false);
+ 	if (fd == -1)
+ 	    debug_return_bool(false);
+ 	close(fd);
+--- a/plugins/sudoers/sudo_printf.c
++++ b/plugins/sudoers/sudo_printf.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -46,7 +47,7 @@
+ 
+     if (ISSET(msg_type, SUDO_CONV_PREFER_TTY)) {
+ 	/* Try writing to /dev/tty first. */
+-	ttyfp = fopen(_PATH_TTY, "w");
++	ttyfp = sudo_session_tty_stream();
+     }
+ 
+     switch (msg_type & 0xff) {
+--- a/plugins/sudoers/sudoreplay.c
++++ b/plugins/sudoers/sudoreplay.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <sys/types.h>
+ #include <sys/uio.h>
+@@ -628,7 +629,7 @@
+ 
+     /* Open fd for /dev/tty and set to raw mode. */
+     if (interactive) {
+-	ttyfd = open(_PATH_TTY, O_RDWR);
++	ttyfd = sudo_open_session_tty(O_RDWR, false);
+ 	if (ttyfd == -1)
+ 	    sudo_fatal("%s", U_("unable to set tty to raw mode"));
+ 	while (!sudo_term_raw(ttyfd, SUDO_TERM_ISIG)) {
+--- a/plugins/sudoers/timestamp.c
++++ b/plugins/sudoers/timestamp.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <sys/stat.h>
+ #include <sys/ioctl.h>
+@@ -844,7 +845,7 @@
+ 
+ #ifdef TIOCCHKVERAUTH
+     if (def_timestamp_type == kernel) {
+-	int fd = open(_PATH_TTY, O_RDWR);
++	int fd = sudo_open_session_tty(O_RDWR, false);
+ 	if (fd != -1) {
+ 	    if (ioctl(fd, TIOCCHKVERAUTH) == 0)
+ 		status = TS_CURRENT;
+@@ -976,7 +977,7 @@
+ 
+ #ifdef TIOCSETVERAUTH
+     if (def_timestamp_type == kernel) {
+-	int fd = open(_PATH_TTY, O_RDWR);
++	int fd = sudo_open_session_tty(O_RDWR, false);
+ 	if (fd != -1) {
+ 	    int secs = (int)def_timestamp_timeout.tv_sec;
+ 	    if (secs > 0) {
+@@ -1025,7 +1026,7 @@
+ 
+ #ifdef TIOCCLRVERAUTH
+     if (def_timestamp_type == kernel) {
+-	fd = open(_PATH_TTY, O_RDWR);
++	fd = sudo_open_session_tty(O_RDWR, false);
+ 	if (fd != -1) {
+ 	    ioctl(fd, TIOCCLRVERAUTH);
+ 	    goto done;
+--- a/src/conversation.c
++++ b/src/conversation.c
+@@ -26,6 +26,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -96,7 +97,7 @@
+ 
+ 		    if (ISSET(msg->msg_type, SUDO_CONV_PREFER_TTY) &&
+ 			    !ISSET(flags, TGP_STDIN)) {
+-			ttyfd = open(_PATH_TTY, O_WRONLY);
++			ttyfd = sudo_open_session_tty(O_WRONLY, false);
+ 			if (ttyfd != -1)
+ 			    raw_tty = sudo_term_is_raw(ttyfd);
+ 		    } else {
+@@ -175,7 +176,7 @@
+     if (ISSET(msg_type, SUDO_CONV_PREFER_TTY) &&
+ 	    !ISSET(tgetpass_flags, TGP_STDIN)) {
+ 	/* Try writing to /dev/tty first. */
+-	ttyfp = fopen(_PATH_TTY, "w");
++	ttyfp = sudo_session_tty_stream();
+     }
+ 
+     switch (msg_type & 0xff) {
+--- a/src/exec_nopty.c
++++ b/src/exec_nopty.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <sys/types.h>
+ #include <sys/socket.h>
+@@ -539,7 +540,7 @@
+     }
+     if (want_winch) {
+ 	/* Need /dev/tty for SIGWINCH handling. */
+-	io_fds[SFD_USERTTY] = open(_PATH_TTY, O_RDWR);
++	io_fds[SFD_USERTTY] = sudo_open_session_tty(O_RDWR, false);
+     }
+ }
+ 
+--- a/src/exec_pty.c
++++ b/src/exec_pty.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -109,7 +110,7 @@
+     struct command_details *details = ec->details;
+     debug_decl(pty_setup, SUDO_DEBUG_EXEC);
+ 
+-    io_fds[SFD_USERTTY] = open(_PATH_TTY, O_RDWR);
++    io_fds[SFD_USERTTY] = sudo_open_session_tty(O_RDWR, false);
+     if (io_fds[SFD_USERTTY] == -1) {
+ 	sudo_debug_printf(SUDO_DEBUG_INFO, "%s: no %s, not allocating a pty",
+ 	    __func__, _PATH_TTY);
+--- a/src/sudo.c
++++ b/src/sudo.c
+@@ -26,6 +26,7 @@
+ #endif
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -538,7 +539,7 @@
+     ud->pid = getpid();
+     ud->ppid = getppid();
+     ud->pgid = getpgrp();
+-    ttyfd = open(_PATH_TTY, O_RDWR);
++    ttyfd = sudo_open_session_tty(O_RDWR, false);
+     sudo_get_ttysize(ttyfd, &ud->ts_rows, &ud->ts_cols);
+     if (ttyfd != -1) {
+ 	if ((ud->tcpgid = tcgetpgrp(ttyfd)) == -1)
+--- a/src/suspend_parent.c
++++ b/src/suspend_parent.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <stdio.h>
+ #include <string.h>
+@@ -99,7 +100,7 @@
+      * upon resume, potentially stopping sudo with SIGTTOU while the
+      * command continues to run.
+      */
+-    fd = open(_PATH_TTY, O_RDWR);
++    fd = sudo_open_session_tty(O_RDWR, false);
+     if (fd != -1) {
+ 	saved_pgrp = tcgetpgrp(fd);
+ 	if (saved_pgrp == -1) {
+--- a/src/tgetpass.c
++++ b/src/tgetpass.c
+@@ -31,6 +31,7 @@
+ #endif
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ #include <sys/wait.h>
+ #include <stdio.h>
+@@ -134,8 +135,12 @@
+     ttyfd = -1;
+     if (!ISSET(flags, TGP_STDIN|TGP_ASKPASS)) {
+ 	/* If no tty present and we need to disable echo, try askpass. */
+-	ttyfd = open(_PATH_TTY, O_RDWR);
+-	if (ttyfd == -1 && !ISSET(flags, TGP_ECHO|TGP_NOECHO_TRY)) {
++	ttyfd = sudo_open_session_tty(O_RDWR, true);
++	#ifdef __synapse__
++        if (ttyfd == -1) {
++#else
++        if (ttyfd == -1 && !ISSET(flags, TGP_ECHO|TGP_NOECHO_TRY)) {
++#endif
+ 	    if (askpass == NULL || getenv_unhooked("DISPLAY") == NULL) {
+ 		if (getenv_unhooked("SSH_CONNECTION") != NULL && getenv_unhooked("SSH_TTY") == NULL) {
+ 		    sudo_warnx("%s",
+@@ -198,6 +203,14 @@
+ 	    }
+ 	}
+     }
++
++#ifdef __synapse__
++    if (ttyfd >= 0 && !ISSET(flags, TGP_ECHO|TGP_NOECHO_TRY) && !neednl) {
++        close(ttyfd);
++        sudo_warnx("%s", U_("unable to disable terminal echo"));
++        debug_return_str(NULL);
++    }
++#endif
+ 
+     /*
+      * Catch signals that would otherwise cause the user to end
+--- a/src/ttyname.c
++++ b/src/ttyname.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <config.h>
++#include <sudo_synapse_tty.h>
+ 
+ /* Large files may not be supported by procfs.h on Solaris. */
+ #if defined(HAVE_STRUCT_PSINFO_PR_TTYDEV)
+@@ -92,7 +93,26 @@
+ # define sudo_kp_namelen	4
+ #endif
+ 
+-#if defined(sudo_kp_tdev)
++#if defined(__synapse__)
++dev_t
++get_process_ttyname(char *name, size_t namelen)
++{
++    struct stat sb;
++    int fd = sudo_open_session_tty(O_RDONLY, false);
++    if (fd == -1) {
++        errno = ENOENT;
++        return NODEV;
++    }
++    if (fstat(fd, &sb) == -1) {
++        close(fd);
++        return NODEV;
++    }
++    if (namelen != 0 && ttyname_r(fd, name, namelen) != 0)
++        *name = '\0';
++    close(fd);
++    return sb.st_rdev;
++}
++#elif defined(sudo_kp_tdev)
+ /*
+  * Look up terminal device that the process is attached to and
+  * fill in its name, if available.  Sets name to the empty string

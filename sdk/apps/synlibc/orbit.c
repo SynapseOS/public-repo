@@ -6,18 +6,26 @@
 
 #include <synapse/syn.h>
 
-#if !defined(__x86_64__)
-#error "Orbit syscall transport currently supports x86_64"
-#endif
 
 // Вызов отделён от syscall libc: возвращаем ошибки в пространстве Orbit
 static long native_call(long number, long a, long b, long c) {
+#if defined(__aarch64__)
+	register long x8 __asm__("x8") = number;
+	register long x0 __asm__("x0") = a;
+	register long x1 __asm__("x1") = b;
+	register long x2 __asm__("x2") = c;
+	__asm__ volatile("svc #0" : "+r"(x0) : "r"(x8), "r"(x1), "r"(x2) : "cc", "memory");
+	return x0;
+#elif defined(__x86_64__)
 	long result;
 	__asm__ volatile("syscall"
 	                 : "=a"(result)
 	                 : "a"(number), "D"(a), "S"(b), "d"(c)
 	                 : "rcx", "r11", "cc", "memory");
 	return result;
+#else
+#error Unsupported Orbit architecture
+#endif
 }
 
 static void zero(void *ptr, size_t count) {

@@ -13,7 +13,7 @@ all: $(OUTPUT_DIR)/nano
 	$(MAKE) -C ../common/ncurses
 .build/Makefile: upstream/configure Makefile ../common/ncurses/install/lib/libncursesw.a
 	mkdir -p .build
-	cd .build && ../upstream/configure --host=x86_64-linux-musl --build=x86_64-linux-gnu CC='$(CC)' CPPFLAGS='-D__synapseos__ -I$(CURSES)/include -I$(CURSES)/include/ncursesw' LDFLAGS='-L$(CURSES)/lib' LIBS='-lncursesw' --disable-maintainer-mode --disable-nls --disable-libmagic --disable-speller --disable-browser --without-slang
+	cd .build && NCURSESW_LIBS="-lncursesw" NCURSESW_CFLAGS="-I$(CURSES)/include/ncursesw" ../upstream/configure --host=$(if $(filter arm64 aarch64,$(ARCH)),aarch64,x86_64)-linux-musl --build=$(shell gcc -dumpmachine) CC='$(CC)' CPPFLAGS='-D__synapseos__ -I$(CURSES)/include -I$(CURSES)/include/ncursesw' LDFLAGS='-L$(CURSES)/lib' LIBS='-lncursesw' --disable-maintainer-mode --disable-nls --disable-libmagic --disable-speller --disable-browser --without-slang
 $(OUTPUT_DIR)/nano: .build/Makefile $(shell find upstream/src -type f \( -name '*.c' -o -name '*.h' \))
 	$(MAKE) -C .build/lib -j4
 	$(MAKE) -C .build/src -j4

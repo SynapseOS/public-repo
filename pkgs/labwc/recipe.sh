@@ -4,7 +4,7 @@
 # Описание: Использовать системный Wayland SDK и закрытые библиотеки пакета
 # Подсистема: сборка пакетов
 # Первое изменение: 28.10.2026
-# Последнее изменение: 30.10.2026
+# Последнее изменение: 21.11.2026
 # Доступ: общедоступный
 
 prepare
@@ -60,6 +60,33 @@ fi
 
 if ! grep -q 'synapse_fb_poll_mode, wlr_output' "$wlroots/backend/headless/output.c"; then
 	patch --batch --fuzz=0 -d "$wlroots" -p1 -i "$port/patches/synapse-live-mode.patch"
+fi
+
+if ! grep -q 'wlr_output_state_set_transform(&state, synapse_panel_transform)' "$wlroots/backend/headless/output.c"; then
+	patch --batch --fuzz=0 -d "$wlroots" -p1 <<'PATCH'
+--- a/backend/headless/output.c
++++ b/backend/headless/output.c
+@@ -163,1 +163,4 @@
+-	wlr_output_state_set_custom_mode(&state, width, height, 0);
++	wlr_output_state_set_custom_mode(&state, width, height, 0);
++	if (synapse_fb_fd >= 0) {
++		wlr_output_state_set_transform(&state, synapse_panel_transform);
++	}
+PATCH
+fi
+
+if ! grep -q 'synapse_kms_refresh(&synapse_kms.mode)' "$wlroots/backend/headless/output.c"; then
+	patch --batch --fuzz=0 -d "$wlroots" -p1 <<'PATCH'
+--- a/backend/headless/output.c
++++ b/backend/headless/output.c
+@@ -163 +163,2 @@
+-	wlr_output_state_set_custom_mode(&state, width, height, 0);
++	int32_t refresh = synapse_kms.fd >= 0 ? synapse_kms_refresh(&synapse_kms.mode) : 0;
++	wlr_output_state_set_custom_mode(&state, width, height, refresh);
+@@ -171 +172 @@
+-	output_update_refresh(output, 0);
++	output_update_refresh(output, refresh);
+PATCH
 fi
 
 # Резервировать DRM lease только для основного узла, render node работает через GBM
@@ -146,6 +173,14 @@ cp -a "$work/wlroots-stage/usr/lib/." "$work/sdk/usr/lib/"
 
 labwc_link_args="-L$alias_path/usr/lib -Wl,-rpath-link,$alias_path/usr/lib"
 labwc_link_args+=" -Wl,--no-as-needed $alias_path/usr/lib/libLLVM.so.19.1"
+
+if ! grep -q 'keep_client_resize_visible' "$source/src/xdg.c"; then
+	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/xdg-keep-client-resize-visible.patch"
+fi
+
+cp "$port/window-capture.inc" "$source/src/"
+wayland-scanner server-header "$port/synapse-window-capture.xml" "$source/src/synapse-window-server.h"
+wayland-scanner private-code "$port/synapse-window-capture.xml" "$source/src/synapse-window-wire.inc"
 
 meson setup "$work/labwc-build" "$source" --wipe --cross-file "$work/cross.ini" \
 	--prefix=/usr --libdir=lib --buildtype=release -Dxwayland=enabled \

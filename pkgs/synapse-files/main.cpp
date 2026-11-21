@@ -1,12 +1,12 @@
 /*
     main.cpp: Графический файловый менеджер SynapseOS
     Автор: Елчинян Арен Артурович, 2026
-    Архитектура: x86_64, ABI: synapse-x86_64-v1
+    Архитектура: x86_64 и AArch64, ABI: Qt 6 и musl
 
     Описание: Просмотр каталогов и основные операции с файлами через Qt Widgets
     Подсистема: графические программы
     Первое изменение: 25.10.2026
-    Последнее изменение: 30.10.2026
+    Последнее изменение: 21.11.2026
     Доступ: общедоступный
 */
 
@@ -164,6 +164,19 @@ static bool testFileOperations() {
 	return availablePath(destination) == destination + QStringLiteral(" (copy 1)");
 }
 
+class FileListModel final : public QFileSystemModel {
+public:
+	using QFileSystemModel::QFileSystemModel;
+
+	// Заголовок имени файла содержит только текст, значки остаются у самих файлов
+	QVariant headerData(int section, Qt::Orientation orientation, int role) const override {
+		if (orientation == Qt::Horizontal && role == Qt::DecorationRole) {
+			return {};
+		}
+		return QFileSystemModel::headerData(section, orientation, role);
+	}
+};
+
 class FilesWindow final : public QMainWindow {
 public:
 	// Собрать окно и открыть начальный каталог
@@ -171,7 +184,7 @@ public:
 		setWindowTitle(QStringLiteral("Files - SynapseOS"));
 		resize(900, 600);
 
-		model = new QFileSystemModel(this);
+		model = new FileListModel(this);
 		model->setRootPath(QStringLiteral("/"));
 		model->setReadOnly(false);
 
@@ -241,7 +254,15 @@ public:
 		addShortcut(QKeySequence(QStringLiteral("F2")), [this]() { renameSelected(); });
 		addShortcut(QKeySequence(QStringLiteral("Delete")), [this]() { deleteSelected(); });
 
-		navigate(initial);
+		QFileInfo initialEntry(initial);
+		if (initialEntry.isFile()) {
+			navigate(initialEntry.absolutePath());
+			QModelIndex selected = model->index(initialEntry.absoluteFilePath());
+			view->setCurrentIndex(selected);
+			QTimer::singleShot(0, this, [this, selected]() { open(selected); });
+		} else {
+			navigate(initial);
+		}
 	}
 
 	// Проверить, что модель открыла каталог и окно обработало события

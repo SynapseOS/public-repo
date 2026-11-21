@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <termios.h>
 
 #ifndef WIFI_DEVICE
 #define WIFI_DEVICE "/dev/wifi"
@@ -44,6 +45,11 @@ static void wifi_wipe(void *data, size_t size) {
 static void wifi_print_ssid(const uint8_t *ssid, size_t size) {
     for (size_t i = 0; i < size; i++) {
         unsigned byte = ssid[i];
+        if ((byte == 0xd0U || byte == 0xd1U) && i + 1U < size && (ssid[i + 1U] & 0xc0U) == 0x80U) {
+            putchar((int)byte);
+            putchar((int)ssid[++i]);
+            continue;
+        }
         putchar(byte >= 32U && byte <= 126U && byte != '\\' ? (int)byte : '?');
     }
 }
@@ -53,13 +59,38 @@ static void wifi_print_ipv4(uint32_t address) {
            (unsigned)((address >> 8U) & 255U), (unsigned)(address & 255U));
 }
 
+struct wifi_adapter {
+    const char *name, *device, *profile;
+};
+
+static const struct wifi_adapter adapters[] = {
+    {"usb", "/dev/wifi-usb", WIFI_PROFILE_DIR "/wifi-usb.conf"},
+    {"onboard", "/dev/wifi-onboard", WIFI_PROFILE_DIR "/wifi-onboard.conf"},
+    {"auto", WIFI_DEVICE, WIFI_PROFILE}
+};
+static const struct wifi_adapter *adapter;
+
+// На плате предпочитать подключённый USB-адаптер, сохраняя выбор на всё время команды
 static int wifi_open(void) {
-    int fd = open(WIFI_DEVICE, O_RDWR | O_CLOEXEC | O_NOFOLLOW);
-
-    if (fd < 0) {
-        fprintf(stderr, "wifi: %s: %s\n", WIFI_DEVICE, strerror(errno));
+    const int flags = O_RDWR | O_CLOEXEC | O_NOFOLLOW;
+    if (!adapter) {
+        for (unsigned i = 0; i < 2; ++i) {
+            int fd = open(adapters[i].device, flags);
+            if (fd >= 0) {
+                adapter = &adapters[i];
+                return fd;
+            }
+            if (errno != ENOENT && errno != ENODEV && errno != ENXIO) {
+                perror(adapters[i].device);
+                return -1;
+            }
+        }
+        adapter = &adapters[2];
     }
-
+    int fd = open(adapter->device, flags);
+    if (fd < 0) {
+        fprintf(stderr, "wifi: %s: %s\n", adapter->device, strerror(errno));
+    }
     return fd;
 }
 
@@ -137,7 +168,7 @@ static int wifi_status(int fd) {
            status.bssid[3], status.bssid[4], status.bssid[5], status.channel);
     printf("Link: %u Mb/s\n", status.link_mbps);
 
-    if (status.ready) {
+    if (status.ready && status.ipv4 != 0) {
         fputs("IPv4: ", stdout);
         wifi_print_ipv4(status.ipv4);
         fputs("\nGateway: ", stdout);
@@ -174,8 +205,8 @@ static bool wifi_save_profile(const struct syn_wifi_connect *request) {
         return false;
     }
 
-    char temporary[96];
-    int name_length = snprintf(temporary, sizeof(temporary), "%s.tmp.%ld", WIFI_PROFILE, (long)getpid());
+    char temporary[sizeof(WIFI_PROFILE_DIR "/wifi-onboard.conf.tmp.") + 24];
+    int name_length = snprintf(temporary, sizeof(temporary), "%s.tmp.%ld", adapter->profile, (long)getpid());
 
     if (name_length < 0 || (size_t)name_length >= sizeof(temporary)) {
         return false;
@@ -215,7 +246,7 @@ static bool wifi_save_profile(const struct syn_wifi_connect *request) {
     }
 
     if (okay) {
-        okay = rename(temporary, WIFI_PROFILE) == 0;
+        okay = rename(temporary, adapter->profile) == 0;
     }
 
     if (!okay) {
@@ -258,7 +289,11 @@ static bool wifi_decode(const char *text, size_t size, uint8_t *out, size_t limi
 }
 
 static bool wifi_load_profile(struct syn_wifi_connect *request) {
-    int fd = open(WIFI_PROFILE, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    const int flags = O_RDONLY | O_CLOEXEC | O_NOFOLLOW;
+    int fd = open(adapter->profile, flags);
+    if (fd < 0 && errno == ENOENT && adapter != &adapters[2]) {
+        fd = open(WIFI_PROFILE, flags);
+    }
 
     if (fd < 0) {
         return false;
@@ -291,17 +326,45 @@ static bool wifi_load_profile(struct syn_wifi_connect *request) {
     return okay;
 }
 
+// Считать пароль с терминала без эха и без записи в историю оболочки
+static bool wifi_ask_password(struct syn_wifi_connect *request) {
+    struct termios saved;
+    if (tcgetattr(STDIN_FILENO, &saved) < 0) return false;
+    struct termios hidden = saved;
+    hidden.c_lflag &= ~(tcflag_t)(ECHO | ICANON);
+    hidden.c_cc[VMIN] = 1;
+    hidden.c_cc[VTIME] = 0;
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &hidden) < 0) return false;
+    fputs("Wi-Fi password: ", stderr);
+    fflush(stderr);
+    size_t n = 0;
+    bool complete = false, overflow = false;
+    unsigned char c;
+    while (read(STDIN_FILENO, &c, 1) == 1) {
+        if (c == '\n' || c == '\r') { complete = true; break; }
+        if (c == 3 || c == 4) break;
+        if (c == 127 || c == 8) { if (n) --n; continue; }
+        if (n < sizeof(request->password)) request->password[n++] = c;
+        else overflow = true;
+    }
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &saved) < 0) complete = false;
+    fputc('\n', stderr);
+    request->password_length = (uint8_t)n;
+    return complete && !overflow && n >= 8;
+}
+
 static int wifi_connect(int fd, int argc, char **argv, bool automatic) {
     struct syn_wifi_connect request = {.version = SYN_WIFI_ABI_VERSION};
 
     if (automatic) {
         if (!wifi_load_profile(&request)) {
-            fprintf(stderr, "wifi: no usable private profile in %s\n", WIFI_PROFILE);
+            fprintf(stderr, "wifi: no usable private profile for %s\n", adapter->name);
             return 1;
         }
     } else {
         size_t ssid_length = strlen(argv[2]);
-        size_t password_length = argc == 4 ? strlen(argv[3]) : 0U;
+        bool ask = argc == 4 && !strcmp(argv[3], "--ask");
+        size_t password_length = argc == 4 && !ask ? strlen(argv[3]) : 0U;
 
         if (ssid_length == 0U || ssid_length > SYN_WIFI_SSID_LIMIT ||
             password_length > SYN_WIFI_PASSWORD_LIMIT ||
@@ -313,6 +376,11 @@ static int wifi_connect(int fd, int argc, char **argv, bool automatic) {
         memcpy(request.ssid, argv[2], ssid_length);
         request.ssid_length = (uint8_t)ssid_length;
 
+        if (ask && !wifi_ask_password(&request)) {
+            wifi_wipe(&request, sizeof(request));
+            fputs("wifi: password entry cancelled or invalid (8..63 bytes)\n", stderr);
+            return 1;
+        }
         if (password_length != 0U) {
             memcpy(request.password, argv[3], password_length);
             request.password_length = (uint8_t)password_length;
@@ -333,10 +401,29 @@ static int wifi_connect(int fd, int argc, char **argv, bool automatic) {
 }
 
 static void wifi_usage(void) {
-    fputs("Usage: wifi scan | connect SSID [password] | status | disconnect | on | off | auto\n", stderr);
+    fputs("Usage: wifi [usb|onboard] scan | connect SSID [password|--ask] | status | disconnect | on | off | auto\n", stderr);
 }
 
 int main(int argc, char **argv) {
+    bool explicit_option = argc >= 2 && !strcmp(argv[1], "--interface");
+    if (explicit_option) {
+        --argc;
+        ++argv;
+    }
+    if (argc >= 2) {
+        for (unsigned i = 0; i < 2; ++i) {
+            if (!strcmp(argv[1], adapters[i].name)) {
+                adapter = &adapters[i];
+                --argc;
+                ++argv;
+                break;
+            }
+        }
+    }
+    if (explicit_option && !adapter) {
+        wifi_usage();
+        return 2;
+    }
     if (argc < 2) {
         wifi_usage();
         return 2;

@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "synapse-recorder",
+  "version": "1.0.0-r2",
+  "description": "Screen and UVC camera recorder with CLI and terminal controls",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": []
+}

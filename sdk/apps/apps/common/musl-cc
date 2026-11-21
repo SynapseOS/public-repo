@@ -31,6 +31,23 @@ case "$mode" in
 		;;
 esac
 
+arch=${TARGET_ARCH:-$(sed -n 's/^ARCH = //p' "$musl/config.mak")}
+if [ "$arch" = aarch64 ]; then
+	cc=${ARM64_CC:-clang}
+	if [ "$link" = 1 ]; then
+		libgcc=${ARM64_LIBGCC:-$(aarch64-linux-gnu-gcc -print-libgcc-file-name)}
+		case "$mode" in
+			static) set -- -static -Wl,--image-base=0x10000000 "$musl/lib/crt1.o" "$@" ;;
+			dynamic) set -- -pie -Wl,--dynamic-linker=/lib/ld-musl-aarch64.so.1 "$musl/lib/Scrt1.o" "$@" ;;
+		esac
+		set -- -fuse-ld=lld -nostdlib -Wl,-z,max-page-size=4096,-z,separate-loadable-segments \
+			"$musl/lib/crti.o" "$@" -L"$musl/lib" -Wl,--start-group -lc "$libgcc" -Wl,--end-group "$musl/lib/crtn.o"
+	fi
+	exec "$cc" --target=aarch64-linux-musl -nostdinc -isystem "$musl/obj/include" -isystem "$musl/include" \
+		-isystem "$musl/arch/aarch64" -isystem "$musl/arch/generic" \
+		-idirafter "$("$cc" --print-resource-dir)/include" -fno-stack-protector $codeflags "$@"
+fi
+
 if [ "$link" = 0 ]; then
 	exec gcc -nostdinc -isystem "$musl/obj/include" -isystem "$musl/include" \
 		-isystem "$musl/arch/x86_64" -isystem "$musl/arch/generic" \

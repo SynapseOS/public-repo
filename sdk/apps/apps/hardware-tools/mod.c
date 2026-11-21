@@ -10,6 +10,13 @@
 
 // Загрузка, выгрузка и замена модулей через нативный API без запуска оболочки
 #include <elf.h>
+#if defined(__aarch64__)
+#define TARGET_MACHINE EM_AARCH64
+#define TARGET_MODULE_ARCH "arm64"
+#else
+#define TARGET_MACHINE EM_X86_64
+#define TARGET_MODULE_ARCH "amd64"
+#endif
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <fcntl.h>
@@ -109,7 +116,7 @@ static int read_image(const char *arg, struct image *image) {
     Elf64_Ehdr eh;
     memcpy(&eh, image->data, sizeof(eh));
     if (memcmp(eh.e_ident, ELFMAG, SELFMAG) || eh.e_ident[EI_CLASS] != ELFCLASS64 ||
-        eh.e_ident[EI_DATA] != ELFDATA2LSB || eh.e_machine != EM_X86_64 ||
+        eh.e_ident[EI_DATA] != ELFDATA2LSB || eh.e_machine != TARGET_MACHINE ||
         eh.e_shentsize != sizeof(Elf64_Shdr) || !eh.e_shnum ||
         eh.e_shstrndx >= eh.e_shnum ||
         !range(image->size, eh.e_shoff, (uint64_t)eh.e_shnum * sizeof(Elf64_Shdr))) {
@@ -144,7 +151,7 @@ static int read_image(const char *arg, struct image *image) {
         if (image->info.magic != 0x53594e4d4f4431ULL || image->info.abi != 2 ||
             !memchr(image->info.name, 0, 64) || !memchr(image->info.version, 0, 32) ||
             !memchr(image->info.license, 0, 32) || !memchr(image->info.arch, 0, 16) ||
-            strcmp(image->info.arch, "amd64") || !valid_name(image->info.name)) {
+            strcmp(image->info.arch, TARGET_MODULE_ARCH) || !valid_name(image->info.name)) {
             goto invalid;
         }
         return 0;

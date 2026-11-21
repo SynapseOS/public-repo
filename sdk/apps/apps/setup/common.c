@@ -381,7 +381,53 @@ static void strings(struct json *j, int a, char *out, size_t stride, int *count,
         (*count)++;
     }
 }
-struct package *parse_package(struct json *j, int t) {
+// За команду, конфигурацию и плагины sudo отвечает один пакет
+int sudo_path(const char *path) {
+    static const char *const roots[] = {
+        "bin/sudo", "bin/sudoedit", "bin/visudo", "usr/bin/sudo", "usr/bin/sudoedit", "usr/bin/visudo",
+        "etc/sudo.conf", "etc/sudoers", "etc/sudoers.d", "lib/sudo", "usr/lib/sudo", "usr/libexec/sudo",
+        "usr/share/synapse/privileged-elf"
+    };
+    for (size_t i = 0; i < sizeof roots / sizeof *roots; i++) {
+        size_t n = strlen(roots[i]);
+        if (!strncmp(path, roots[i], n) && (path[n] == 0 || path[n] == '/')) return 1;
+    }
+    return 0;
+}
+
+// Проверить права и владельца привилегированного файла с учётом автономного корня setup
+int sudo_metadata(const struct file *file, const struct stat *st) {
+    if (!sudo_path(file->path)) return 1;
+    struct stat owner;
+    uid_t uid = 0;
+    if (*root && !stat(root, &owner)) uid = owner.st_uid;
+    return (st->st_mode & 07777) == file->mode && st->st_uid == uid && (uid || st->st_gid == 0);
+}
+
+// Зарезервировать дерево доверенных ELF и проверить соответствие маркера установленной команде
+static void privileged_elf(const struct package *p, enum package_origin origin) {
+    static const char directory[] = "usr/share/synapse/privileged-elf";
+    static const char empty_hash[] = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    const struct file *binary = NULL, *marker = NULL;
+    for (int i = 0; i < p->nfile; i++) {
+        const struct file *f = p->files + i;
+        if (!strcmp(f->path, "usr/share/synapse") || !strcmp(f->path, directory))
+            fail("reserved privileged executable directory");
+        if (!strcmp(f->path, "bin/sudo")) binary = f;
+        if (!strncmp(f->path, directory, sizeof directory - 1) && f->path[sizeof directory - 1] == '/') {
+            if (marker || strcmp(p->name, "sudo") || f->type || f->config || f->mode != 0644 ||
+                f->size || strcmp(f->hash, empty_hash)) fail("invalid privileged executable marker");
+            marker = f;
+        }
+    }
+    if (strcmp(p->name, "sudo")) return;
+    if (origin == PackageSummary && !p->nfile) return;
+    if (origin == PackageInstalled && !marker && !strcmp(p->version, "1.9.17-r1")) return;
+    if (!binary || !marker || strcmp(marker->path + sizeof directory, binary->hash))
+        fail("sudo marker must match the executable SHA-256");
+}
+
+struct package *parse_manifest(struct json *j, int t, enum package_origin origin) {
     object_fields(j, t,
                   "|format||name||version||description||kind||arch||abi||depends||"
                   "conflicts||files|");
@@ -453,13 +499,15 @@ struct package *parse_package(struct json *j, int t) {
             fail("protected path %s", f->path);
         }
         uint64_t mode = jnum(j, k, "mode");
-        if (mode & ~0777ULL) {
+        int sudo_entry = sudo_path(f->path);
+        if (sudo_entry && strcmp(p->name, "sudo")) fail("protected sudo path: %s", f->path);
+        if ((mode > 0777 && !(mode == 04755 && !strcmp(f->path, "bin/sudo") && !strcmp(type, "file"))) ||
+            (sudo_entry && (mode & 0022)) ||
+            (!strcmp(f->path, "bin/sudo") && (mode != 04755 || strcmp(type, "file"))) ||
+            (!strcmp(f->path, "etc/sudoers") && (mode != 0440 || strcmp(type, "file")))) {
             fail("unsafe permissions");
         }
-        f->mode = mode;
-        if (f->mode & ~0777) {
-            fail("unsafe permissions");
-        }
+        f->mode = (unsigned)mode;
         f->size = jnum(j, k, "size");
         if (f->size > PACKAGE_LIMIT) {
             fail("file too large");
@@ -475,6 +523,7 @@ struct package *parse_package(struct json *j, int t) {
             fail("invalid config flag");
         }
         f->config = conf;
+        if (!conf && !strcmp(f->path, "etc/sudoers")) fail("sudoers must be a configuration file");
         if (conf && strncmp(f->path, "etc/", 4)) {
             fail("config outside etc");
         }
@@ -492,10 +541,15 @@ struct package *parse_package(struct json *j, int t) {
             }
         }
     }
+    privileged_elf(p, origin);
     p->manifest_len = j->t[t].end - j->t[t].start;
     p->manifest = strndup(j->text + j->t[t].start, p->manifest_len);
     return p;
 }
+struct package *parse_package(struct json *j, int t) {
+    return parse_manifest(j, t, PackageArchive);
+}
+
 int package_same(struct package *a, struct package *b) {
     if (strcmp(a->name, b->name) || strcmp(a->version, b->version) ||
         strcmp(a->abi, b->abi) || strcmp(a->arch, b->arch) ||

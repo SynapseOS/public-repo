@@ -143,7 +143,7 @@ for package in "$@"; do
 		"$stage/inspection.json" >"$stage/parsed.json"
 	mv -- "$stage/parsed.json" "$stage/inspection.json"
 
-	if ! jq -e '
+	if ! jq -e -L "$ROOT/build" --arg repository "$REPO_ID" 'include "package-policy";
 		def safe_path:
 			type == "string" and length < 512 and
 			test("^[!-~]+$") and (contains("\\") | not) and (contains("\"") | not) and
@@ -153,6 +153,7 @@ for package in "$@"; do
 		def integer: type == "number" and . >= 0 and . == floor;
 		.manifest as $m |
 		($m | keys == ["abi","arch","conflicts","depends","description","files","format","kind","name","version"]) and
+		($m | check_privileged_elf) and ($m.name != "sudo" or $repository == "official") and
 		$m.format == 1 and $m.arch == "x86_64" and $m.abi == "synapse-x86_64-v1" and
 		($m.name | type == "string" and test("^[a-z0-9_.-]{1,63}$")) and
 		($m.version | type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+-r[0-9]+$")) and
@@ -162,7 +163,7 @@ for package in "$@"; do
 		($m.files | type == "array" and length <= 4096 and
 			(length == (map(.path) | unique | length)) and all(
 				(.path | safe_path) and (.type == "file" or .type == "directory") and
-				(.mode | integer and . <= 511) and (.size | integer) and
+				(.mode | integer) and package_permissions($m.name) and (.size | integer) and
 				(.sha256 | type == "string" and test("^[0-9a-f]{64}$")) and
 				(.config | type == "boolean"))) and
 		([.entries[] | {path,type,mode,size,sha256}] | sort_by(.path)) ==

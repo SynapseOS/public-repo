@@ -1,0 +1,109 @@
+--- a/src/xdg.c
++++ b/src/xdg.c
+@@ -21,6 +21,8 @@
+ #include "node.h"
+ #include "output.h"
+ #include "snap-constraints.h"
++#include "ssd.h"
++#include "common/border.h"
+ #include "view.h"
+ #include "view-impl-common.h"
+ #include "window-rules.h"
+@@ -184,6 +186,53 @@
+ 	wlr_scene_node_set_enabled(&xdg_view->fullscreen_bg->node, true);
+ }
+ 
++static void
++set_usable_client_bounds(struct view *view)
++{
++	if (output_is_usable(view->output)) {
++		struct border frame = ssd_thickness(view);
++		struct wlr_box area = view->output->usable_area;
++		wlr_xdg_toplevel_set_bounds(xdg_toplevel_from_view(view),
++			MAX(1, area.width - frame.left - frame.right),
++			MAX(1, area.height - frame.top - frame.bottom));
++	}
++}
++
++/* An oversized frame can cover the entire axis even when it cannot fit. */
++static bool
++axis_fully_visible(int pos, int extent, int start, int length)
++{
++	int64_t end = (int64_t)pos + extent;
++	int64_t bound = (int64_t)start + length;
++	return extent > length ? pos <= start && end >= bound
++		: pos >= start && end <= bound;
++}
++
++static int
++offset_into_axis(int pos, int extent, int start, int length)
++{
++	if (extent > length) {
++		return 0;
++	}
++	int64_t high = (int64_t)start + length - extent;
++	return MAX((int64_t)start, MIN((int64_t)pos, high)) - pos;
++}
++
++/* Retain a visible frame after a spontaneous resize on its current output. */
++static void
++keep_client_resize_visible(struct view *view, const struct wlr_box *before)
++{
++	struct wlr_box area = output_usable_area_in_layout_coords(view->output);
++	if (wlr_box_empty(&area)
++			|| !axis_fully_visible(before->x, before->width, area.x, area.width)
++			|| !axis_fully_visible(before->y, before->height, area.y, area.height)) {
++		return;
++	}
++	struct wlr_box frame = ssd_max_extents(view);
++	view->current.x += offset_into_axis(frame.x, frame.width, area.x, area.width);
++	view->current.y += offset_into_axis(frame.y, frame.height, area.y, area.height);
++}
++
+ /* TODO: reorder so this forward declaration isn't needed */
+ static void set_pending_configure_serial(struct view *view, uint32_t serial);
+ 
+@@ -208,11 +257,7 @@
+ 			| WLR_XDG_TOPLEVEL_WM_CAPABILITIES_MINIMIZE;
+ 		wlr_xdg_toplevel_set_wm_capabilities(toplevel, wm_caps);
+ 
+-		if (view->output) {
+-			wlr_xdg_toplevel_set_bounds(toplevel,
+-				view->output->usable_area.width,
+-				view->output->usable_area.height);
+-		}
++		set_usable_client_bounds(view);
+ 
+ 		/*
+ 		 * Handle initial fullscreen/maximize requests immediately after
+@@ -291,7 +336,22 @@
+ 	}
+ 
+ 	if (update_required) {
++		bool requested_size = serial && (view->pending.width != current->width
++			|| view->pending.height != current->height);
++		bool client_resize = !requested_size && view->mapped && view_is_floating(view)
++			&& !wlr_box_empty(current)
++			&& view->server->grabbed_view != view && !view->adjusting_for_layout_change
++			&& output_is_usable(view->output)
++			&& current->x == view->pending.x && current->y == view->pending.y
++			&& (current->width != size.width || current->height != size.height);
++		struct wlr_box before = {0};
++		if (client_resize) {
++			before = ssd_max_extents(view);
++		}
+ 		view_impl_apply_geometry(view, size.width, size.height);
++		if (client_resize) {
++			keep_client_resize_visible(view, &before);
++		}
+ 		center_fullscreen_if_needed(view);
+ 		view_moved(view);
+ 
+@@ -833,6 +893,7 @@
+ 		} else {
+ 			view_set_ssd_mode(view, LAB_SSD_MODE_NONE);
+ 		}
++		set_usable_client_bounds(view);
+ 
+ 		/*
+ 		 * Set initial "pending" dimensions. "Current"

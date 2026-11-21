@@ -93,7 +93,7 @@ static const char *archive_payload(int fd, uint64_t offset, const struct file *f
     }
 
     if (target != NULL) {
-        output = open(target, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, file->mode);
+        output = open(target, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600);
         if (output < 0) {
             error = "cannot create staged payload";
             goto done;
@@ -131,7 +131,7 @@ static const char *archive_payload(int fd, uint64_t offset, const struct file *f
         error = "payload SHA256 mismatch";
         goto done;
     }
-    if (output >= 0 && (fchmod(output, file->mode) != 0 || fsync(output) != 0)) {
+    if (output >= 0 && fsync(output) != 0) {
         error = "cannot sync staged payload";
     }
 
@@ -240,7 +240,7 @@ void extract(struct package *p, const char *archive, const char *stage) {
             archive_reject(fd, "unsupported tar format");
         }
         uint64_t size = octal((void *)h + 124, 12), mode = octal((void *)h + 100, 8);
-        if (size > PACKAGE_LIMIT || size > len - offset - 512 || mode & ~0777 ||
+        if (size > PACKAGE_LIMIT || size > len - offset - 512 || (mode > 0777 && mode != 04755) ||
             octal((void *)h + 108, 8) || octal((void *)h + 116, 8)) {
             archive_reject(fd, "invalid tar metadata");
         }
@@ -255,7 +255,7 @@ void extract(struct package *p, const char *archive, const char *stage) {
 
         if (h[156] == 'L' || h[156] == 'x') {
             char body[4096];
-            if (!manifest || extension || size == 0 || size > sizeof(body) ||
+            if (mode > 0777 || !manifest || extension || size == 0 || size > sizeof(body) ||
                 archive_read_at(fd, offset + 512, body, (size_t)size) != 0) {
                 archive_reject(fd, "invalid tar path extension");
             }
@@ -293,6 +293,8 @@ void extract(struct package *p, const char *archive, const char *stage) {
             name[strlen(name) - 1] = 0;
         }
         const char *relative = strncmp(name, "payload/", 8) == 0 ? name + 8 : name;
+        if (mode == 04755 && (type || strcmp(name, "payload/bin/sudo") || strcmp(p->name, "sudo")))
+            archive_reject(fd, "unexpected privileged tar entry");
         if (!safe_path(relative)) {
             archive_reject(fd, "unsafe tar path");
         }

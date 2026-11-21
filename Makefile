@@ -12,9 +12,19 @@ SHELL := /bin/bash
 JOBS ?= 4
 APPS ?=
 export PUBLIC_PACKAGES_ROOT := $(ROOT)
-BUILD_ROOT ?= $(ROOT)/pkgs/.work
-OUT ?= $(ROOT)/out
-SDK ?= $(ROOT)/.sdk
+ARCH ?= x86_64
+ifneq ($(filter arm64 aarch64,$(ARCH)),)
+TARGET_ARCH := aarch64
+ARCH_SUFFIX := -aarch64
+else ifneq ($(filter amd64 x86_64,$(ARCH)),)
+TARGET_ARCH := x86_64
+else
+$(error Unsupported ARCH=$(ARCH))
+endif
+export TARGET_ARCH
+BUILD_ROOT ?= $(ROOT)/pkgs/.work$(ARCH_SUFFIX)
+OUT ?= $(ROOT)/out$(ARCH_SUFFIX)
+SDK ?= $(ROOT)/.sdk$(ARCH_SUFFIX)
 REPO_DIR ?= $(OUT)/repo
 REPO_ID ?= official
 GENERATION ?=
@@ -31,7 +41,7 @@ unexport CC CXX AR LD NASM NASMFLAGS COMMON_CFLAGS COMMON_CPPFLAGS COMMON_LDFLAG
 export ROOT JOBS BUILD_ROOT OUT SDK
 PACKAGES := $(sort $(notdir $(patsubst %/,%,$(dir $(wildcard $(ROOT)/pkgs/*/manifest.json)))))
 SDK_INPUTS := $(shell find $(ROOT)/sdk -type f)
-BUILD_INPUTS := $(filter-out $(ROOT)/build/repository.sh $(ROOT)/build/repository-test.sh,$(wildcard $(ROOT)/build/*.sh)) $(ROOT)/build/TrustStore.java
+BUILD_INPUTS := $(filter-out $(ROOT)/build/repository.sh $(ROOT)/build/repository-test.sh,$(wildcard $(ROOT)/build/*.sh)) $(ROOT)/build/TrustStore.java $(ROOT)/build/package-policy.jq
 .PHONY: all list check check-tools host-tools sdk clean repository publish check-signing signing-key $(PACKAGES)
 all: native $(PACKAGES)
 list:
@@ -48,10 +58,10 @@ check: check-tools
 		jq empty "$$spec"; \
 	done
 	@bash build/check.sh
-host-tools: check-tools
+host-tools:
 	@bash "$(ROOT)/build/host-tools.sh"
 sdk: $(SDK)/.ready
-$(SDK)/.ready: $(SDK_INPUTS) $(ROOT)/build/sdk.sh | check-tools
+$(SDK)/.ready: $(SDK_INPUTS) $(ROOT)/build/sdk.sh $(ROOT)/Makefile | check-tools host-tools
 	@bash "$(ROOT)/build/sdk.sh"
 	@touch "$@"
 clean:

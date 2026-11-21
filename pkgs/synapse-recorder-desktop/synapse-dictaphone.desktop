@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Диктофон
+Exec=/bin/synapse-dictaphone
+Icon=synapse-dictaphone
+Terminal=false
+Categories=AudioVideo;Recorder;

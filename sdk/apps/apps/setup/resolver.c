@@ -148,7 +148,7 @@ static int admissible(struct package *p) {
     }
 
     struct repo *r = repos + p->repo;
-    if (strcmp(p->arch, "x86_64") || strcmp(p->abi, ABI)) {
+    if (strcmp(p->arch, SETUP_ARCH) || strcmp(p->abi, ABI)) {
         return 0;
     }
     if (protected(p->name) && !r->official) {
@@ -504,6 +504,10 @@ void verify(int argc, char **argv) {
                 fprintf(stderr, "Missing/invalid: %s\n", f->path);
                 errors++;
                 continue;
+            }
+            if (!sudo_metadata(f, &st)) {
+                fprintf(stderr, "Incorrect permissions or ownership: %s\n", f->path);
+                errors++;
             }
             if (!f->type) {
                 sha_file(full, h);

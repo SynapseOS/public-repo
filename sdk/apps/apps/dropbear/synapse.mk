@@ -14,7 +14,7 @@ $(BUILD)/Makefile: configure Makefile.in synapse-options.h synapse.mk $(DRIVER)
 	mkdir -p $(BUILD)
 	cp synapse-options.h $(BUILD)/localoptions.h
 	cd $(BUILD) && CC="$(DRIVER)" CFLAGS="-Os" ../configure \
-	    --host=x86_64-synapse-linux-musl --enable-static --disable-harden --disable-zlib \
+	    --host=$(if $(filter arm64 aarch64,$(ARCH)),aarch64,x86_64)-synapse-linux-musl --build=$(shell gcc -dumpmachine) --enable-static --disable-harden --disable-zlib \
 	    --disable-openpty --disable-syslog --disable-lastlog --disable-utmp --disable-utmpx \
 	    --disable-wtmp --disable-wtmpx --disable-loginfunc --disable-pututline \
 	    --disable-pututxline --enable-bundled-libtom

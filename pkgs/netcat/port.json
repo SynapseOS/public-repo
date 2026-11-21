@@ -9,7 +9,8 @@
     "patches/0002-bound-address-array-access.patch",
     "patches/0003-synapse-bounded-connect.patch",
     "patches/0004-listener-deadline.patch",
-    "patches/0005-udp-listener-deadline.patch"
+    "patches/0005-udp-listener-deadline.patch",
+    "patches/0006-portable-varargs.patch"
   ],
   "sources": [
     "netcat.c"

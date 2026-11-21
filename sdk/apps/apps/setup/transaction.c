@@ -199,6 +199,10 @@ static struct operation *add(const char *relative) {
         }
         o->had_old = 1;
         o->old_mode = st.st_mode & 0777;
+        int owner = old_owner(relative);
+        if (owner >= 0 && !strcmp(installed[owner]->name, "sudo") && !strcmp(relative, "bin/sudo") &&
+            S_ISREG(st.st_mode) && (st.st_mode & 07777) == 04755 && st.st_uid == geteuid())
+            o->old_mode = 04755;
     } else if (errno != ENOENT) {
         fail("cannot inspect %s", relative);
     }
@@ -269,9 +273,19 @@ static void replace(const char *src, const char *relative, unsigned mode) {
             fail("remove temporary file");
         }
     }
-    copy_file(src, tmp, mode, 1);
+    int privileged = mode == 04755;
+    if (privileged && strcmp(relative, "bin/sudo")) fail("invalid setuid destination");
+    copy_file(src, tmp, privileged ? 0600 : mode, 1);
     if (rename(tmp, dest)) {
         fail("rename %s: %s", dest, strerror(errno));
+    }
+    if (sudo_path(relative)) {
+        int fd = open(dest, O_RDONLY | O_NOFOLLOW);
+        struct stat st;
+        if (fd < 0 || fstat(fd, &st) || !S_ISREG(st.st_mode) || st.st_uid != geteuid() ||
+            (geteuid() == 0 && st.st_gid != 0 && fchown(fd, 0, 0)) || fchmod(fd, mode) || fsync(fd))
+            fail("set final permissions on %s", relative);
+        close(fd);
     }
     sync_parent(dest);
 }
@@ -363,8 +377,8 @@ void recover(void) {
                 fail("invalid recovery flags");
             }
 
-            unsigned mode = jnum(j, t, "mode");
-            if (mode & ~0777) {
+            uint64_t mode = jnum(j, t, "mode");
+            if (mode > 0777 && !(mode == 04755 && had && !directory && !strcmp(relative, "bin/sudo"))) {
                 fail("invalid recovery mode");
             }
             path(dest, relative);
@@ -1282,7 +1296,7 @@ static void validate_kernel(const char *stage) {
     if (memcmp(header.e_ident, ELFMAG, SELFMAG) ||
         header.e_ident[EI_CLASS] != ELFCLASS64 ||
         header.e_ident[EI_DATA] != ELFDATA2LSB ||
-        header.e_ident[EI_VERSION] != EV_CURRENT || header.e_machine != EM_X86_64 ||
+        header.e_ident[EI_VERSION] != EV_CURRENT || header.e_machine != SETUP_ELF_MACHINE ||
         header.e_version != EV_CURRENT ||
         (header.e_type != ET_EXEC && header.e_type != ET_DYN) ||
         header.e_ehsize != sizeof header || header.e_phentsize != sizeof(Elf64_Phdr) ||
@@ -1429,6 +1443,8 @@ void transact(void) {
             path(full, relative);
             struct stat st;
             int exists = !lstat(full, &st);
+            if (exists && f->config && sudo_path(relative) && !sudo_metadata(f, &st))
+                fail("review permissions and ownership of existing sudo configuration: %s", relative);
             if (exists && ((f->type && !S_ISDIR(st.st_mode)) ||
                            (!f->type && !S_ISREG(st.st_mode)))) {
                 fail("destination type conflict: %s", f->path);
@@ -1674,7 +1690,7 @@ void transact(void) {
         if (ops[i].had_old && !ops[i].directory) {
             char full[4096];
             path(full, ops[i].relative);
-            copy_file(full, ops[i].backup, ops[i].old_mode, 1);
+            copy_file(full, ops[i].backup, 0600, 1);
         }
     }
     snprintf(journalpath, sizeof journalpath, "%s/journal.json", txn);

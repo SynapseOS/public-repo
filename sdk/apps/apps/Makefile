@@ -1,6 +1,7 @@
 .SUFFIXES:
 
-ARCH := x86_64
+ARCH ?= x86_64
+MUSL_ARCH := $(if $(filter arm64 aarch64,$(ARCH)),aarch64,x86_64)
 
 CC := gcc
 AR := ar
@@ -28,11 +29,19 @@ COMMON_CPPFLAGS :=  \
     -nostdinc \
     -I$(MUSL_DIR)/obj/include \
     -I$(MUSL_INC) \
-    -I$(MUSL_DIR)/arch/x86_64 \
+    -I$(MUSL_DIR)/arch/$(MUSL_ARCH) \
     -I$(MUSL_DIR)/arch/generic
 
 
-ifeq ($(ARCH),x86_64)
+ifeq ($(MUSL_ARCH),aarch64)
+    ARM64_CC ?= clang
+    CC := $(ARM64_CC) --target=aarch64-linux-musl
+    AR := llvm-ar
+    LD := ld.lld
+    COMMON_CFLAGS += $(COMMON_CPPFLAGS) -fno-pie
+    COMMON_LDFLAGS := -m aarch64elf -nostdlib -static --gc-sections -z max-page-size=4096 \
+        -z separate-loadable-segments --image-base=0x10000000 $(ARM64_LIBGCC)
+else
     COMMON_CFLAGS += -m64 -march=x86-64 -mabi=sysv \
         -mno-80387 -mno-mmx -mno-red-zone \
         -mcmodel=small -fno-pie -no-pie
@@ -49,6 +58,7 @@ export ARCH CC AR LD NASM NASMFLAGS
 export MUSL_DIR MUSL_INC MUSL_LIB
 export SYNLIBC_DIR SYNLIBC_INC
 export COMMON_CFLAGS COMMON_CPPFLAGS COMMON_LDFLAGS
+export APP_LINK_SCRIPT := $(if $(filter aarch64,$(MUSL_ARCH)),,-T $(CURDIR)/common/apps.ld)
 export OUTPUT_DIR := $(CURDIR)/apps-bin
 export COMMON_DIR := $(CURDIR)/common
 
@@ -70,17 +80,17 @@ nano/ ncdu/ top/: curses
 
 .PHONY: musl-shared
 musl-shared:
-	$(MAKE) -C $(MUSL_DIR) -j4 lib/libc.so
+	$(MAKE) -C $(MUSL_DIR) ARCH=$(MUSL_ARCH) -j4 lib/libc.so
 lua/: musl-shared
 
 .PHONY: tls
 tls:
 	$(MAKE) -C common/mbedtls
-https/ httpsd/ setup/ links/ monitoring/: tls
+acme/ https/ httpsd/ setup/ links/ monitoring/: tls
 
 $(APP_DIRS):
 	@echo "=== Building $@ ==="
-	$(MAKE) -C $@ $(if $(filter dropbear/,$@),-f synapse.mk)
+	$(if $(filter dropbear/,$@),flock "$(CURDIR)/dropbear.build.lock") $(MAKE) -C $@ $(if $(filter dropbear/,$@),-f synapse.mk)
 
 clean:
 	@for d in $(APP_DIRS); do \

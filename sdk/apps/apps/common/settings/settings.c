@@ -57,6 +57,8 @@ const struct setting_spec setting_specs[] = {
           "Проверять обновления при запуске", "1", NULL, SET_BOOL, 0, 1, "reboot"),
     FIELD(SYS, "Desktop", "Enabled", "Graphical session", "Графическая сессия", "0",
           NULL, SET_BOOL, 0, 1, "reboot"),
+    FIELD(SYS, "Desktop", "LoginManager", "Require sign-in at startup", "Требовать вход при запуске",
+          "1", NULL, SET_BOOL, 0, 1, "reboot"),
     FIELD(SYS, "Desktop", "Path", "Session executable", "Программа сессии", "/bin/sh",
           NULL, SET_PATH, 0, 0, "reboot"),
     FIELD(SYS, "Terminal", "Font", "Console font", "Шрифт консоли",

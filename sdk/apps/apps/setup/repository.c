@@ -641,6 +641,8 @@ static void repo_index(struct repo *r, int ri, const char *data, size_t len,
         }
 
         struct package *p = parse_package(j, m);
+        if (!strcmp(p->name, "sudo") && (!r->official || strcmp(r->id, "official")))
+            fail("sudo requires the official repository");
         p->repo = ri;
         strcpy(p->hash, hash);
         strcpy(p->url, url);
@@ -916,7 +918,7 @@ void load_state(void) {
             fail("too many installed packages");
         }
         object_fields(j, t, "|source||explicit||manifest|");
-        struct package *pkg = parse_package(j, json_get(j, t, "manifest"));
+        struct package *pkg = parse_manifest(j, json_get(j, t, "manifest"), PackageInstalled);
         pkg->installed = 1;
         pkg->repo = -1;
         char source[64];
@@ -924,6 +926,8 @@ void load_state(void) {
              sizeof source); // В записи установленного пакета сохраняем источник в поле
                              // url
         // Адрес загрузки в такой записи не используется
+        if (!strcmp(pkg->name, "sudo") && strcmp(source, "official"))
+            fail("installed sudo has a non-official source");
         strcpy(pkg->url, source);
         if (json_boolean(j, json_get(j, t, "explicit"), &pkg->explicit)) {
             fail("invalid installed flags");
@@ -1183,7 +1187,7 @@ void load_public_catalog(void) {
         for (int token = array + 1; token < json->t[array].next; token = json->t[token].next) {
             object_fields(json, token, section == 0 ? "|source||size||manifest|" :
                           "|source||explicit||manifest|");
-            struct package *package = parse_package(json, json_get(json, token, "manifest"));
+            struct package *package = parse_manifest(json, json_get(json, token, "manifest"), PackageSummary);
             if (package->nfile != 0) {
                 fail("private file metadata in public catalog");
             }

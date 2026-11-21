@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "name": "sudo",
+  "version": "1.9.17-r3",
+  "description": "Run an authorized command with another user's privileges",
+  "kind": "tool",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["kernel >= 0.1.951-r1", "setup >= 0.1.512-r25"],
+  "conflicts": [],
+  "files": [
+    {"path": "bin/sudo", "type": "file", "mode": 2541, "config": false},
+    {"path": "bin/visudo", "type": "file", "mode": 493, "config": false},
+    {"path": "etc/sudoers", "type": "file", "mode": 288, "config": true},
+    {"path": "usr/share/licenses/sudo/LICENSE.md", "type": "file", "mode": 420, "config": false}
+  ]
+}

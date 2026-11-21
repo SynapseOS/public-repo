@@ -14,7 +14,7 @@ all: $(OUTPUT_DIR)/ncdu
 	$(MAKE) -C ../common/ncurses
 .build/Makefile: upstream/configure Makefile ../common/ncurses/install/lib/libncursesw.a
 	mkdir -p .build
-	cd .build && ../upstream/configure --host=x86_64-linux-musl --build=x86_64-linux-gnu CC='$(CC)' CPPFLAGS='-I$(CURSES)/include -I$(CURSES)/include/ncursesw' LDFLAGS='-L$(CURSES)/lib' LIBS='-lncursesw' --disable-nls
+	cd .build && NCURSES_LIBS="-lncursesw" NCURSES_CFLAGS="-I$(CURSES)/include/ncursesw" ../upstream/configure --host=$(if $(filter arm64 aarch64,$(ARCH)),aarch64,x86_64)-linux-musl --build=$(shell gcc -dumpmachine) CC='$(CC)' CPPFLAGS='-I$(CURSES)/include -I$(CURSES)/include/ncursesw' LDFLAGS='-L$(CURSES)/lib' LIBS='-lncursesw' --disable-nls
 $(OUTPUT_DIR)/ncdu: .build/Makefile $(shell find upstream/src -type f \( -name '*.c' -o -name '*.h' \))
 	# Используем готовые файлы Autotools независимо от времени checkout
 	$(MAKE) -C .build -j4 all-am $(addprefix -o ../upstream/,$(UPSTREAM_GENERATED))

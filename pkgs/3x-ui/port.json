@@ -4,5 +4,9 @@
   "source": "https://github.com/MHSanaei/3x-ui/releases/download/v3.11.0/x-ui-linux-amd64.tar.gz",
   "sha256": "0ddfa4702f595442e2962acd81addc768fdacaa4ff2672c971a0463dae744916",
   "license_source": "https://raw.githubusercontent.com/MHSanaei/3x-ui/v3.11.0/LICENSE",
-  "license_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  "license_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+  "panel_source": "https://codeload.github.com/MHSanaei/3x-ui/tar.gz/refs/tags/v3.11.0",
+  "panel_sha256": "93480008d098f030ee8e4254599526e7b9d26de0c460e8d10fd30aa0ce18c5e2",
+  "xray_source": "https://codeload.github.com/XTLS/Xray-core/tar.gz/refs/tags/v26.10.21",
+  "xray_sha256": "44ef4874529a03848c90f1fdcfb763350fbc5f1de741ec90e0024d651df25650"
 }

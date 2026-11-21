@@ -37,14 +37,14 @@ endif
 
 all: $(OUTPUT_DIR)/$(TARGET)
 
-$(OUTPUT_DIR)/$(TARGET): $(OBJS)
+$(OUTPUT_DIR)/$(TARGET): $(OBJS) Makefile $(COMMON_DIR)/../Makefile
 	@mkdir -p $(OUTPUT_DIR)
 	$(LD) $(COMMON_LDFLAGS) \
 	    $(CRTI) $(CRT1) \
 	    $(OBJS) \
 	    $(LIBS) \
 	    $(CRTN) \
-	    -T $(COMMON_DIR)/apps.ld \
+	    $(APP_LINK_SCRIPT) \
 	    -o $@
 
 $(OBJ_DIR)/%.o: %.c

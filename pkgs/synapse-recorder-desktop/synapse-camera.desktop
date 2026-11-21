@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Камера
+Exec=/bin/synapse-camera
+Icon=synapse-camera
+Terminal=false
+Categories=AudioVideo;Recorder;

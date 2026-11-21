@@ -84,12 +84,15 @@ typedef struct {
     uint64_t proc_count;
 } tel_packet_t;
 
+#if defined(__x86_64__) || defined(__i386__)
 static void cpuid(uint32_t leaf, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
                   uint32_t *edx) {
     __asm__ volatile("cpuid"
                      : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx)
                      : "a"(leaf), "c"(0));
 }
+
+#endif
 
 static void append_feature(char *buf, size_t max_len, size_t *len, const char *name) {
     size_t needed = strlen(name) + (*len > 0 ? 1 : 0);

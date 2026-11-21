@@ -1,0 +1,68 @@
+--- a/netcat.c
++++ b/netcat.c
+@@ -72,6 +72,7 @@
+ #include <string.h>		/* strcpy, strchr, yadda yadda */
+ #include <errno.h>
+ #include <signal.h>
++#include <stdarg.h>
+ #include <unistd.h>
+ #include <time.h>
+ #include <resolv.h>
+@@ -226,16 +227,9 @@
+ /* support routines -- the bulk of this thing.  Placed in such an order that
+    we don't have to forward-declare anything: */
+ 
+-/* holler :
+-   fake varargs -- need to do this way because we wind up calling through
+-   more levels of indirection than vanilla varargs can handle, and not all
+-   machines have vfprintf/vsyslog/whatever!  6 params oughta be enough. */
+-void holler (str, p1, p2, p3, p4, p5, p6)
+-  char * str;
+-  char * p1, * p2, * p3, * p4, * p5, * p6;
+-{
++static void vholler(const char *str, va_list args) {
+   if (o_verbose) {
+-    fprintf (stderr, str, p1, p2, p3, p4, p5, p6);
++    vfprintf(stderr, str, args);
+ #ifdef HAVE_BIND
+     if (h_errno) {		/* if host-lookup variety of error ... */
+       if (h_errno > 4)		/* oh no you don't, either */
+@@ -251,20 +245,25 @@
+       fprintf (stderr, "\n");
+     fflush (stderr);
+   }
+-} /* holler */
+-
+-/* bail :
+-   error-exit handler, callable from anywhere */
+-void bail (str, p1, p2, p3, p4, p5, p6)
+-  char * str;
+-  char * p1, * p2, * p3, * p4, * p5, * p6;
+-{
++}
++
++static void holler(const char *str, ...) {
++  va_list args;
++  va_start(args, str);
++  vholler(str, args);
++  va_end(args);
++}
++
++static void bail(const char *str, ...) {
++  va_list args;
+   o_verbose = 1;
+-  holler (str, p1, p2, p3, p4, p5, p6);
+-  close (netfd);
+-  sleep (1);
+-  exit (1);
+-} /* bail */
++  va_start(args, str);
++  vholler(str, args);
++  va_end(args);
++  close(netfd);
++  sleep(1);
++  exit(1);
++}
+ 
+ /* catch :
+    no-brainer interrupt handler */

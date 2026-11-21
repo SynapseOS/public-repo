@@ -217,12 +217,15 @@ static void inspect(const char *path) {
 		uint64_t size = octal(header + 124, 12);
 		uint64_t mode = octal(header + 100, 8);
 		unsigned char type = header[156];
-		if (size > remaining || mode > 0777 || (type != 0 && type != '0' && type != '5')) {
+		if (size > remaining || (type != 0 && type != '0' && type != '5')) {
 			fail("unsupported USTAR entry");
 		}
 
 		char name[257];
 		archive_name(header, name);
+		if (mode > 0777 && !(mode == 04755 && type != '5' && !strcmp(name, "payload/bin/sudo"))) {
+			fail("unsupported USTAR permissions");
+		}
 		if (entries == 0) {
 			if (strcmp(name, "manifest.json") != 0 || type == '5' || size > 1048576) {
 				fail("manifest must be the first regular file");

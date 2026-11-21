@@ -4,7 +4,7 @@
 // Описание: Подключить headless output к устройству /dev/fb0
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 16.11.2026
+// Последнее изменение: 21.11.2026
 // Доступ: общедоступный
 
 #include <errno.h>
@@ -76,6 +76,51 @@ static void synapse_kms_close(void) {
     synapse_kms.active = false;
 }
 
+// Ориентация относится к физической панели и сохраняется при выводе через fb0
+static enum wl_output_transform synapse_panel_transform;
+
+static enum wl_output_transform synapse_connector_transform(int fd, const drmModeConnector *connector) {
+    for (int i = 0; i < connector->count_props; i++) {
+        drmModePropertyRes *property = drmModeGetProperty(fd, connector->props[i]);
+        if (property == NULL) {
+            continue;
+        }
+        bool orientation = (property->flags & DRM_MODE_PROP_ENUM) && !strcmp(property->name, "panel orientation");
+        if (orientation) {
+            enum wl_output_transform transform = WL_OUTPUT_TRANSFORM_NORMAL;
+            for (int j = 0; j < property->count_enums; j++) {
+                if (property->enums[j].value != connector->prop_values[i]) {
+                    continue;
+                }
+                const char *name = property->enums[j].name;
+                if (!strcmp(name, "Right Side Up")) {
+                    transform = WL_OUTPUT_TRANSFORM_270;
+                } else if (!strcmp(name, "Left Side Up")) {
+                    transform = WL_OUTPUT_TRANSFORM_90;
+                } else if (!strcmp(name, "Upside Down")) {
+                    transform = WL_OUTPUT_TRANSFORM_180;
+                }
+                break;
+            }
+            drmModeFreeProperty(property);
+            return transform;
+        }
+        drmModeFreeProperty(property);
+    }
+    return WL_OUTPUT_TRANSFORM_NORMAL;
+}
+
+// Частота активного прогрессивного режима в миллигерцах для Wayland
+static int32_t synapse_kms_refresh(const drmModeModeInfo *mode) {
+    const uint64_t pixels = (uint64_t)mode->htotal * mode->vtotal;
+    if (!pixels || !mode->clock || (mode->flags & (DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLSCAN)) ||
+        mode->vscan > 1) {
+        return 0;
+    }
+    const uint64_t rate = ((uint64_t)mode->clock * 1000000u + pixels / 2u) / pixels;
+    return rate <= 1000000u ? (int32_t)rate : 0;
+}
+
 // Найти режим eDP, который уже выводится на экран и соответствует размеру fb0
 static bool synapse_kms_find_mode(int fd, uint32_t width, uint32_t height) {
     drmModeRes *resources = drmModeGetResources(fd);
@@ -88,13 +133,25 @@ static bool synapse_kms_find_mode(int fd, uint32_t width, uint32_t height) {
         if (connector == NULL) {
             continue;
         }
-        if (connector->connection == DRM_MODE_CONNECTED && connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
-            connector->encoder_id != 0) {
+        const bool panel = connector->connection == DRM_MODE_CONNECTED &&
+            connector->connector_type == DRM_MODE_CONNECTOR_eDP;
+        if (panel && width < height) {
+            // Прошивка может оставить портретный fb0 без активного маршрута DRM
+            for (int j = 0; j < connector->count_modes; j++) {
+                const drmModeModeInfo *mode = &connector->modes[j];
+                if ((mode->type & DRM_MODE_TYPE_PREFERRED) && mode->hdisplay == width && mode->vdisplay == height) {
+                    synapse_panel_transform = synapse_connector_transform(fd, connector);
+                    break;
+                }
+            }
+        }
+        if (panel && connector->encoder_id != 0) {
             drmModeEncoder *encoder = drmModeGetEncoder(fd, connector->encoder_id);
             if (encoder != NULL) {
                 drmModeCrtc *crtc = drmModeGetCrtc(fd, encoder->crtc_id);
                 if (crtc != NULL && crtc->mode_valid && crtc->mode.hdisplay == width &&
                     crtc->mode.vdisplay == height) {
+                    synapse_panel_transform = synapse_connector_transform(fd, connector);
                     synapse_kms.crtc = crtc->crtc_id;
                     synapse_kms.connector = connector->connector_id;
                     synapse_kms.mode = crtc->mode;
@@ -259,6 +316,7 @@ static bool synapse_fb_open(unsigned int *width, unsigned int *height) {
     synapse_fb_metrics = getenv("SYNAPSE_FB_METRICS") != NULL;
     const char *direct_scanout = getenv("SYNAPSE_FB_DIRECT_SCANOUT");
     synapse_fb_direct_scanout = direct_scanout != NULL && strcmp(direct_scanout, "0") != 0;
+    synapse_panel_transform = WL_OUTPUT_TRANSFORM_NORMAL;
     synapse_kms_open(variable.xres, variable.yres);
     if (synapse_kms.fd >= 0) {
         synapse_fb_direct_scanout = false;

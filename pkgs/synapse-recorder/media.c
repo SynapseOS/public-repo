@@ -1,0 +1,121 @@
+// SynapseOS, просмотр камеры и запись звука PCM
+#define _GNU_SOURCE
+#include "io.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+static volatile sig_atomic_t stopped;
+static void finish(int sig) { (void)sig; stopped = 1; }
+
+static int send_bytes(int fd, const void *ptr, size_t size) {
+    const uint8_t *p = ptr;
+    while (size) {
+        ssize_t n = write(fd,p,size);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) return -1;
+        p += n;
+        size -= n;
+    }
+    return 0;
+}
+
+// Клиент запрашивает следующий кадр после отрисовки предыдущего
+int preview_recorded_frame(const struct image *view) {
+    struct pollfd p={0,POLLIN,0};
+    char request;
+    if (poll(&p,1,0)<=0 || !(p.revents&POLLIN) || read(0,&request,1)!=1 || request!='F') return 0;
+    uint32_t w=FFMIN(640,view->w), h=FFMAX(1,(int64_t)w*view->h/view->w);
+    uint32_t dims[]={w,h};
+    if (send_bytes(1,dims,sizeof(dims))<0) return -1;
+    uint8_t row[640*4];
+    for (uint32_t y=0; y<h; y++) {
+        const uint8_t *src=view->pixels+(int64_t)y*view->h/h*view->stride;
+        for (uint32_t x=0; x<w; x++) memcpy(row+x*4,src+(int64_t)x*view->w/w*4,4);
+        if (send_bytes(1,row,w*4)<0) return -1;
+    }
+    return 0;
+}
+
+int camera_preview(const char *device) {
+    struct camera camera = {.fd = -1};
+    struct image view = {0};
+    int rc = 1;
+    signal(SIGPIPE,SIG_IGN);
+    if (camera_open(&camera,device,-1) < 0) goto out;
+    int width = FFMIN(camera.w,640);
+    if (allocate_image(&view,width,FFMAX(1,(int64_t)width*camera.h/camera.w)) < 0) goto out;
+    uint32_t dimensions[] = {view.w,view.h};
+    char req;
+    while (read(0,&req,1) == 1 && req == 'F') {
+        if (camera_read(&camera,&view) < 0 || send_bytes(1,dimensions,sizeof(dimensions)) < 0) goto out;
+        for (int y=0; y<view.h; y++)
+            if (send_bytes(1,view.pixels+y*view.stride,view.w*4u) < 0) goto out;
+    }
+    rc = 0;
+out:
+    if (rc) fputs("Не удалось получить кадр с камеры\n",stderr);
+    camera_close(&camera);
+    av_free(view.pixels);
+    return rc;
+}
+
+static void le32(uint8_t *p, uint32_t n) {
+    for (unsigned i=0; i<4; i++) p[i]=(uint8_t)(n>>(8*i));
+}
+
+int voice_record(const char *path, const char *source) {
+    struct audio_input input = {.fd = -1};
+    uint8_t header[44] = "RIFF\0\0\0\0WAVEfmt \x10\0\0\0\1\0\2";
+    uint32_t count = 0;
+    int fd = -1, rc = 1;
+    struct sigaction sa = {.sa_handler=finish};
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGTERM,&sa,NULL);
+    sigaction(SIGINT,&sa,NULL);
+    le32(header+24,48000);
+    le32(header+28,192000);
+    header[32]=4; header[34]=16;
+    memcpy(header+36,"data",4);
+    if (audio_open(&input,source) < 0) goto out;
+    int64_t last=monotime();
+    uint8_t block[16384];
+    while (!stopped) {
+        struct pollfd p={input.fd,POLLIN,0};
+        int ready=poll(&p,1,250);
+        if (ready<0 && errno==EINTR) continue;
+        if (ready<0 || monotime()-last>5000000) goto out;
+        if (!ready) continue;
+        ssize_t n=read(input.fd,block,sizeof(block));
+        if (n<0 && (errno==EAGAIN || errno==EINTR)) continue;
+        if (!n && !input.pid) break;
+        if (n<=0 || (uint64_t)count+n > UINT32_MAX-36) goto out;
+        if (fd<0) {
+            fd=open(path,O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC,0600);
+            if (fd<0 || send_bytes(fd,header,sizeof(header))<0) goto out;
+            recording_state('R'); puts("RECORDING"); fflush(stdout);
+        }
+        if (send_bytes(fd,block,n)<0) goto out;
+        count+=(uint32_t)n;
+        last=monotime();
+    }
+    rc = count ? 0 : 1;
+out:
+    recording_state(0);
+    audio_close(&input);
+    if (fd>=0) {
+        count-=count%4;
+        le32(header+4,count+36);
+        le32(header+40,count);
+        if (ftruncate(fd,44+(off_t)count) || lseek(fd,0,SEEK_SET)<0 ||
+            send_bytes(fd,header,sizeof(header))<0) rc=1;
+        if (close(fd)) rc=1;
+        if (!count) unlink(path);
+    }
+    if (rc) fputs("Запись звука прервана: проверьте источник и место на диске\n",stderr);
+    return rc;
+}

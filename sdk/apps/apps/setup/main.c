@@ -123,6 +123,10 @@ static int needs_repair(struct package *p) {
         if (!((f->type && S_ISDIR(st.st_mode)) || (!f->type && S_ISREG(st.st_mode)))) {
             fail("auto: unsafe destination type: %s; inspect it manually", f->path);
         }
+        if (!sudo_metadata(f, &st)) {
+            fprintf(stderr, "Incorrect permissions or ownership: %s\n", f->path);
+            damaged = 1;
+        }
         // Существующая конфигурация и её права принадлежат пользователю
         if (f->config || f->type) {
             continue;

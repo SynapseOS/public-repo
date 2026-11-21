@@ -7,6 +7,7 @@
 // Последнее изменение: 01.11.2026
 // Доступ: общедоступный
 
+#include "posix-profile.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -397,6 +398,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if (native) {
+        if (!geteuid() && prepare_posix_profile(getuid(), getgid())) perror("POSIX profile");
+        apply_posix_profile(getenv("HOME"));
+    }
     migrate_super_menu();
 
     if (native) {

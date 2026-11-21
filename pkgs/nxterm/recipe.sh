@@ -18,7 +18,7 @@ done \
 	< <(jq -r '.patches[]' "$spec")
 
 core="$SDK/apps/apps/nano-x/upstream/src"
-make -C "$core/nanox" "CC=$CC" AR=ar HOSTCC=gcc
+make -C "$core/nanox" ARCH=LINUX-NATIVE "CC=$CC" AR=ar HOSTCC=gcc
 "$CC" -O2 -D_GNU_SOURCE -DUNIX=1 -DLINUX=1 -I"$core/include" -I"$source" "$source/nxterm.c" \
 	"$core/lib/libnano-X.a" -lm -o "$payload/bin/nxterm"
 copy "$SDK/apps/apps/nano-x/upstream/LICENSE" usr/share/licenses/nxterm/LICENSE

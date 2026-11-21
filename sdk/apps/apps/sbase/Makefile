@@ -120,7 +120,7 @@ $(OBJ_DIR)/%.o: %.c $(HDR) | $(OBJ_DIR)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 # Линковка каждого бинарника
-$(OUTPUT_DIR)/%: $(OBJ_DIR)/%.o $(LIBUTF_A) $(LIBUTIL_A)
+$(OUTPUT_DIR)/%: $(OBJ_DIR)/%.o $(LIBUTF_A) $(LIBUTIL_A) Makefile $(COMMON_DIR)/../Makefile
 	@mkdir -p $(OUTPUT_DIR)
 	$(LD) $(COMMON_LDFLAGS) \
 	    $(CRTI) $(CRT1) \
@@ -129,7 +129,7 @@ $(OUTPUT_DIR)/%: $(OBJ_DIR)/%.o $(LIBUTF_A) $(LIBUTIL_A)
 	    $(LIBUTF_A) \
 	    $(LIBS) \
 	    $(CRTN) \
-	    -T $(COMMON_DIR)/apps.ld \
+	    $(APP_LINK_SCRIPT) \
 	    -o $@
 
 getconf.h: scripts/getconf.sh

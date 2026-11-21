@@ -13,6 +13,10 @@
 #define APPLICATION_PATH "/usr/libexec/qt6/qt6-smoke"
 #endif
 
+#ifndef QT_APP_LIBRARY_PATH
+#define QT_APP_LIBRARY_PATH ""
+#endif
+
 // Оставить явно заданные параметры приложения или установить значение по умолчанию
 static int default_environment(const char *name, const char *value) {
 	if (setenv(name, value, 0) != 0) {
@@ -47,7 +51,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (setenv("LD_LIBRARY_PATH",
-	           "/usr/lib/qt6/runtime:"
+	           QT_APP_LIBRARY_PATH "/usr/lib/qt6/runtime:"
 	           "/usr/lib/qt6/llvm:/usr/lib/weston/runtime:/usr/lib",
 	           1) != 0 ||
 	    default_environment("QT_PLUGIN_PATH", "/usr/lib/qt6/plugins") != 0 ||

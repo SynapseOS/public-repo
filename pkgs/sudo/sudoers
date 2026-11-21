@@ -1,0 +1,4 @@
+Defaults env_reset,authenticate,timestamp_timeout=0
+Defaults secure_path="/bin:/usr/bin:/sbin:/usr/sbin"
+root ALL=(ALL:ALL) ALL
+%wheel ALL=(ALL:ALL) ALL

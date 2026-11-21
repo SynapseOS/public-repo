@@ -1,17 +1,22 @@
 // panel.c: Панель окон рабочего стола Labwc
 // Автор: Елчинян Арен Артурович, 2026
-// Архитектура: x86_64, ABI: musl и Wayland
+// Архитектура: AArch64 и x86_64, ABI: musl и Wayland
 // Описание: Показывать меню, работающие окна и часы на нижней панели
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 30.10.2026
+// Последнее изменение: 21.11.2026
 // Доступ: общедоступный
 
+#define _DEFAULT_SOURCE
 #define _POSIX_C_SOURCE 200809L
 
 #include <cairo.h>
+#include <dirent.h>
+#include <limits.h>
 #include <errno.h>
 #include <poll.h>
+#include <fcntl.h>
+#include <sys/file.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -31,7 +36,7 @@ struct panel_window {
     struct panel_window *next;
     char *title;
     bool active;
-    bool minimized;
+    bool minimized, hidden_by_desktop, was_active;
 };
 
 struct panel_buffer {
@@ -57,7 +62,14 @@ static struct {
     int height;
     int background_width;
     int background_height;
-    int pointer_x;
+    int pointer_x, pointer_y;
+    struct wl_surface *pointer_surface;
+    char desktop_dir[PATH_MAX];
+    struct dirent **desktop_files;
+    int desktop_count, selected, last_index;
+    uint32_t last_click;
+    struct timespec desktop_mtime;
+    bool desktop_scanned;
     int last_minute;
     int theme;
     cairo_surface_t *menu_icon;
@@ -71,6 +83,7 @@ enum {
     PANEL_TERMINAL_WIDTH = 118,
     PANEL_TASK_WIDTH = 156,
     PANEL_MENU_ICON_SIZE = 24,
+    PANEL_DESKTOP_WIDTH = 128,
 };
 
 // Прочитать активную тему для цветов нижней панели
@@ -186,8 +199,14 @@ static struct panel_buffer *create_buffer(int width, int height) {
     }
 
     size_t size = (size_t)width * (size_t)height * 4U;
-    char path[] = "/tmp/synapse-panel-XXXXXX";
+    char shared_path[] = "/dev/shm/synapse-panel-XXXXXX";
+    char tmp_path[] = "/tmp/synapse-panel-XXXXXX";
+    char *path = shared_path;
     int fd = mkstemp(path);
+    if (fd < 0 && errno == ENOENT) {
+        path = tmp_path;
+        fd = mkstemp(path);
+    }
     if (fd < 0) {
         return NULL;
     }
@@ -232,6 +251,128 @@ static struct panel_buffer *create_buffer(int width, int height) {
     return buffer;
 }
 
+enum { IconWidth = 114, IconHeight = 88, IconMargin = 18, Shortcuts = 3 };
+enum IconKind { Folder, Applications, Preferences, Document };
+
+static int visible_name(const struct dirent *entry) {
+    return entry->d_name[0] != '.';
+}
+
+// Перечитать настоящий каталог пользователя при добавлении и переименовании файлов
+static bool scan_desktop(void) {
+    struct stat st;
+    if (!panel.desktop_dir[0] || stat(panel.desktop_dir, &st) < 0) {
+        return false;
+    }
+    if (panel.desktop_scanned && st.st_mtim.tv_sec == panel.desktop_mtime.tv_sec &&
+        st.st_mtim.tv_nsec == panel.desktop_mtime.tv_nsec) {
+        return false;
+    }
+    struct dirent **entries;
+    int count = scandir(panel.desktop_dir, &entries, visible_name, alphasort);
+    if (count < 0) {
+        return false;
+    }
+    for (int i = 0; i < panel.desktop_count; i++) free(panel.desktop_files[i]);
+    free(panel.desktop_files);
+    panel.desktop_files = entries;
+    panel.desktop_count = count;
+    panel.desktop_mtime = st.st_mtim;
+    panel.desktop_scanned = true;
+    panel.last_index = panel.selected = -1;
+    return true;
+}
+
+static void desktop_cell(int index, int *x, int *y) {
+    int rows = (panel.background_height - 72) / IconHeight;
+    if (rows < 1) rows = 1;
+    *x = IconMargin + index / rows * IconWidth;
+    *y = IconMargin + index % rows * IconHeight;
+}
+
+static void desktop_glyph(cairo_t *cr, enum IconKind kind) {
+    if (kind == Folder) {
+        cairo_set_source_rgb(cr, .20, .49, .74);
+        rounded_rectangle(cr, -22, 5, 21, 16, 3); cairo_fill(cr);
+        rounded_rectangle(cr, -22, 11, 44, 28, 4); cairo_fill(cr);
+        cairo_set_source_rgb(cr, .43, .73, .96);
+        rounded_rectangle(cr, -22, 16, 44, 23, 4); cairo_fill(cr);
+    } else if (kind == Applications) {
+        for (int row = 0; row < 2; row++) for (int col = 0; col < 2; col++) {
+            cairo_set_source_rgb(cr, .42 + .10 * col, .68 + .10 * row, .90);
+            rounded_rectangle(cr, -19 + 21 * col, 4 + 20 * row, 17, 16, 4); cairo_fill(cr);
+        }
+    } else if (kind == Preferences) {
+        cairo_set_source_rgb(cr, .75, .84, .91);
+        cairo_set_line_width(cr, 3);
+        for (int row = 0; row < 3; row++) {
+            double y = 9 + 12 * row;
+            cairo_move_to(cr, -17, y); cairo_line_to(cr, 17, y); cairo_stroke(cr);
+            cairo_arc(cr, row == 1 ? -7 : 7, y, 4.5, 0, 6.2831853); cairo_fill(cr);
+        }
+    } else {
+        cairo_set_source_rgb(cr, .91, .93, .97);
+        rounded_rectangle(cr, -15, 3, 30, 38, 3); cairo_fill(cr);
+        cairo_set_source_rgb(cr, .46, .53, .62);
+        for (int line = 0; line < 3; line++) {
+            cairo_rectangle(cr, -9, 13 + line * 6, line == 2 ? 11 : 17, 2); cairo_fill(cr);
+        }
+    }
+}
+
+static const char *desktop_name(int i, bool russian) {
+    const char *ru[] = {"Мои файлы", "Приложения", "Настройки"};
+    const char *en[] = {"Home", "Applications", "Settings"};
+    return i < Shortcuts ? (russian ? ru[i] : en[i]) : panel.desktop_files[i - Shortcuts]->d_name;
+}
+
+static void desktop_icons(cairo_t *cr) {
+    const char *lang = getenv("LANG");
+    bool russian = lang && !strncmp(lang, "ru", 2);
+    struct wl_region *input = wl_compositor_create_region(panel.compositor);
+    for (int i = 0; i < Shortcuts + panel.desktop_count; i++) {
+        int x, y;
+        desktop_cell(i, &x, &y);
+        if (x + IconWidth > panel.background_width) break;
+        if (input) wl_region_add(input, x, y, IconWidth - 4, IconHeight - 4);
+        cairo_save(cr);
+        cairo_translate(cr, x, y);
+        if (panel.selected == i) {
+            cairo_set_source_rgba(cr, .21, .46, .80, .62);
+            rounded_rectangle(cr, 0, 0, IconWidth - 4, IconHeight - 4, 8); cairo_fill(cr);
+        }
+        cairo_translate(cr, (IconWidth - 4) / 2.0, 4);
+        enum IconKind kind = i < Shortcuts ? (enum IconKind)i :
+            panel.desktop_files[i - Shortcuts]->d_type == DT_DIR ? Folder : Document;
+        desktop_glyph(cr, kind);
+        cairo_rectangle(cr, -(IconWidth - 6)/2.0, 43, IconWidth - 6, 30); cairo_clip(cr);
+        cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        cairo_set_font_size(cr, 14);
+        const char *label = desktop_name(i, russian);
+        // Ошибочное имя файла не должно перевести общий контекст Cairo в состояние ошибки
+        cairo_t *text = cairo_create(cairo_get_target(cr));
+        cairo_matrix_t matrix;
+        cairo_get_matrix(cr, &matrix);
+        cairo_set_matrix(text, &matrix);
+        cairo_rectangle(text, -(IconWidth - 6)/2.0, 43, IconWidth - 6, 30); cairo_clip(text);
+        cairo_set_scaled_font(text, cairo_get_scaled_font(cr));
+        cairo_text_extents_t ext;
+        cairo_text_extents(text, label, &ext);
+        double left = ext.width < IconWidth - 8 ? -ext.width / 2.0 - ext.x_bearing : -IconWidth / 2.0 + 4;
+        cairo_move_to(text, left, 63);
+        cairo_text_path(text, label);
+        cairo_set_line_join(text, CAIRO_LINE_JOIN_ROUND);
+        cairo_set_line_width(text, 2.4); cairo_set_source_rgba(text, 0, 0, 0, .6);
+        cairo_stroke_preserve(text); cairo_set_source_rgb(text, 1, 1, 1); cairo_fill(text);
+        cairo_destroy(text);
+        cairo_restore(cr);
+    }
+    if (input) {
+        wl_surface_set_input_region(panel.background_surface, input);
+        wl_region_destroy(input);
+    }
+}
+
 // Нарисовать обои в слое под окнами
 static void background_draw(void) {
     if (panel.background_surface == NULL || panel.background_width < 1 ||
@@ -268,6 +409,8 @@ static void background_draw(void) {
     }
 
     cairo_surface_destroy(wallpaper);
+    cairo_identity_matrix(context);
+    desktop_icons(context);
     cairo_destroy(context);
     cairo_surface_destroy(image);
     wl_buffer_add_listener(buffer->handle, &buffer_listener, buffer);
@@ -387,6 +530,34 @@ static void draw_menu_icon(cairo_t *context) {
     cairo_restore(context);
 }
 
+static char recording;
+
+static char active_recording(void) {
+    char name[80], result=0;
+    snprintf(name,sizeof(name),"/tmp/synapse-recorder-%lu",(unsigned long)getuid());
+    int root=open(name,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
+    if (root<0) return 0;
+    struct stat st;
+    if (fstat(root,&st) || st.st_uid!=getuid() || (st.st_mode&077)) { close(root); return 0; }
+    DIR *dir=fdopendir(root);
+    if (!dir) { close(root); return 0; }
+    struct dirent *e;
+    while ((e=readdir(dir))) {
+        if (strncmp(e->d_name,"state-",6)) continue;
+        int fd=openat(root,e->d_name,O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);
+        if (fd<0) continue;
+        char flag;
+        if (fstat(fd,&st)==0 && S_ISREG(st.st_mode) && st.st_uid==getuid() &&
+            flock(fd,LOCK_SH|LOCK_NB)<0 && errno==EWOULDBLOCK && read(fd,&flag,1)==1) {
+            if (flag=='R' || flag=='P') result=flag;
+        }
+        close(fd);
+        if (result=='R') break;
+    }
+    closedir(dir);
+    return result;
+}
+
 // Подготовить разделяемый буфер и обновить видимую панель
 static void panel_draw(void) {
     if (panel.surface == NULL || panel.width < 320 || panel.height < 20) {
@@ -416,9 +587,12 @@ static void panel_draw(void) {
     draw_button(context, PANEL_MENU_WIDTH + PANEL_FILES_WIDTH, PANEL_TERMINAL_WIDTH,
         "Терминал", false);
 
+    bool showing = false;
+    for (struct panel_window *w = panel.windows; w; w = w->next) showing |= w->hidden_by_desktop;
+    draw_button(context, panel.width - PANEL_DESKTOP_WIDTH, PANEL_DESKTOP_WIDTH, "Рабочий стол", showing);
     int x = PANEL_MENU_WIDTH + PANEL_FILES_WIDTH + PANEL_TERMINAL_WIDTH;
     for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
-        if (x + PANEL_TASK_WIDTH > panel.width - 195) {
+        if (x + PANEL_TASK_WIDTH > panel.width - PANEL_DESKTOP_WIDTH - 195 - (recording ? 70 : 0)) {
             break;
         }
 
@@ -427,13 +601,21 @@ static void panel_draw(void) {
         x += PANEL_TASK_WIDTH;
     }
 
+    if (recording) {
+        cairo_set_source_rgb(context,1.0,recording=='R'?0.36:0.76,0.30);
+        int left=panel.width-PANEL_DESKTOP_WIDTH-252;
+        cairo_arc(context,left,panel.height/2,4,0,6.284); cairo_fill(context);
+        cairo_move_to(context,left+10,panel.height/2+5);
+        cairo_show_text(context,recording=='R'?"REC":"Пауза");
+    }
+
     time_t now = time(NULL);
     struct tm local;
     if (localtime_r(&now, &local) != NULL) {
         char clock_text[32];
         if (strftime(clock_text, sizeof(clock_text), "%d.%m.%Y %H:%M", &local) != 0) {
             set_panel_color(context, colors->text);
-            cairo_move_to(context, panel.width - 180, panel.height / 2 + 5);
+            cairo_move_to(context, panel.width - PANEL_DESKTOP_WIDTH - 180, panel.height / 2 + 5);
             cairo_show_text(context, clock_text);
         }
     }
@@ -472,13 +654,61 @@ static void pointer_button(void *data, struct wl_pointer *pointer, uint32_t seri
         return;
     }
 
-    if (panel.pointer_x < PANEL_MENU_WIDTH) {
+    if (panel.pointer_surface == panel.background_surface) {
+        for (int i = 0; i < Shortcuts + panel.desktop_count; i++) {
+            int x, y;
+            desktop_cell(i, &x, &y);
+            if (x + IconWidth > panel.background_width) break;
+            if (panel.pointer_x < x || panel.pointer_x >= x + IconWidth - 4 ||
+                panel.pointer_y < y || panel.pointer_y >= y + IconHeight - 4) continue;
+            if (panel.last_index == i && time - panel.last_click <= 500) {
+                panel.last_index = -1;
+                if (i == 0) panel_launch("/bin/synapse-files", NULL);
+                else if (i == 1) panel_launch("/bin/synapse-menuctl", NULL);
+                else if (i == 2) panel_launch("/bin/synapse-desktop", "--settings");
+                else {
+                    char path[PATH_MAX];
+                    if (snprintf(path, sizeof(path), "%s/%s", panel.desktop_dir,
+                        panel.desktop_files[i - Shortcuts]->d_name) < (int)sizeof(path)) {
+                        panel_launch("/bin/synapse-files", path);
+                    }
+                }
+            } else {
+                panel.selected = panel.last_index = i;
+                panel.last_click = time;
+                background_draw();
+            }
+            return;
+        }
+        return;
+    }
+    if (panel.pointer_surface != panel.surface) return;
+    if (panel.pointer_x >= panel.width - PANEL_DESKTOP_WIDTH) {
+        bool restore = false;
+        struct panel_window *previous_focus = NULL;
+        for (struct panel_window *w = panel.windows; w; w = w->next) restore |= w->hidden_by_desktop;
+        for (struct panel_window *w = panel.windows; w; w = w->next) {
+            if (restore && w->hidden_by_desktop) {
+                zwlr_foreign_toplevel_handle_v1_unset_minimized(w->handle);
+                if (w->was_active) previous_focus = w;
+                w->was_active = w->hidden_by_desktop = false;
+            } else if (!restore && !w->minimized) {
+                w->hidden_by_desktop = true;
+                w->was_active = w->active;
+                zwlr_foreign_toplevel_handle_v1_set_minimized(w->handle);
+            }
+        }
+        if (previous_focus) {
+            zwlr_foreign_toplevel_handle_v1_activate(previous_focus->handle, panel.seat);
+        }
+        panel_draw();
+    } else if (panel.pointer_x < PANEL_MENU_WIDTH) {
         panel_launch("/bin/synapse-menuctl", NULL);
     } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_FILES_WIDTH) {
         panel_launch("/bin/synapse-files", NULL);
     } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_FILES_WIDTH + PANEL_TERMINAL_WIDTH) {
         panel_launch("/bin/weston-terminal", NULL);
-    } else {
+    } else if (panel.pointer_x < panel.width - PANEL_DESKTOP_WIDTH - 195 - (recording ? 70 : 0)) {
         int index = (panel.pointer_x - PANEL_MENU_WIDTH - PANEL_FILES_WIDTH - PANEL_TERMINAL_WIDTH) /
             PANEL_TASK_WIDTH;
         for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
@@ -505,7 +735,7 @@ static void pointer_motion(void *data, struct wl_pointer *pointer, uint32_t time
     (void)data;
     (void)pointer;
     (void)time;
-    (void)y;
+    panel.pointer_y = wl_fixed_to_int(y);
     panel.pointer_x = wl_fixed_to_int(x);
 }
 
@@ -515,8 +745,8 @@ static void pointer_enter(void *data, struct wl_pointer *pointer, uint32_t seria
     (void)data;
     (void)pointer;
     (void)serial;
-    (void)surface;
-    (void)y;
+    panel.pointer_surface = surface;
+    panel.pointer_y = wl_fixed_to_int(y);
     panel.pointer_x = wl_fixed_to_int(x);
 }
 
@@ -526,7 +756,7 @@ static void pointer_leave(void *data, struct wl_pointer *pointer, uint32_t seria
     (void)data;
     (void)pointer;
     (void)serial;
-    (void)surface;
+    if (panel.pointer_surface == surface) panel.pointer_surface = NULL;
 }
 
 // Игнорировать прокрутку над кнопками панели
@@ -764,6 +994,14 @@ static const struct wl_registry_listener registry_listener = {
 // Создать панель и обрабатывать окна до выхода из сеанса
 int main(void) {
     panel.theme = read_theme();
+    panel.last_index = panel.selected = -1;
+    const char *home = getenv("HOME");
+    if (home && home[0] == '/' && snprintf(panel.desktop_dir, sizeof(panel.desktop_dir),
+        "%s/Desktop", home) < (int)sizeof(panel.desktop_dir)) {
+        if (!mkdir(panel.desktop_dir, 0700) || errno == EEXIST) scan_desktop();
+    } else {
+        panel.desktop_dir[0] = 0;
+    }
     panel.display = wl_display_connect(NULL);
     if (panel.display == NULL) {
         fprintf(stderr, "synapse-panel: Wayland unavailable\n");
@@ -831,19 +1069,26 @@ int main(void) {
         }
 
         time_t now = time(NULL);
+        static time_t last_check;
+        if (now!=last_check) {
+            last_check=now; char active=active_recording();
+            if (active!=recording) { recording=active; panel_draw(); }
+        }
         struct tm local;
         if (localtime_r(&now, &local) != NULL && local.tm_min != panel.last_minute) {
             panel.last_minute = local.tm_min;
             panel_draw();
         }
 
+        bool desktop_changed = scan_desktop();
         int theme = read_theme();
         if (theme != panel.theme) {
             panel.theme = theme;
             clear_menu_icon();
             panel_draw();
-            background_draw();
+            desktop_changed = true;
         }
+        if (desktop_changed) background_draw();
     }
 
     clear_menu_icon();

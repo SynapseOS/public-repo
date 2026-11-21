@@ -82,7 +82,7 @@ $(OBJ_DIR)/%.o: %.c $(HDR) | $(OBJ_DIR)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 # Линковка каждого бинарника
-$(OUTPUT_DIR)/%: $(OBJ_DIR)/%.o $(LIBUTIL_A)
+$(OUTPUT_DIR)/%: $(OBJ_DIR)/%.o $(LIBUTIL_A) Makefile $(COMMON_DIR)/../Makefile
 	@mkdir -p $(OUTPUT_DIR)
 	$(LD) $(COMMON_LDFLAGS) \
 	    $(CRTI) $(CRT1) \
@@ -90,7 +90,7 @@ $(OUTPUT_DIR)/%: $(OBJ_DIR)/%.o $(LIBUTIL_A)
 	    $(LIBUTIL_A) \
 	    $(LIBS) \
 	    $(CRTN) \
-	    -T $(COMMON_DIR)/apps.ld \
+	    $(APP_LINK_SCRIPT) \
 	    -o $@
 
 # Упаковщик базового образа принимает обычные файлы
@@ -101,9 +101,9 @@ $(addprefix $(OUTPUT_DIR)/,useradd adduser usermod groupadd): $(OUTPUT_DIR)/pass
 	cp -- $< $@
 
 # Keep both implementations without parallel builds overwriting sbase.
-$(OUTPUT_DIR)/ubase-%: $(OBJ_DIR)/%.o $(LIBUTIL_A)
+$(OUTPUT_DIR)/ubase-%: $(OBJ_DIR)/%.o $(LIBUTIL_A) Makefile $(COMMON_DIR)/../Makefile
 	@mkdir -p $(OUTPUT_DIR)
-	$(LD) $(COMMON_LDFLAGS) $(CRTI) $(CRT1) $< $(LIBUTIL_A) $(LIBS) $(CRTN) -T $(COMMON_DIR)/apps.ld -o $@
+	$(LD) $(COMMON_LDFLAGS) $(CRTI) $(CRT1) $< $(LIBUTIL_A) $(LIBS) $(CRTN) $(APP_LINK_SCRIPT) -o $@
 
 # Order-only prerequisite
 $(OBJ_DIR):

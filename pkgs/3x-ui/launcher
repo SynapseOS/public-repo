@@ -40,7 +40,8 @@ fi
 
 if [[ ${1:-run} == run ]]; then
     # Geodata обновляется с пакетом, если администратор не заменил ссылку своим файлом
-    for asset in xray-linux-amd64 geoip.dat geosite.dat; do
+    for source in "$payload"/xray-linux-* "$payload/geoip.dat" "$payload/geosite.dat"; do
+        asset=${source##*/}
         if [[ ! -e $XUI_BIN_FOLDER/$asset && ! -L $XUI_BIN_FOLDER/$asset ]]; then
             ln -s -- "$payload/$asset" "$XUI_BIN_FOLDER/$asset"
         fi

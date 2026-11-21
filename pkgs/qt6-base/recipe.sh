@@ -27,6 +27,11 @@ for plugin in libqoffscreen.so libqminimal.so; do
 	copy "$work/stage/usr/lib/qt6/plugins/platforms/$plugin" "usr/lib/qt6/plugins/platforms/$plugin"
 done
 
+# ICU в Alpine хранит таблицы сортировки и форматов отдельно от библиотеки
+for filepath in "$work/stage"/usr/share/icu/*/icudt*l.dat; do
+	copy "$filepath" "${filepath#"$work/stage/"}"
+done
+
 mkdir -p "$payload/usr/share/fonts"
 cp -rL "$work/stage/usr/share/fonts/opensans" "$payload/usr/share/fonts/"
 qt_runtime_dependencies usr/lib/qt6/runtime

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Synapse Recorder
+GenericName=Screen recorder
+GenericName[ru]=Запись экрана
+Exec=/bin/recorder-desktop
+Icon=synapse-recorder
+Terminal=false
+Categories=AudioVideo;Recorder;

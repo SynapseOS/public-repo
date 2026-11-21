@@ -61,6 +61,11 @@ if ! grep -q synapse-backend.inc "$source/libweston/backend-headless/headless.c"
 	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/synapse.patch"
 fi
 
+# Буферы пикселей располагаются на tmpfs при отсутствии memfd
+if ! grep -Fq 'access("/dev/shm", W_OK | X_OK)' "$source/shared/os-compatibility.c"; then
+	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/shared-buffer-tmpfs.patch"
+fi
+
 if ! grep -q 'KEY_S, MODIFIER_CTRL | MODIFIER_ALT' "$source/compositor/weston-screenshooter.c"; then
 	sed -n '/^--- a\/compositor\/weston-screenshooter.c/,$p' "$port/patches/synapse.patch" |
 		patch --batch --fuzz=0 -d "$source" -p1

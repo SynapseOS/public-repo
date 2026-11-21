@@ -607,7 +607,8 @@ static int enroll_administrator(void) {
 // Настроить систему и сохранить выбор до первого запуска пользовательской сессии
 static int first_run(struct settings *s) {
     int page = 0;
-    while (page < 7) {
+    const bool desktop = !strcmp(settings_get(s, "Desktop", "Enabled"), "1");
+    while (page < (desktop ? 8 : 7)) {
         int result = 0;
         if (page == 0) {
             const char *en[] = {"Русский", "English"};
@@ -628,6 +629,13 @@ static int first_run(struct settings *s) {
             result = font_page(s, true);
         } else if (page == 5) {
             result = data_sharing_page(s);
+        } else if (page == 6 && desktop) {
+            const char *en[] = {"Require a password", "Open the desktop directly (administrator session)"};
+            const char *rr[] = {"Запрашивать пароль", "Открывать рабочий стол сразу (сеанс администратора)"};
+            int current = strcmp(settings_get(s, "Desktop", "LoginManager"), "0") != 0;
+            int choice = choose("Require sign-in at startup?", "Требовать вход при запуске Desktop?",
+                                en, rr, 2, current ? 0 : 1, true);
+            result = choice < 0 ? -1 : settings_set(s, setting(s, "Desktop", "LoginManager"), choice ? "0" : "1");
         } else {
             const char *en[] = {"Finish setup and open shell", "Back"};
             const char *rr[] = {"Завершить настройку и открыть оболочку", "Назад"};

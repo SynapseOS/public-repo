@@ -50,9 +50,21 @@ prepare
 
 # Старые {root} пути рецептов продолжают обозначать общий корень SDK и пакетов
 substitute() {
-	local text=$1
+	local text=$1 compiler_headers
+	if [[ $TARGET_ARCH == aarch64 ]]; then
+		if [[ $text == linux-x86_64 ]]; then text=linux-aarch64; fi
+		text=${text//\{root\}\/pkgs\/.work\//"$BUILD_ROOT/"}
+		text=${text//--host=x86_64-linux-musl/--host=aarch64-linux-musl}
+		text=${text//--build=x86_64-linux-gnu/--build=$(gcc -dumpmachine)}
+		text=${text//\{root\}\/apps\//"$SDK/apps/"}
+	fi
 	text=${text//\{root\}/$ROOT}
-	text=${text//\{gcc_headers\}/$(gcc -print-file-name=include)}
+	if [[ $TARGET_ARCH == aarch64 ]]; then
+		compiler_headers=$("${ARM64_CC:-clang}" --print-resource-dir)/include
+	else
+		compiler_headers=$(gcc -print-file-name=include)
+	fi
+	text=${text//\{gcc_headers\}/$compiler_headers}
 	printf '%s' "$text"
 }
 
@@ -69,6 +81,9 @@ args() {
 flags=()
 args '.cflags // ["-O2", "-D__synapse__"]'
 flags=("${arguments[@]}")
+if [[ $name == gawk && $TARGET_ARCH == aarch64 ]]; then
+	flags+=(-O1)
+fi
 export CFLAGS LDFLAGS PKG_CONFIG=false
 printf -v CFLAGS '%q ' "${flags[@]}"
 LDFLAGS='-static -Wl,--gc-sections'

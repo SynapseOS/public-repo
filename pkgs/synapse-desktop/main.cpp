@@ -6,7 +6,7 @@
     Описание: Запуск установленных программ и изменение общих настроек системы
     Подсистема: рабочий стол
     Первое изменение: 25.10.2026
-    Последнее изменение: 01.11.2026
+    Последнее изменение: 21.11.2026
     Доступ: общедоступный
 */
 
@@ -31,6 +31,7 @@
 #include <QMessageBox>
 #include <QPalette>
 #include <QPixmap>
+#include <QPointer>
 #include <QProcess>
 #include <QSet>
 #include <QShowEvent>
@@ -46,6 +47,7 @@
 #include <QToolButton>
 #include <cstring>
 #include <fcntl.h>
+#include <cerrno>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -62,6 +64,8 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "subsystems.h"
+
 struct ApplicationEntry {
 	const char *name;
 	const char *category;
@@ -77,6 +81,10 @@ static const ApplicationEntry applications[] = {
 	{"Магазин программ", "Система", "/bin/synapse-store", nullptr, "/usr/share/weston/synapse-logo.png"},
 	{"Монитор системы", "Система", "/bin/weston-terminal", "--shell=/bin/htop", nullptr},
 	{"Mindustry", "Игры", "/bin/mindustry", nullptr, "/usr/share/weston/mindustry-icon.png"},
+	{"Настройки Android", "Система", "/bin/android-settings", "--settings", "/usr/share/weston/settings-icon.png"},
+	{"Запись экрана", "Мультимедиа", "/bin/recorder-desktop", nullptr, "/usr/share/icons/hicolor/128x128/apps/synapse-recorder.png"},
+	{"Камера", "Мультимедиа", "/bin/synapse-camera", nullptr, "/usr/share/icons/hicolor/128x128/apps/synapse-camera.png"},
+	{"Диктофон", "Мультимедиа", "/bin/synapse-dictaphone", nullptr, "/usr/share/icons/hicolor/128x128/apps/synapse-dictaphone.png"},
 };
 
 // Прочитать поля приложения из одного файла Flatpak
@@ -290,6 +298,9 @@ static QString desktopTheme() {
 }
 
 class MenuWindow final : public QMainWindow {
+	QPointer<QMainWindow> settingsWindow;
+	void openSettings();
+
 public:
 	// Показать системное меню с разделами, поиском и быстрыми действиями
 	MenuWindow() {
@@ -349,6 +360,10 @@ public:
 			quick->addWidget(button, 1);
 			connect(button, &QToolButton::clicked, this, [this, index]() {
 				const ApplicationEntry &selected = applications[index];
+				if (std::strcmp(selected.path, "/bin/synapse-desktop") == 0) {
+					openSettings();
+					return;
+				}
 				QStringList arguments;
 				if (selected.argument != nullptr) {
 					arguments.append(QString::fromUtf8(selected.argument));
@@ -366,7 +381,7 @@ public:
 		category->setFixedWidth(150);
 		category->setSpacing(3);
 		category->addItems({QStringLiteral("Все программы"), QStringLiteral("Система"),
-		                    QStringLiteral("Игры"), QStringLiteral("Flatpak")});
+		                    QStringLiteral("Мультимедиа"), QStringLiteral("Игры"), QStringLiteral("Flatpak")});
 		category->setCurrentRow(0);
 		browser->addWidget(category);
 
@@ -410,11 +425,7 @@ public:
 			QProcess::startDetached(QStringLiteral("/bin/weston-terminal"));
 			close();
 		});
-		connect(settings, &QPushButton::clicked, this, [this]() {
-			QProcess::startDetached(QStringLiteral("/bin/synapse-desktop"),
-			                        {QStringLiteral("--settings")});
-			close();
-		});
+		connect(settings, &QPushButton::clicked, this, &MenuWindow::openSettings);
 		connect(logout, &QPushButton::clicked, this, [this]() {
 			QProcess::startDetached(QStringLiteral("/bin/labwc"),
 			                        {QStringLiteral("--exit")});
@@ -637,6 +648,10 @@ private:
 		}
 
 		const ApplicationEntry &entry = applications[index];
+		if (std::strcmp(entry.path, "/bin/synapse-desktop") == 0) {
+			openSettings();
+			return;
+		}
 		QStringList arguments;
 
 		if (entry.argument != nullptr) {
@@ -656,7 +671,7 @@ private:
 class SettingsWindow final : public QMainWindow {
 public:
 	// Построить графические разделы поверх существующей программы settings
-	SettingsWindow() {
+	explicit SettingsWindow(const QString &subsystem = {}) {
 		setWindowTitle(QStringLiteral("Настройки SynapseOS"));
 		setWindowIcon(QIcon(QStringLiteral("/usr/share/weston/settings-icon.png")));
 		resize(690, 480);
@@ -667,6 +682,7 @@ public:
 		addAppearancePage(tabs);
 		addSystemPage(tabs);
 		addServicesPage(tabs);
+		addSubsystemsPage(tabs, subsystem);
 		addNetworkPage(tabs);
 		addWifiPage(tabs);
 		addAboutPage(tabs);
@@ -679,6 +695,32 @@ public:
 	}
 
 private:
+	// Сканировать подсистемы при открытии вкладки и по запросу после установки пакета
+	void addSubsystemsPage(QTabWidget *tabs, const QString &requested) {
+		auto *page = new QWidget(tabs);
+		auto *layout = new QVBoxLayout(page);
+		auto *pages = new QTabWidget(page);
+		auto *refresh = new QPushButton(QStringLiteral("Обновить список"), page);
+		layout->addWidget(pages);
+		layout->addWidget(refresh, 0, Qt::AlignRight);
+		const int index = tabs->addTab(page, QStringLiteral("Подсистемы"));
+		connect(refresh, &QPushButton::clicked, page, [pages]() { discoverSubsystems(pages); });
+		connect(tabs, &QTabWidget::currentChanged, page, [=](int current) {
+			if (current == index) {
+				discoverSubsystems(pages);
+			}
+		});
+		if (!requested.isEmpty()) {
+			tabs->setCurrentIndex(index);
+			for (int i = 0; i < pages->count(); i++) {
+				if (pages->widget(i)->objectName() == requested) {
+					pages->setCurrentIndex(i);
+					break;
+				}
+			}
+		}
+	}
+
 	// Прочитать выбранную тему из пользовательского или системного файла Labwc
 	QString currentTheme() const {
 		return desktopTheme();
@@ -776,6 +818,12 @@ private:
 		QCheckBox *desktopEnabled = new QCheckBox(QStringLiteral("Запускать графическую сессию при входе"), page);
 		desktopEnabled->setChecked(readSetting(QStringLiteral("Desktop.Enabled")) == QStringLiteral("1"));
 		form->addRow(QStringLiteral("Рабочий стол"), desktopEnabled);
+        auto *login = new QCheckBox(QStringLiteral("Запрашивать пароль при запуске Desktop"), page);
+        login->setToolTip(QStringLiteral("Без входа запускается сеанс администратора"));
+        login->setChecked(readSetting(QStringLiteral("Desktop.LoginManager")) != QStringLiteral("0"));
+        login->setEnabled(desktopEnabled->isChecked());
+        connect(desktopEnabled, &QCheckBox::toggled, login, &QWidget::setEnabled);
+        form->addRow(QStringLiteral("Вход"), login);
 
 		QComboBox *serialCount = new QComboBox(page);
 		serialCount->addItems({QStringLiteral("0"), QStringLiteral("1"), QStringLiteral("2")});
@@ -784,11 +832,11 @@ private:
 		form->addRow(QStringLiteral("Консоли COM"), serialCount);
 
 		layout->addLayout(form);
-		QPushButton *apply = new QPushButton(QStringLiteral("Применить разрешение"), page);
+		QPushButton *apply = new QPushButton(QStringLiteral("Применить"), page);
 		layout->addWidget(apply);
 		layout->addWidget(new QLabel(QStringLiteral("Поддерживаемые видеоустройства меняют разрешение без перезагрузки."), page));
 		layout->addStretch();
-		connect(apply, &QPushButton::clicked, this, [this, resolution, desktopEnabled, serialCount]() {
+		connect(apply, &QPushButton::clicked, this, [this, resolution, desktopEnabled, login, serialCount]() {
 			if (!writeSetting(this, QStringLiteral("Display.Resolution"), resolution->currentIndex() == 0
 			                                                         ? QStringLiteral("auto") : resolution->currentText())) {
 				return;
@@ -796,6 +844,7 @@ private:
 			if (!writeSetting(this, QStringLiteral("Desktop.Enabled"), desktopEnabled->isChecked() ? QStringLiteral("1") : QStringLiteral("0"))) {
 				return;
 			}
+			if (!writeSetting(this, QStringLiteral("Desktop.LoginManager"), login->isChecked() ? "1" : "0")) return;
 			writeSetting(this, QStringLiteral("Terminal.SerialConsoles"), serialCount->currentText());
 		});
 		tabs->addTab(page, QStringLiteral("Экран"));
@@ -963,6 +1012,8 @@ private:
 		QWidget *page = new QWidget(tabs);
 		QVBoxLayout *layout = new QVBoxLayout(page);
 
+		auto *adapter = new QComboBox(page);
+		layout->addWidget(adapter);
 		QLabel *statusLabel = new QLabel(QStringLiteral("Статус: проверка..."), page);
 		statusLabel->setWordWrap(true);
 		layout->addWidget(statusLabel);
@@ -989,10 +1040,10 @@ private:
 		buttons->addWidget(disconnectBtn);
 		layout->addLayout(buttons);
 
-		auto refreshStatus = [statusLabel]() {
-			int fd = ::open("/dev/wifi", O_RDWR);
+		auto refreshStatus = [adapter, statusLabel]() {
+			int fd = ::open(adapter->currentData().toByteArray().constData(), O_RDWR);
 			if (fd < 0) {
-				statusLabel->setText(QStringLiteral("Статус: /dev/wifi недоступен"));
+				statusLabel->setText(QStringLiteral("Выбранный Wi-Fi адаптер недоступен"));
 				return;
 			}
 			struct syn_wifi_status st{};
@@ -1000,7 +1051,7 @@ private:
 			int rc = ::ioctl(fd, SYN_WIFI_IOCTL_STATUS, &st);
 			::close(fd);
 			if (rc < 0) {
-				statusLabel->setText(QStringLiteral("Статус: ошибка запроса /dev/wifi"));
+				statusLabel->setText(QStringLiteral("Ошибка запроса состояния адаптера"));
 				return;
 			}
 			if (!st.enabled) {
@@ -1019,17 +1070,30 @@ private:
 			    .arg(ssid).arg(st.channel).arg(ip).arg(st.link_mbps));
 		};
 
-		auto refreshScan = [networks, refreshStatus]() {
+		auto *scanTimer = new QTimer(page);
+		scanTimer->setInterval(250);
+		auto refreshScan = [=]() {
 			networks->clear();
-			int fd = ::open("/dev/wifi", O_RDWR);
+			int fd = ::open(adapter->currentData().toByteArray().constData(), O_RDWR | O_NONBLOCK);
 			if (fd < 0) {
+				scanTimer->stop();
+				scanBtn->setEnabled(true);
 				refreshStatus();
 				return;
 			}
 			struct syn_wifi_scan sc{};
 			sc.version = SYN_WIFI_ABI_VERSION;
 			int rc = ::ioctl(fd, SYN_WIFI_IOCTL_SCAN, &sc);
+			const int error = errno;
 			::close(fd);
+			if (rc < 0 && error == EAGAIN) {
+				statusLabel->setText(QStringLiteral("Поиск сетей…"));
+				scanBtn->setEnabled(false);
+				scanTimer->start();
+				return;
+			}
+			scanTimer->stop();
+			scanBtn->setEnabled(true);
 			if (rc >= 0) {
 				const unsigned cnt = sc.count <= SYN_WIFI_SCAN_LIMIT ? sc.count : SYN_WIFI_SCAN_LIMIT;
 				for (unsigned i = 0; i < cnt; i++) {
@@ -1045,10 +1109,15 @@ private:
 					QListWidgetItem *item = new QListWidgetItem(label, networks);
 					item->setData(Qt::UserRole, ssid);
 				}
+			} else {
+				statusLabel->setText(QStringLiteral("Ошибка сканирования: %1")
+				    .arg(QString::fromLocal8Bit(std::strerror(error))));
+				return;
 			}
 			refreshStatus();
 		};
 
+		connect(scanTimer, &QTimer::timeout, page, refreshScan);
 		connect(networks, &QListWidget::itemClicked, this, [ssidEdit](QListWidgetItem *item) {
 			if (item) {
 				ssidEdit->setText(item->data(Qt::UserRole).toString());
@@ -1059,7 +1128,7 @@ private:
 			refreshScan();
 		});
 
-		connect(connectBtn, &QPushButton::clicked, this, [this, ssidEdit, passEdit, statusLabel, refreshStatus]() {
+		connect(connectBtn, &QPushButton::clicked, this, [this, adapter, ssidEdit, passEdit, statusLabel, refreshStatus]() {
 			const QByteArray ssidBytes = ssidEdit->text().trimmed().toUtf8();
 			const QByteArray passBytes = passEdit->text().toUtf8();
 			if (ssidBytes.isEmpty() || ssidBytes.size() > static_cast<int>(SYN_WIFI_SSID_LIMIT)) {
@@ -1070,9 +1139,9 @@ private:
 				QMessageBox::warning(this, QStringLiteral("Wi-Fi"), QStringLiteral("Пароль слишком длинный"));
 				return;
 			}
-			int fd = ::open("/dev/wifi", O_RDWR);
+			int fd = ::open(adapter->currentData().toByteArray().constData(), O_RDWR);
 			if (fd < 0) {
-				QMessageBox::warning(this, QStringLiteral("Wi-Fi"), QStringLiteral("Не удалось открыть /dev/wifi"));
+				QMessageBox::warning(this, QStringLiteral("Wi-Fi"), QStringLiteral("Выбранный адаптер недоступен"));
 				return;
 			}
 			struct syn_wifi_connect conn{};
@@ -1096,8 +1165,8 @@ private:
 				return;
 			}
 			const QByteArray hexConf = "ssid=" + ssidBytes.toHex() + "\npassword=" + passBytes.toHex() + "\n";
-			const QByteArray tmpPath = QStringLiteral("/etc/network/wifi.conf.tmp.%1")
-			    .arg(static_cast<qulonglong>(::getpid())).toUtf8();
+			const QByteArray profilePath = "/etc/network/" + adapter->currentData().toByteArray().mid(5) + ".conf";
+			const QByteArray tmpPath = profilePath + ".tmp." + QByteArray::number(::getpid());
 			::unlink(tmpPath.constData());
 			int pfd = ::open(tmpPath.constData(), O_WRONLY | O_CREAT | O_EXCL, 0600);
 			bool saved = false;
@@ -1114,7 +1183,7 @@ private:
 					written += static_cast<size_t>(n);
 				}
 				if (writeOk && ::fchmod(pfd, 0600) == 0 && ::fsync(pfd) == 0 && ::close(pfd) == 0) {
-					if (::rename(tmpPath.constData(), "/etc/network/wifi.conf") == 0) {
+					if (::rename(tmpPath.constData(), profilePath.constData()) == 0) {
 						int dfd = ::open("/etc/network", O_RDONLY);
 						if (dfd >= 0) {
 							::fsync(dfd);
@@ -1131,15 +1200,15 @@ private:
 			}
 			if (!saved) {
 				QMessageBox::warning(this, QStringLiteral("Wi-Fi"),
-				                     QStringLiteral("Не удалось сохранить профиль в /etc/network/wifi.conf"));
+				                     QStringLiteral("Не удалось сохранить профиль выбранного адаптера"));
 			}
 			statusLabel->setText(QStringLiteral("Подключение к %1...").arg(QString::fromUtf8(ssidBytes)));
 			QTimer::singleShot(2500, this, refreshStatus);
 			QTimer::singleShot(5000, this, refreshStatus);
 		});
 
-		connect(disconnectBtn, &QPushButton::clicked, this, [refreshStatus]() {
-			int fd = ::open("/dev/wifi", O_RDWR);
+		connect(disconnectBtn, &QPushButton::clicked, this, [adapter, refreshStatus]() {
+			int fd = ::open(adapter->currentData().toByteArray().constData(), O_RDWR);
 			if (fd >= 0) {
 				uint32_t ver = SYN_WIFI_ABI_VERSION;
 				::ioctl(fd, SYN_WIFI_IOCTL_DISCONNECT, &ver);
@@ -1148,8 +1217,69 @@ private:
 			refreshStatus();
 		});
 
-		refreshScan();
-		tabs->addTab(page, QStringLiteral("Wi-Fi"));
+		auto refreshAdapters = [=]() {
+			const QByteArray selected = adapter->currentData().toByteArray();
+			QList<QByteArray> paths;
+			for (const QByteArray &path : {QByteArray("/dev/wifi-usb"), QByteArray("/dev/wifi-onboard")}) {
+				if (QFileInfo::exists(QString::fromLatin1(path))) {
+					paths.append(path);
+				}
+			}
+			if (paths.isEmpty() && QFileInfo::exists(QStringLiteral("/dev/wifi"))) {
+				paths.append("/dev/wifi");
+			}
+			QList<QByteArray> listed;
+			for (int i = 0; i < adapter->count(); ++i) {
+				listed.append(adapter->itemData(i).toByteArray());
+			}
+			if (paths != listed) {
+				const QSignalBlocker blocker(adapter);
+				adapter->clear();
+				for (const QByteArray &path : paths) {
+					const QString label = path == "/dev/wifi-usb" ? QStringLiteral("USB Wi-Fi") :
+					    path == "/dev/wifi-onboard" ? QStringLiteral("Встроенный Wi-Fi") : QStringLiteral("Wi-Fi");
+					adapter->addItem(label, path);
+				}
+				if (paths.contains(selected)) {
+					adapter->setCurrentIndex(adapter->findData(selected));
+				} else {
+					scanTimer->stop();
+					networks->clear();
+					ssidEdit->clear();
+					passEdit->clear();
+				}
+			}
+			const bool present = !paths.isEmpty();
+			scanBtn->setEnabled(present && !scanTimer->isActive());
+			connectBtn->setEnabled(present);
+			disconnectBtn->setEnabled(present);
+			if (!present) {
+				statusLabel->setText(QStringLiteral("Wi-Fi адаптеры не обнаружены"));
+			} else if (!scanTimer->isActive() && paths != listed) {
+				refreshStatus();
+			}
+		};
+		connect(adapter, &QComboBox::currentIndexChanged, page, [=]() {
+			scanTimer->stop();
+			scanBtn->setEnabled(true);
+			networks->clear();
+			ssidEdit->clear();
+			passEdit->clear();
+			refreshStatus();
+		});
+		auto *deviceTimer = new QTimer(page);
+		deviceTimer->setInterval(3000);
+		connect(deviceTimer, &QTimer::timeout, page, refreshAdapters);
+		const int index = tabs->addTab(page, QStringLiteral("Wi-Fi"));
+		connect(tabs, &QTabWidget::currentChanged, page, [=](int current) {
+			if (current == index) {
+				refreshAdapters();
+				if (adapter->count() && !scanTimer->isActive()) refreshStatus();
+				deviceTimer->start();
+			} else {
+				deviceTimer->stop();
+			}
+		});
 	}
 
 	// Показать краткую справку о доступных действиях на рабочем столе
@@ -1164,6 +1294,19 @@ private:
 		tabs->addTab(page, QStringLiteral("О системе"));
 	}
 };
+
+// Открыть настройки в уже загруженной Qt-сессии меню и освободить окно при закрытии
+void MenuWindow::openSettings() {
+	if (!settingsWindow) {
+		settingsWindow = new SettingsWindow();
+		settingsWindow->setAttribute(Qt::WA_DeleteOnClose);
+	}
+	settingsWindow->showNormal();
+	settingsWindow->raise();
+	settingsWindow->activateWindow();
+	hide();
+}
+
 
 // Передать переключение уже запущенному меню без загрузки графической библиотеки
 static bool notifyMenu(char command) {
@@ -1194,10 +1337,15 @@ static bool notifyMenu(char command) {
 // Выбрать меню программ либо окно настроек и проверить его в госте
 int main(int argc, char **argv) {
 	bool settingsMode = false;
+	QString subsystem;
 	bool selfTest = false;
 	bool serviceMode = false;
 	for (int index = 1; index < argc; index++) {
 		settingsMode |= std::strcmp(argv[index], "--settings") == 0;
+		if (std::strncmp(argv[index], "--subsystem=", 12) == 0) {
+			subsystem = QString::fromUtf8(argv[index] + 12);
+			settingsMode = true;
+		}
 		selfTest |= std::strcmp(argv[index], "--self-test") == 0;
 		serviceMode |= std::strcmp(argv[index], "--menu-service") == 0;
 	}
@@ -1232,7 +1380,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	application.setQuitOnLastWindowClosed(!persistent);
-	QMainWindow *window = settingsMode ? static_cast<QMainWindow *>(new SettingsWindow())
+	QMainWindow *window = settingsMode ? static_cast<QMainWindow *>(new SettingsWindow(subsystem))
 	                                 : static_cast<QMainWindow *>(new MenuWindow());
 	if (!serviceMode) {
 		window->show();

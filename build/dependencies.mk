@@ -106,3 +106,6 @@ go: $(BUILD_ROOT)/go-runtime/.built
 
 $(BUILD_ROOT)/caddy/.built: $(BUILD_ROOT)/go-runtime/.built
 $(BUILD_ROOT)/prometheus/.built: $(BUILD_ROOT)/synapse-exporter/.built
+
+$(BUILD_ROOT)/synapse-recorder/.built: $(BUILD_ROOT)/zlib/.built
+$(BUILD_ROOT)/synapse-recorder-desktop/.built: $(BUILD_ROOT)/qt6-wayland/.built $(BUILD_ROOT)/labwc/.built $(ROOT)/pkgs/qt6-base/launch.c
