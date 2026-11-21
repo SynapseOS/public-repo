@@ -1376,7 +1376,7 @@ static int listenMenu(QByteArray &path, char command, bool &delivered) {
 	}
 	auto bindSocket = [&]() { return bind(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)); };
 	if (bindSocket() < 0) {
-		if (errno != EADDRINUSE) {
+		if (errno != EADDRINUSE && errno != EEXIST) {
 			close(fd);
 			return -1;
 		}
