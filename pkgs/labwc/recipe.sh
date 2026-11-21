@@ -4,7 +4,7 @@
 # Описание: Использовать системный Wayland SDK и закрытые библиотеки пакета
 # Подсистема: сборка пакетов
 # Первое изменение: 28.10.2026
-# Последнее изменение: 30.10.2026
+# Последнее изменение: 21.11.2026
 # Доступ: общедоступный
 
 prepare
@@ -54,8 +54,15 @@ if grep -q 'synapse_fb_present(state)' "$wlroots/backend/headless/output.c"; the
 PATCH
 fi
 
-if ! grep -q 'if (synapse_fb_fd >= 0)' "$wlroots/backend/headless/output.c"; then
-	patch --batch --fuzz=0 -d "$wlroots" -p1 -i "$port/patches/synapse-software-cursor.patch"
+if ! grep -A5 'static bool output_set_cursor' "$wlroots/backend/headless/output.c" |
+	grep -q 'return false'; then
+	sed -i '/static bool output_set_cursor(/,/^}/ s/return true;/if (synapse_fb_fd >= 0) { return false; }\n\treturn true;/' \
+		"$wlroots/backend/headless/output.c"
+fi
+if ! grep -A5 'static bool output_move_cursor' "$wlroots/backend/headless/output.c" |
+	grep -q 'return false'; then
+	sed -i '/static bool output_move_cursor(/,/^}/ s/return true;/if (synapse_fb_fd >= 0) { return false; }\n\treturn true;/' \
+		"$wlroots/backend/headless/output.c"
 fi
 
 if ! grep -q 'synapse_fb_poll_mode, wlr_output' "$wlroots/backend/headless/output.c"; then
@@ -145,6 +152,7 @@ cp -a "$work/wlroots-stage/usr/include/." "$work/sdk/usr/include/"
 cp -a "$work/wlroots-stage/usr/lib/." "$work/sdk/usr/lib/"
 
 labwc_link_args="-L$alias_path/usr/lib -Wl,-rpath-link,$alias_path/usr/lib"
+labwc_link_args+=" -Wl,-l:libpangoft2-1.0.so.0.5600.3"
 labwc_link_args+=" -Wl,--no-as-needed $alias_path/usr/lib/libLLVM.so.19.1"
 
 meson setup "$work/labwc-build" "$source" --wipe --cross-file "$work/cross.ini" \

@@ -2,8 +2,8 @@
 +++ b/PureDOOM.h
 @@ -16496,80 +16496,80 @@
  };
- 
- 
+
+
 -void A_Light0();
 -void A_WeaponReady();
 -void A_Lower();
@@ -152,6 +152,6 @@
 +void A_SpawnSound(mobj_t* mo);
 +void A_SpawnFly(mobj_t* mo);
 +void A_BrainExplode(mobj_t* mo);
- 
- 
+
+
  state_t states[NUMSTATES] = {
