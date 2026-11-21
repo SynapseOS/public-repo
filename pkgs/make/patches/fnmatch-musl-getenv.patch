@@ -1,0 +1,40 @@
+--- a/lib/fnmatch.c
++++ b/lib/fnmatch.c
+@@ -120,9 +120,6 @@
+ /* Avoid depending on library functions or files
+    whose names are inconsistent.  */
+
+-# if !defined _LIBC && !defined getenv
+-extern char *getenv ();
+-# endif
+
+ # ifndef errno
+ extern int errno;
+--- a/src/getopt.c
++++ b/src/getopt.c
+@@ -199,12 +199,10 @@
+ #  include <strings.h>
+ # endif
+
++#include <stdlib.h>
++
+ /* Avoid depending on library functions or files
+    whose names are inconsistent.  */
+-
+-#ifndef getenv
+-extern char *getenv ();
+-#endif
+
+ static char *
+ my_index (const char *str, int chr)
+--- a/src/getopt.h
++++ b/src/getopt.h
+@@ -102,7 +102,7 @@
+    errors, only prototype getopt for the GNU C library.  */
+ extern int getopt (int argc, char *const *argv, const char *shortopts);
+ #else /* not __GNU_LIBRARY__ */
+-extern int getopt ();
++extern int getopt (int argc, char *const *argv, const char *shortopts);
+ #endif /* __GNU_LIBRARY__ */
+ extern int getopt_long (int argc, char *const *argv, const char *shortopts,
+ const struct option *longopts, int *longind);

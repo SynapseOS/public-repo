@@ -30,7 +30,8 @@ ln -sfn "$work/headers/usr/include/x86_64-linux-gnu/asm" "$work/headers/usr/incl
 
 rm -rf -- "$work/sndfile-build"
 cmake -S "$work/sndfile-source/libsndfile-1.2.2" -B "$work/sndfile-build" \
-	-DCMAKE_C_COMPILER="$CC" -DCMAKE_INSTALL_PREFIX="$ascii_root/sysroot/usr" \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+		-DCMAKE_INSTALL_PREFIX="$ascii_root/sysroot/usr" \
 	-DCMAKE_C_FLAGS="-O2 -fPIC -isystem $(gcc -print-file-name=include)" \
 	-DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DENABLE_EXTERNAL_LIBS=OFF \
 	-DBUILD_PROGRAMS=OFF -DBUILD_EXAMPLES=OFF -DENABLE_SSE2=OFF -DENABLE_BOW_DOCS=OFF

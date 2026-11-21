@@ -132,7 +132,8 @@ needs_exe_wrapper = true
 c_args = ['-D_GNU_SOURCE', '-isystem', '$(gcc -print-file-name=include)',
     '-I$SDK/include', '-I$SDK/apps/apps/nano-x/upstream/src/drivers',
     '-idirafter', '$BUILD_ROOT/mesa/linux-headers/usr/include']
-c_link_args = ['-Wl,-rpath-link,$work/sdk/usr/lib']
+c_link_args = ['-Wl,-rpath-link,$work/sdk/usr/lib', '-Wl,-rpath-link,$BUILD_ROOT/mesa/wayland-sdk/usr/lib',
+    '-L$work/sdk/usr/lib', '-L$BUILD_ROOT/mesa/wayland-sdk/usr/lib']
 CROSS
 sed "s/'-D_GNU_SOURCE', //" "$work/cross.ini" >"$work/wayland-cross.ini"
 alias="$work/sdk"
@@ -172,7 +173,9 @@ if [[ ! -f $work/build/build.ninja ]] || ((${#meson_wipe[@]})); then
 		-Dcolor-management-lcms=false -Dimage-jpeg=false -Dimage-webp=false -Dtools=terminal,info \
 		-Ddemo-clients=false -Dsimple-clients=shm -Dwcap-decode=false -Dtest-junit-xml=false -Ddoc=false -Dwerror=true
 else
-	meson configure "$work/build" -Drenderer-gl=true
+	meson configure "$work/build" -Drenderer-gl=true \
+		-Dc_args="-D_GNU_SOURCE -isystem $(gcc -print-file-name=include) -I$SDK/include -I$SDK/apps/apps/nano-x/upstream/src/drivers -idirafter $BUILD_ROOT/mesa/linux-headers/usr/include" \
+		-Dc_link_args="-Wl,-rpath-link,$work/sdk/usr/lib -Wl,-rpath-link,$BUILD_ROOT/mesa/wayland-sdk/usr/lib -L$work/sdk/usr/lib -L$BUILD_ROOT/mesa/wayland-sdk/usr/lib -Wl,-l:libpangoft2-1.0.so.0.5600.3 -Wl,-l:libfontconfig.so.1.12.1"
 fi
 
 ninja -C "$work/build" -j"$JOBS"

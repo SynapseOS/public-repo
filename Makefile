@@ -24,7 +24,10 @@ PACKAGE_FILES ?=
 REPOSITORY_CC ?= cc
 REPOSITORY_TOOL := $(BUILD_ROOT)/host-tools/repository
 export REPO_DIR REPO_ID GENERATION TTL SIGNING_PUBLIC_KEY REPOSITORY_TOOL
-export PATH := $(BUILD_ROOT)/host-tools/root/usr/bin:$(PATH)
+export PATH := /usr/lib/ccache:$(BUILD_ROOT)/host-tools/root/usr/bin:$(PATH)
+export CCACHE_DIR := $(abspath $(ROOT)/../.ccache)
+export CCACHE_COMPILERCHECK := content
+export CCACHE_MAXSIZE := 30G
 export BISON_PKGDATADIR := $(BUILD_ROOT)/host-tools/root/usr/share/bison
 export M4 := $(BUILD_ROOT)/host-tools/root/usr/bin/m4
 unexport CC CXX AR LD NASM NASMFLAGS COMMON_CFLAGS COMMON_CPPFLAGS COMMON_LDFLAGS
