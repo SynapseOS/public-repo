@@ -185,7 +185,6 @@ public:
 		resize(900, 600);
 
 		model = new FileListModel(this);
-		model->setRootPath(QStringLiteral("/"));
 		model->setReadOnly(false);
 
 		view = new QTreeView(this);
@@ -305,7 +304,7 @@ private:
 			return;
 		}
 
-		QModelIndex index = model->index(target);
+		QModelIndex index = model->setRootPath(target);
 
 		if (!index.isValid()) {
 			QMessageBox::warning(this, QStringLiteral("Files"),

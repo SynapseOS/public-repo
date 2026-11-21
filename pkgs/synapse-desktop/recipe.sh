@@ -28,10 +28,9 @@ fi
 	-I"$probe/usr/include/qt6/QtWidgets" \
 	-I"$probe/usr/include/qt6/QtGui" \
 	-I"$probe/usr/include/qt6/QtCore" \
-	-I"$probe/usr/include/qt6/QtNetwork" \
 	"$port/main.cpp" -L"$probe/usr/lib" \
 	-Wl,-rpath-link,"$linkpaths" -Wl,--no-allow-shlib-undefined \
-	-lQt6Widgets -lQt6Gui -lQt6Network -lQt6Core -lQt6DBus \
+	-lQt6Widgets -lQt6Gui -lQt6Core -lQt6DBus \
 	-o "$payload/usr/libexec/qt6/synapse-desktop"
 
 launcher_flags=()

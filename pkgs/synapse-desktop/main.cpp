@@ -25,8 +25,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QListView>
-#include <QLocalServer>
-#include <QLocalSocket>
+#include <QSocketNotifier>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPalette>
@@ -688,22 +687,43 @@ public:
 		QTabWidget *tabs = new QTabWidget(this);
 		setCentralWidget(tabs);
 		addDisplayPage(tabs);
-		addAppearancePage(tabs);
-		addSystemPage(tabs);
-		addServicesPage(tabs);
+		addOnDemand(tabs, QStringLiteral("Оформление"), &SettingsWindow::buildAppearancePage);
+		addOnDemand(tabs, QStringLiteral("Система"), &SettingsWindow::buildSystemPage);
+		addOnDemand(tabs, QStringLiteral("Службы"), &SettingsWindow::buildServicesPage);
 		addSubsystemsPage(tabs, subsystem);
-		addNetworkPage(tabs);
+		addOnDemand(tabs, QStringLiteral("Сеть"), &SettingsWindow::buildNetworkPage);
 		addWifiPage(tabs);
-		addAboutPage(tabs);
+		addOnDemand(tabs, QStringLiteral("О системе"), &SettingsWindow::buildAboutPage);
 	}
 
-	// Убедиться, что системная программа настроек доступна
+	// Открыть все вкладки при самопроверке, включая те, что создаются при первом переходе
 	bool ready() const {
+		auto *tabs = qobject_cast<QTabWidget *>(centralWidget());
+		if (!tabs || !tabs->count()) {
+			return false;
+		}
+		for (int index = 0; index < tabs->count(); ++index) {
+			tabs->setCurrentIndex(index);
+			if (!tabs->widget(index)->layout()) {
+				return false;
+			}
+		}
 		return QFileInfo(QStringLiteral("/bin/settings")).isExecutable() &&
 		       !readSetting(QStringLiteral("Display.Resolution")).isEmpty();
 	}
 
 private:
+	// Прочитать настройки вкладки один раз при первом переходе на неё
+	void addOnDemand(QTabWidget *tabs, const QString &title, void (SettingsWindow::*build)(QWidget *)) {
+		auto *page = new QWidget(tabs);
+		const int index = tabs->addTab(page, title);
+		connect(tabs, &QTabWidget::currentChanged, page, [this, page, index, build](int current) {
+			if (current == index && !page->layout()) {
+				(this->*build)(page);
+			}
+		});
+	}
+
 	// Сканировать подсистемы при открытии вкладки и по запросу после установки пакета
 	void addSubsystemsPage(QTabWidget *tabs, const QString &requested) {
 		auto *page = new QWidget(tabs);
@@ -784,8 +804,7 @@ private:
 	}
 
 	// Добавить готовые темы Labwc с переключением в текущем сеансе
-	void addAppearancePage(QTabWidget *tabs) {
-		QWidget *page = new QWidget(tabs);
+	void buildAppearancePage(QWidget *page) {
 		QVBoxLayout *layout = new QVBoxLayout(page);
 		QFormLayout *form = new QFormLayout();
 		QComboBox *theme = new QComboBox(page);
@@ -804,7 +823,6 @@ private:
 				                     QStringLiteral("Не удалось применить тему Labwc"));
 			}
 		});
-		tabs->addTab(page, QStringLiteral("Оформление"));
 	}
 
 	// Добавить выбор разрешения с применением в текущем сеансе
@@ -860,8 +878,7 @@ private:
 	}
 
 	// Добавить имя компьютера, язык, часовую зону, обновления и оболочку новых терминалов
-	void addSystemPage(QTabWidget *tabs) {
-		QWidget *page = new QWidget(tabs);
+	void buildSystemPage(QWidget *page) {
 		QVBoxLayout *layout = new QVBoxLayout(page);
 		QFormLayout *form = new QFormLayout();
 
@@ -917,12 +934,10 @@ private:
 
 			writeSetting(this, QStringLiteral("Setup.CheckUpdates"), checkUpdates->isChecked() ? QStringLiteral("1") : QStringLiteral("0"));
 		});
-		tabs->addTab(page, QStringLiteral("Система"));
 	}
 
 	// Управление системными службами (SSH, FTP, GuestAgent, телеметрия)
-	void addServicesPage(QTabWidget *tabs) {
-		QWidget *page = new QWidget(tabs);
+	void buildServicesPage(QWidget *page) {
 		QVBoxLayout *layout = new QVBoxLayout(page);
 		QFormLayout *form = new QFormLayout();
 
@@ -964,12 +979,10 @@ private:
 			}
 			writeSetting(this, QStringLiteral("stats.stats"), statsOn->isChecked() ? QStringLiteral("1") : QStringLiteral("0"));
 		});
-		tabs->addTab(page, QStringLiteral("Службы"));
 	}
 
 	// Добавить основные параметры сети без изменения текущего подключения
-	void addNetworkPage(QTabWidget *tabs) {
-		QWidget *page = new QWidget(tabs);
+	void buildNetworkPage(QWidget *page) {
 		QVBoxLayout *layout = new QVBoxLayout(page);
 		QFormLayout *form = new QFormLayout();
 		QComboBox *mode = new QComboBox(page);
@@ -1013,7 +1026,6 @@ private:
 
 			writeSetting(this, QStringLiteral("DNS.1"), dns->text());
 		});
-		tabs->addTab(page, QStringLiteral("Сеть"));
 	}
 
 	// Показать вкладку управления беспроводными сетями напрямую через /dev/wifi
@@ -1292,15 +1304,13 @@ private:
 	}
 
 	// Показать краткую справку о доступных действиях на рабочем столе
-	void addAboutPage(QTabWidget *tabs) {
-		QWidget *page = new QWidget(tabs);
+	void buildAboutPage(QWidget *page) {
 		QVBoxLayout *layout = new QVBoxLayout(page);
 		layout->addWidget(new QLabel(QStringLiteral("Рабочий стол SynapseOS\nLabwc и Qt 6"), page));
 		layout->addWidget(new QLabel(
 		    QStringLiteral("Print Screen сохраняет PNG в домашнем каталоге.\n"
 		                   "Alt+Tab переключает окна. Alt+Shift меняет раскладку клавиатуры."), page));
 		layout->addStretch();
-		tabs->addTab(page, QStringLiteral("О системе"));
 	}
 };
 
@@ -1339,8 +1349,84 @@ static bool notifyMenu(char command) {
 	bool delivered = connect(descriptor, reinterpret_cast<sockaddr *>(&address),
 	                         sizeof(address)) == 0 &&
 	                 send(descriptor, &command, 1, MSG_NOSIGNAL) == 1;
+	int error = errno;
 	close(descriptor);
+	errno = error;
 	return delivered;
+}
+
+// Открыть сокет меню в каталоге сеанса, сохранив действующую службу при повторном запуске
+static int listenMenu(QByteArray &path, char command, bool &delivered) {
+	const QByteArray runtime = qgetenv("XDG_RUNTIME_DIR");
+	if (runtime.isEmpty()) {
+		return -1;
+	}
+
+	path = runtime + "/synapse-desktop-menu";
+	sockaddr_un address{};
+	address.sun_family = AF_UNIX;
+	if (size_t(path.size()) >= sizeof(address.sun_path)) {
+		return -1;
+	}
+	std::memcpy(address.sun_path, path.constData(), size_t(path.size()) + 1);
+
+	const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+	if (fd < 0) {
+		return -1;
+	}
+	auto bindSocket = [&]() { return bind(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)); };
+	if (bindSocket() < 0) {
+		if (errno != EADDRINUSE) {
+			close(fd);
+			return -1;
+		}
+		delivered = notifyMenu(command);
+		struct stat st{};
+		if (delivered || errno != ECONNREFUSED || lstat(path.constData(), &st) < 0 ||
+		    !S_ISSOCK(st.st_mode) || unlink(path.constData()) < 0 || bindSocket() < 0) {
+			close(fd);
+			return -1;
+		}
+	}
+	if (listen(fd, 8) < 0) {
+		unlink(path.constData());
+		close(fd);
+		return -1;
+	}
+	return fd;
+}
+
+// Qt следит за готовностью соединений, не задерживая отрисовку окна
+static void watchMenu(int fd, QMainWindow *window) {
+	auto *listener = new QSocketNotifier(fd, QSocketNotifier::Read, window);
+	QObject::connect(listener, &QSocketNotifier::activated, window, [fd, window]() {
+		int client = accept4(fd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
+		if (client < 0) {
+			return;
+		}
+
+		auto *input = new QSocketNotifier(client, QSocketNotifier::Read, window);
+		QObject::connect(input, &QObject::destroyed, [client]() { close(client); });
+		QObject::connect(input, &QSocketNotifier::activated, input, [client, input, window]() {
+			char command;
+			const ssize_t n = recv(client, &command, 1, 0);
+			if (n < 0 && (errno == EAGAIN || errno == EINTR)) {
+				return;
+			}
+			input->setEnabled(false);
+			input->deleteLater();
+			if (n == 1 && command == 'T') {
+				if (window->isVisible()) {
+					window->hide();
+				} else {
+					window->show();
+					window->raise();
+					window->activateWindow();
+				}
+			}
+		});
+		QTimer::singleShot(1000, input, &QObject::deleteLater);
+	});
 }
 
 // Выбрать меню программ либо окно настроек и проверить его в госте
@@ -1366,25 +1452,13 @@ int main(int argc, char **argv) {
 	QApplication application(argc, argv);
 	application.setStyle(QStringLiteral("Fusion"));
 	applyDesktopPalette(desktopTheme());
-	QLocalServer menuServer;
-	if (!settingsMode && !selfTest) {
-		const QByteArray runtime = qgetenv("XDG_RUNTIME_DIR");
-		if (!runtime.isEmpty()) {
-			const QString socket = QString::fromLocal8Bit(runtime) +
-			                       QStringLiteral("/synapse-desktop-menu");
-			if (!menuServer.listen(socket) &&
-			    notifyMenu(serviceMode ? 'P' : 'T')) {
-				return 0;
-			}
-
-			if (!menuServer.isListening()) {
-				QLocalServer::removeServer(socket);
-				menuServer.listen(socket);
-			}
-		}
+	QByteArray menuPath;
+	bool delivered = false;
+	int menuFd = (!settingsMode && !selfTest) ? listenMenu(menuPath, serviceMode ? 'P' : 'T', delivered) : -1;
+	if (delivered) {
+		return 0;
 	}
-
-	bool persistent = menuServer.isListening();
+	bool persistent = menuFd >= 0;
 	if (serviceMode && !persistent) {
 		return 1;
 	}
@@ -1394,26 +1468,9 @@ int main(int argc, char **argv) {
 	if (!serviceMode) {
 		window->show();
 	}
-	QObject::connect(&menuServer, &QLocalServer::newConnection, &application,
-	                 [&menuServer, window]() {
-		while (menuServer.hasPendingConnections()) {
-			QLocalSocket *client = menuServer.nextPendingConnection();
-			client->waitForReadyRead(25);
-			const QByteArray request = client->readAll();
-			if (request.contains('T')) {
-				if (window->isVisible()) {
-					window->hide();
-				} else {
-					window->show();
-					window->raise();
-					window->activateWindow();
-				}
-			}
-
-			client->disconnectFromServer();
-			client->deleteLater();
-		}
-	});
+	if (persistent) {
+		watchMenu(menuFd, window);
+	}
 
 	if (selfTest) {
 		QTimer::singleShot(1500, &application, [&application, window, settingsMode]() {
@@ -1431,5 +1488,10 @@ int main(int argc, char **argv) {
 		});
 	}
 
-	return application.exec();
+	const int result = application.exec();
+	if (persistent) {
+		unlink(menuPath.constData());
+		close(menuFd);
+	}
+	return result;
 }
