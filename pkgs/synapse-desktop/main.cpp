@@ -1329,7 +1329,9 @@ private:
 			const QByteArray selected = adapter->currentData().toByteArray();
 			QList<QByteArray> paths;
 			for (const QByteArray &path : {QByteArray("/dev/wifi-usb"), QByteArray("/dev/wifi-onboard")}) {
-				if (QFileInfo::exists(QString::fromLatin1(path))) {
+				const int fd = ::open(path.constData(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
+				if (fd >= 0) {
+					::close(fd);
 					paths.append(path);
 				}
 			}

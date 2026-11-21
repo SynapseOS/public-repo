@@ -4,11 +4,12 @@
 # Архитектура: x86_64, ABI: служба SynapseOS
 # Описание: Проверка связи и повторное подключение
 # Подсистема: беспроводная сеть
-# Первое изменение: 16.11.2026, последнее изменение: 16.11.2026
+# Первое изменение: 16.11.2026, последнее изменение: 21.11.2026
 # Доступ: общедоступный
 
 while :; do
-    if [ -e /dev/wifi ] && [ -f /etc/network/wifi.conf ] &&
+    if { [ -e /dev/wifi ] || [ -e /dev/wifi-usb ]; } &&
+       { [ -f /etc/network/wifi.conf ] || [ -f /etc/network/wifi-usb.conf ]; } &&
        /bin/wifi status | grep -q 'Connection: disconnected'; then
         /bin/wifi auto >/dev/null 2>&1
     fi

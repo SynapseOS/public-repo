@@ -267,7 +267,7 @@ static void prepare_audio(const char *runtime) {
 
     char *const arguments[] = {
         "pulseaudio", "-n", "--daemonize=no", "--exit-idle-time=-1", "--log-level=warn",
-        "-L", module, "-L", "module-oss device=/dev/dsp mmap=0",
+        "-L", module, "-L", "module-oss device=/dev/dsp mmap=0 record=0 rate=48000 channels=2 format=s16le",
         "-L", "module-suspend-on-idle timeout=2", NULL,
     };
     execv("/usr/bin/pulseaudio", arguments);

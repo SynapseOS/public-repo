@@ -1450,13 +1450,14 @@ static int recover_ssh(void) {
 
 // Запомнить завершение обязательной службы или локальной оболочки
 static void reap_children(struct tracked_console *consoles, size_t count,
-                          pid_t *ssh_supervisor, time_t *ssh_retry_at, int *ssh_exited) {
+                          pid_t *ssh_supervisor, time_t *ssh_retry_at, int *ssh_exited, pid_t *desktop) {
     int status = 0;
     pid_t pid;
     *ssh_exited = 0;
 
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
         time_t retry_at = time(NULL) + 5;
+        if (pid == *desktop) *desktop = 0;
         if (pid == *ssh_supervisor) {
             *ssh_exited = 1;
             *ssh_supervisor = -1;
@@ -1523,15 +1524,12 @@ static pid_t spawn_tty_shell(const char *tty_path, const char *shell,
     if (pid == 0) {
         setsid();
         int fd = open(tty_path, O_RDWR);
-        if (fd >= 0) {
-            dup2(fd, 0);
-            dup2(fd, 1);
-            dup2(fd, 2);
-            if (fd > 2) {
-                close(fd);
-            }
-            ioctl(0, TIOCSCTTY, 1);
-        }
+        if (fd < 0) _exit(126);
+        dup2(fd, 0);
+        dup2(fd, 1);
+        dup2(fd, 2);
+        if (fd > 2) close(fd);
+        ioctl(0, TIOCSCTTY, 1);
         unsetenv("LUMINE_LOG_SERVICE");
         unsetenv("LUMINE_LOG_CONSOLE_FD");
         setenv("SHELL_TTY", tty_path, 1);
@@ -1644,7 +1642,7 @@ static void load_firewall_config(void) {
 }
 
 // При завершении графической сессии запускаем консоль на том же терминале
-static int start_desktop_session(const syn_cfg_t *cfg, const char *shell) {
+static pid_t start_desktop_session(const syn_cfg_t *cfg) {
     const char *program = cfg->desktop_login_manager ? "/bin/synapse-session-manager" :
         (cfg->desktop_path[0] ? cfg->desktop_path : "/bin/desktop");
     if (!cfg->desktop_enabled || access(program, X_OK) != 0) {
@@ -1685,12 +1683,10 @@ static int start_desktop_session(const syn_cfg_t *cfg, const char *shell) {
             syscall(102005L, (unsigned long)UINT32_MAX);
         }
 
-        char *const argv[] = {(char *)shell, NULL};
-        spawn_tty_shell("/dev/tty0", shell, argv);
         _exit(0);
     }
     printf("[init] desktop session supervisor pid=%d\n", (int)supervisor);
-    return 1;
+    return supervisor;
 }
 
 // При первом запуске ждём завершения HI
@@ -1793,8 +1789,71 @@ static void apply_boot_session(syn_cfg_t *config) {
     }
 }
 
+enum usb_module {
+    USB_ASIX, USB_LAN78, USB_RTL8152, USB_WIFI, USB_TURING, USB_SERIAL, USB_RNDIS,
+    USB_NCM, USB_IPHETH, USB_UVC, USB_UAS, USB_MODULE_COUNT
+};
+
+static const char *const usb_module_names[USB_MODULE_COUNT] = {
+    "usb-asix", "usb-lan78xx", "usb-rtl8152", "wifi-usb", "turing-screen", "usb-serial", "usb-rndis",
+    "usb-ncm", "usb-ipheth", "usb-uvc", "usb-uas"
+};
+
+static unsigned usb_present, usb_loaded;
+static bool usb_monitor;
+
+// Сопоставить интерфейс с правилами probe пакетных драйверов
+static unsigned usb_match(unsigned vendor, unsigned product, unsigned cls, unsigned sub, unsigned proto) {
+    unsigned wanted = 0;
+    switch ((vendor << 16) | product) {
+        case 0x0b957720: wanted = 1u << USB_ASIX; break;
+        case 0x04247800: wanted = 1u << USB_LAN78; break;
+        case 0x0bda8152: case 0x0bda8153: wanted = 1u << USB_RTL8152; break;
+        case 0x0bdac811: case 0x2357012d: case 0x0bdab812: wanted = 1u << USB_WIFI; break;
+        case 0x1a865722: return 1u << USB_TURING;
+        case 0x1a867523: case 0x10c4ea60: case 0x10c4ea61: case 0x04036001: case 0x067b2303:
+            wanted = 1u << USB_SERIAL;
+            break;
+    }
+    if ((cls == 0xe0 && sub == 1 && proto == 3) || (cls == 2 && sub == 2 && proto == 0xff)) {
+        wanted |= 1u << USB_RNDIS;
+    } else if (cls == 2 && sub == 2) {
+        wanted |= 1u << USB_SERIAL;
+    }
+    if ((cls == 2 && sub == 0x0d) || (cls == 0xef && sub == 2 && proto == 1)) wanted |= 1u << USB_NCM;
+    if (vendor == 0x05ac && cls == 0xff && sub == 0xfd && proto == 1) wanted |= 1u << USB_IPHETH;
+    if (cls == 14 && sub == 2) wanted |= 1u << USB_UVC;
+    if (cls == 8 && sub == 6 && proto == 0x62) wanted |= 1u << USB_UAS;
+    return wanted;
+}
+
+static bool usb_snapshot(unsigned *present) {
+    FILE *file = fopen("/proc/usb-interfaces", "r");
+    if (!file) return false;
+
+    unsigned mask = 0, vendor, product, cls, sub, proto;
+    char line[80];
+    while (fgets(line, sizeof(line), file)) {
+        if (sscanf(line, "%x %x %x %x %x", &vendor, &product, &cls, &sub, &proto) == 5) {
+            mask |= usb_match(vendor, product, cls, sub, proto);
+        }
+    }
+    bool ok = !ferror(file);
+    fclose(file);
+    if (ok) *present = mask;
+    return ok;
+}
+
+static unsigned usb_module_bit(const char *file) {
+    for (unsigned i = 0; i < USB_MODULE_COUNT; i++) {
+        size_t length = strlen(usb_module_names[i]);
+        if (!strncmp(file, usb_module_names[i], length) && !strcmp(file + length, ".so")) return 1u << i;
+    }
+    return 0;
+}
+
 // Загружаем модули из списков пакетов до настройки сетевых интерфейсов
-static void load_kernel_modules(void) {
+static void load_kernel_modules(bool boot, unsigned added) {
     const char *disabled = getenv("SYNAPSE_NO_MODULES");
     if (disabled && !strcmp(disabled, "1")) {
         puts("[init] module autoload disabled");
@@ -1802,6 +1861,10 @@ static void load_kernel_modules(void) {
     }
     if (access("/bin/insmod", X_OK)) {
         return;
+    }
+    if (boot) {
+        usb_monitor = usb_snapshot(&usb_present);
+        added = usb_present;
     }
     glob_t files = {0};
     if (!glob("/etc/modules-load.d/*.conf", 0, NULL, &files)) {
@@ -1834,6 +1897,7 @@ static void load_kernel_modules(void) {
                 bool quarantined = strncmp(path, "#!ib/modules/", 13) == 0 ||
                     strncmp(path, "#lib/modules/", 13) == 0 ||
                     strncmp(path, "/!ib/modules/", 13) == 0;
+                if (quarantined && !boot) continue;
                 if (quarantined) {
                     char *name = path + 13;
                     char *end = name;
@@ -1859,6 +1923,11 @@ static void load_kernel_modules(void) {
                 }
                 *end = 0;
                 if (strncmp(path, "/lib/modules/", 13) || strstr(path, "..")) {
+                    continue;
+                }
+
+                unsigned bit = usb_module_bit(path + 13);
+                if ((!bit && !boot) || (bit && usb_monitor && (!(added & bit) || (usb_loaded & bit)))) {
                     continue;
                 }
 
@@ -1898,7 +1967,12 @@ static void load_kernel_modules(void) {
                     char report[96];
                     snprintf(report, sizeof(report), "F module %.72s failed", path + 13);
                     report_necromant(report);
-                } else if (pwrite(guard_fd, "/l", 2, guard_offset) != 2 || fsync(guard_fd) != 0) {
+                } else {
+                    usb_loaded |= bit;
+                }
+                // В карантине остаётся только прерванная загрузка
+                if ((pid < 0 || (status >= 0 && WIFEXITED(status))) &&
+                    (pwrite(guard_fd, "/l", 2, guard_offset) != 2 || fsync(guard_fd) != 0)) {
                     report_necromant("F module boot guard restore failed");
                 }
 
@@ -1908,6 +1982,22 @@ static void load_kernel_modules(void) {
         }
     }
     globfree(&files);
+}
+
+// Запрашивать выгрузку только после исчезновения последнего подходящего интерфейса
+static void update_usb_modules(void) {
+    unsigned present;
+    if (!usb_monitor || !usb_snapshot(&present)) return;
+    unsigned added = present & ~usb_present & ~usb_loaded;
+    unsigned removed = ~present & usb_loaded;
+    usb_present = present;
+    for (unsigned i = 0; i < USB_MODULE_COUNT; i++) {
+        if (!(removed & (1u << i))) continue;
+        if (syscall(SYS_delete_module, usb_module_names[i], 0) == 0 || errno == ENOENT) {
+            usb_loaded &= ~(1u << i);
+        }
+    }
+    if (added) load_kernel_modules(false, added);
 }
 
 int main(int argc, char **argv, char **envp) {
@@ -2029,7 +2119,6 @@ int main(int argc, char **argv, char **envp) {
     struct tracked_console consoles[MAX_TRACKED_CONSOLES] = {0};
     size_t console_count = 0;
 
-    struct stat tty0_stat;
     int desktop_ready =
         config.desktop_enabled &&
         access(config.desktop_path[0] ? config.desktop_path : "/bin/desktop", X_OK) ==
@@ -2065,7 +2154,7 @@ int main(int argc, char **argv, char **envp) {
         desktop_ready = 0;
         fprintf(stderr, "[init] first-boot setup is incomplete, continuing in the local console\n");
     }
-    if (stat("/dev/tty0", &tty0_stat) == 0 && !desktop_ready) {
+    if (!desktop_ready) {
         track_console(consoles, &console_count, "/dev/tty0", shell, shell_argv);
     }
 
@@ -2197,7 +2286,7 @@ int main(int argc, char **argv, char **envp) {
             }
         }
     }
-    load_kernel_modules();
+    load_kernel_modules(true, 0);
     parse_setup(&config);
     configure_locale(&config);
     apply_boot_session(&config);
@@ -2205,7 +2294,7 @@ int main(int argc, char **argv, char **envp) {
 
     desktop_ready = first_boot_result >= 0 && config.desktop_enabled &&
                     access(config.desktop_path[0] ? config.desktop_path : "/bin/desktop", X_OK) == 0;
-    int desktop_started = 0;
+    pid_t desktop_started = 0;
     if (desktop_ready) {
         int display = open("/dev/tty0", O_WRONLY | O_CLOEXEC);
         if (display >= 0) {
@@ -2214,7 +2303,7 @@ int main(int argc, char **argv, char **envp) {
             close(display);
         }
 
-        desktop_started = start_desktop_session(&config, shell);
+        desktop_started = start_desktop_session(&config);
     }
 
     if (!getenv("SYNAPSE_NO_NETWORK") || strcmp(getenv("SYNAPSE_NO_NETWORK"), "1")) {
@@ -2349,13 +2438,12 @@ int main(int argc, char **argv, char **envp) {
         globfree(&definitions);
     }
 
-    if (desktop_ready && !desktop_started) {
-        track_console(consoles, &console_count, "/dev/tty0", shell, shell_argv);
-    }
+
 
     unsigned dns_tick = 0;
     for (;;) {
         sleep(1);
+        if (dns_tick % 2U == 0U) update_usb_modules();
         if (dns_tick % 5U == 0U) {
             report_necromant("P init loop alive");
         }
@@ -2363,7 +2451,15 @@ int main(int argc, char **argv, char **envp) {
             dns_refresh_file(&dns_state, "/etc/resolv.conf", "/proc/net-dns");
         }
         int ssh_exited = 0;
-        reap_children(consoles, console_count, &ssh_supervisor, &ssh_retry_at, &ssh_exited);
+        reap_children(consoles, console_count, &ssh_supervisor, &ssh_retry_at, &ssh_exited, &desktop_started);
+        if (desktop_ready && !desktop_started) {
+            bool tracked = false;
+            for (size_t i = 0; i < console_count; i++) {
+                if (!strcmp(consoles[i].path, "/dev/tty0")) tracked = true;
+            }
+            if (!tracked) track_console(consoles, &console_count, "/dev/tty0", shell, shell_argv);
+            desktop_ready = 0;
+        }
         if (cloud_required && ssh_exited && !ssh_direct) {
             if (ssh_manager_failures < 3) {
                 ssh_manager_failures++;

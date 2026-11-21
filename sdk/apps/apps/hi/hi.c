@@ -823,7 +823,7 @@ static int report_create(const char *requested, char *created, size_t capacity) 
     fprintf(out, "SynapseOS HI full system report\nGenerated: %s", ctime(&now));
     const char *files_to_read[] = {
         "/etc/hostname", "/etc/hosts",
-        "/etc/resolv.conf",  "/etc/passwd",   "/etc/shadow",
+        "/etc/resolv.conf",  "/etc/passwd",
         "/proc/version",     "/proc/cmdline", "/proc/cpuinfo",
         "/proc/meminfo",     "/proc/pci",     "/proc/usb",
         "/proc/modules",     "/proc/thermal", "/proc/acpi",
