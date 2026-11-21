@@ -145,6 +145,7 @@ cp -a "$work/wlroots-stage/usr/include/." "$work/sdk/usr/include/"
 cp -a "$work/wlroots-stage/usr/lib/." "$work/sdk/usr/lib/"
 
 labwc_link_args="-L$alias_path/usr/lib -Wl,-rpath-link,$alias_path/usr/lib"
+labwc_link_args+=" -Wl,-l:libpangoft2-1.0.so.0.5600.3"
 labwc_link_args+=" -Wl,--no-as-needed $alias_path/usr/lib/libLLVM.so.19.1"
 
 meson setup "$work/labwc-build" "$source" --wipe --cross-file "$work/cross.ini" \
