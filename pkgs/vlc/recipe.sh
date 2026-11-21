@@ -78,6 +78,8 @@ mkdir -p "$payload/usr/libexec/qt6"
     -lQt6Widgets -lQt6Gui -lQt6Core -lQt6DBus -o "$payload/usr/libexec/qt6/vlc-music"
 SYNAPSE_LINK_MODE=static "$launcher_cc" -O2 '-DQT_APP_LIBRARY_PATH="/usr/lib/vlc:"' \
     '-DAPPLICATION_PATH="/usr/libexec/qt6/vlc-music"' "$ROOT/pkgs/qt6-base/launch.c" -o "$payload/bin/vlc"
+# libtool подставляет каталог сборки ядра VLC в RUNPATH своих модулей
+find "$payload/usr/lib/vlc" -type f -exec patchelf --remove-rpath {} \;
 find "$payload/usr/lib" "$payload/usr/libexec" -type f -exec "$strip_tool" --strip-unneeded {} \;
 copy "$port/vlc.desktop" usr/share/applications/vlc.desktop
 copy "$source/share/icons/48x48/vlc.png" usr/share/icons/hicolor/48x48/apps/vlc.png
