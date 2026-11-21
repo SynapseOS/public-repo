@@ -106,6 +106,10 @@ if ! grep -q 'window_add_widget(terminal->window, terminal)' "$source/clients/te
 	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/terminal-server-decorations.patch"
 fi
 
+if ! grep -q 'report_left_press' "$source/clients/terminal.c"; then
+	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/terminal-pointer.patch"
+fi
+
 cp "$port/synapse-backend.inc" "$source/libweston/backend-headless/"
 cp "$port/client-timers.inc" "$port/wayland-timers.inc" "$source/clients/"
 fetch "$(jq -r .wayland_source "$spec")" "$(jq -r .wayland_sha256 "$spec")" "$work/wayland.tar.xz"

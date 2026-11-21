@@ -1,0 +1,71 @@
+--- a/clients/terminal.c
++++ b/clients/terminal.c
+@@ -458,6 +458,7 @@
+ 	int saved_row, saved_column;
+ 	int scrolling;
+ 	int send_cursor_position;
++	bool x10_mouse;
+ 	int fd, master;
+ 	uint32_t modifiers;
+ 	char escape[MAX_ESCAPE+1];
+@@ -1236,6 +1237,9 @@
+ 		case 8:  /* DECARM */
+ 			if (sr)	terminal->mode |=  MODE_AUTOREPEAT;
+ 			else	terminal->mode &= ~MODE_AUTOREPEAT;
++			break;
++		case 9:   /* X10 press reporting */
++			terminal->x10_mouse = sr;
+ 			break;
+ 		case 12:  /* Very visible cursor (CVVIS) */
+ 			/* FIXME: What do we do here. */
+@@ -2790,6 +2794,23 @@
+ }
+ 
+ static void
++report_left_press(struct terminal *terminal, int x, int y)
++{
++	struct rectangle area;
++	int cw = terminal->average_width, ch = terminal->extents.height;
++	if (cw <= 0 || ch <= 0)
++		return;
++	widget_get_allocation(terminal->widget, &area);
++	x -= area.x + (area.width - terminal->width * cw) / 2;
++	y -= area.y + (area.height - terminal->height * ch) / 2;
++	if (x < 0 || y < 0 || x / cw >= terminal->width || y / ch >= terminal->height ||
++	    x / cw >= 223 || y / ch >= 223)
++		return;
++	char report[] = {27, '[', 'M', 32, (char)(33 + x / cw), (char)(33 + y / ch)};
++	terminal_write(terminal, report, sizeof report);
++}
++
++static void
+ button_handler(struct widget *widget,
+ 	       struct input *input, uint32_t time,
+ 	       uint32_t button,
+@@ -2802,7 +2823,10 @@
+ 	case BTN_LEFT:
+ 		if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+ 			input_get_position(input, &x, &y);
+-			click_handler(widget, terminal, input, x, y, time);
++			if (terminal->x10_mouse)
++				report_left_press(terminal, x, y);
++			else
++				click_handler(widget, terminal, input, x, y, time);
+ 		} else {
+ 			terminal->dragging = SELECT_NONE;
+ 		}
+@@ -2907,8 +2931,12 @@
+ {
+ 	struct terminal *terminal = data;
+ 
+-	if (id == 0)
+-		click_handler(widget, terminal, input, x, y, time);
++	if (id == 0) {
++		if (terminal->x10_mouse)
++			report_left_press(terminal, x, y);
++		else
++			click_handler(widget, terminal, input, x, y, time);
++	}
+ }
+ 
+ static void

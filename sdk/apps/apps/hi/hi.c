@@ -43,6 +43,46 @@
 static struct termios saved_termios;
 static bool raw_active, ru = true;
 
+#define TAP_ROW 2000
+static bool touch_ui;
+static pid_t keyboard_pid;
+
+static void keyboard_show(void) {
+    if (!touch_ui || keyboard_pid > 0) return;
+    fflush(stdout);
+    keyboard_pid = fork();
+    if (keyboard_pid == 0) {
+        int fd = open("/dev/null", O_WRONLY);
+        if (fd >= 0) {
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+            if (fd > STDERR_FILENO) close(fd);
+        }
+        execl("/usr/libexec/labwc/deck-keyboard", "deck-keyboard", "-L", "224", "-H", "240", (char *)NULL);
+        _exit(127);
+    }
+}
+
+static void keyboard_hide(void) {
+    if (keyboard_pid > 0) {
+        kill(keyboard_pid, SIGTERM);
+        while (waitpid(keyboard_pid, NULL, 0) < 0 && errno == EINTR) {}
+        keyboard_pid = 0;
+    }
+}
+
+static void pointer_mode(bool enabled) {
+    if (touch_ui) {
+        fputs(enabled ? "\033[?9h" : "\033[?9l", stdout);
+        fflush(stdout);
+    }
+}
+
+static int screen_rows(void) {
+    struct winsize ws = {0};
+    return ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_row > 4 ? ws.ws_row : 24;
+}
+
 static const char *tr(const char *en, const char *russian) {
     return ru ? russian : en;
 }
@@ -51,6 +91,7 @@ static void terminal_restore(void) {
     if (!raw_active) {
         return;
     }
+    pointer_mode(false);
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved_termios);
     fputs("\033[0m\033[?25h\033[?1049l", stdout);
     fflush(stdout);
@@ -74,6 +115,7 @@ static int terminal_raw(void) {
         return -1;
     }
     raw_active = true;
+    pointer_mode(true);
     fputs("\033[?1049h\033[?25l", stdout);
     return 0;
 }
@@ -99,6 +141,13 @@ static int key_read(void) {
             return 27;
         }
     }
+    if (touch_ui && seq[0] == '[' && seq[1] == 'M') {
+        unsigned char report[3];
+        for (size_t i = 0; i < sizeof(report); ++i) {
+            if (poll(&p, 1, 100) <= 0 || read(STDIN_FILENO, &report[i], 1) != 1) return 0;
+        }
+        return report[0] == 32 && report[2] > 32 ? TAP_ROW + report[2] - 32 : 0;
+    }
     if (seq[0] != '[' && seq[0] != 'O') {
         return 27;
     }
@@ -117,18 +166,26 @@ static int choose(const char *en, const char *russian, const char **items_en,
                   const char **items_ru, int count, int selected, bool back) {
     for (;;) {
         title(en, russian);
+        int stride = touch_ui && 5 + 2 * count <= screen_rows() ? 2 : 1;
         for (int i = 0; i < count; ++i) {
+            if (stride == 2) putchar('\n');
             printf("%s  %s\033[0m\033[K\n", i == selected ? "\033[7m" : "",
                    ru ? items_ru[i] : items_en[i]);
         }
-        printf("\n\033[2m%s\033[0m\033[K",
+        if (touch_ui) {
+            if (back) printf("\n  [ %s ]", tr("Back", "Назад"));
+        } else printf("\n\033[2m%s\033[0m\033[K",
                tr(back ? "Arrows: select   Enter: continue   Esc: back"
                        : "Arrows: select   Enter: continue",
                   back ? "Стрелки: выбор   Enter: продолжить   Esc: назад"
                        : "Стрелки: выбор   Enter: продолжить"));
         fflush(stdout);
         int c = key_read();
-        if (c == KEY_UP) {
+        if (c >= TAP_ROW) {
+            int row = c - TAP_ROW;
+            if (row >= 3 && row < 3 + stride * count) return (row - 3) / stride;
+            if (back && row == 4 + stride * count) return -1;
+        } else if (c == KEY_UP) {
             selected = selected ? selected - 1 : count - 1;
         } else if (c == KEY_DOWN || c == '\t') {
             selected = (selected + 1) % count;
@@ -141,16 +198,22 @@ static int choose(const char *en, const char *russian, const char **items_en,
 }
 
 static int prompt(const char *label_en, const char *label_ru, char *value, size_t cap) {
+    keyboard_show();
+    pointer_mode(false);
     size_t n = strlen(value);
     for (;;) {
         printf("\r\033[K%s: %s\033[?25h", tr(label_en, label_ru), value);
         fflush(stdout);
         int c = key_read();
         if (c < 0 || c == 27) {
+            keyboard_hide();
+            pointer_mode(true);
             fputs("\033[?25l\n", stdout);
             return -1;
         }
         if (c == '\r' || c == '\n') {
+            keyboard_hide();
+            pointer_mode(true);
             fputs("\033[?25l\n", stdout);
             return 0;
         }
@@ -258,11 +321,13 @@ static int run_plain(const char *path, char *const argv[], int output_fd) {
 }
 
 static void pause_screen(void) {
-    fputs(tr("\nPress Enter to return.", "\nНажмите Enter для возврата."), stdout);
+    int row = screen_rows() - 1;
+    if (touch_ui) printf("\033[%d;1H  [ %s ]", row, tr("Continue", "Продолжить"));
+    else fputs(tr("\nPress Enter to return.", "\nНажмите Enter для возврата."), stdout);
     fflush(stdout);
     for (;;) {
         int c = key_read();
-        if (c == '\n' || c == '\r' || c < 0) {
+        if (c == '\n' || c == '\r' || c < 0 || (touch_ui && c == TAP_ROW + row)) {
             break;
         }
     }
@@ -277,9 +342,14 @@ static int run_visible(const char *heading_en, const char *heading_ru, const cha
     printf("\n%s: %d\n%s", tr("Exit status", "Код завершения"), status,
            tr("Press Enter to return...", "Нажмите Enter для возврата..."));
     fflush(stdout);
-    char line[8];
-    (void)fgets(line, sizeof(line), stdin);
-    terminal_raw();
+    if (touch_ui) {
+        terminal_raw();
+        pause_screen();
+    } else {
+        char line[8];
+        (void)fgets(line, sizeof(line), stdin);
+        terminal_raw();
+    }
     return status;
 }
 
@@ -493,17 +563,27 @@ static int data_sharing_page(struct settings *s) {
         pause_screen();
     }
     for (;;) {
-        title("Your choice", "Ваш выбор");
-        printf("%s\n", tr("Refusing does not limit the OS, packages or support.",
-                           "Отказ не ограничивает ОС, пакеты и поддержку."));
-        printf("%s %s\n%s %s\n\n%s", !enabled ? ">" : " ",
-               tr("Do not send / withdraw consent", "Не отправлять / отозвать согласие"),
-               enabled ? ">" : " ",
-               tr("I consent and enable sending", "Даю согласие и включаю отправку"),
-               tr("Arrows: select   Enter: confirm   Esc: back",
-                  "Стрелки: выбор   Enter: подтвердить   Esc: назад"));
-        fflush(stdout);
-        int key = key_read();
+        int key;
+        if (touch_ui) {
+            const char *en[] = {"Do not send / withdraw consent", "I consent and enable sending"};
+            const char *rr[] = {"Не отправлять / отозвать согласие", "Даю согласие и включаю отправку"};
+            int result = choose("Data sharing (optional)", "Отправка данных (по желанию)", en, rr, 2, enabled, true);
+            if (result < 0) return -1;
+            enabled = result != 0;
+            key = '\n';
+        } else {
+            title("Your choice", "Ваш выбор");
+            printf("%s\n", tr("Refusing does not limit the OS, packages or support.",
+                               "Отказ не ограничивает ОС, пакеты и поддержку."));
+            printf("%s %s\n%s %s\n\n%s", !enabled ? ">" : " ",
+                   tr("Do not send / withdraw consent", "Не отправлять / отозвать согласие"),
+                   enabled ? ">" : " ",
+                   tr("I consent and enable sending", "Даю согласие и включаю отправку"),
+                   tr("Arrows: select   Enter: confirm   Esc: back",
+                      "Стрелки: выбор   Enter: подтвердить   Esc: назад"));
+            fflush(stdout);
+            key = key_read();
+        }
         if (key < 0 || key == 27 || key == KEY_LEFT) {
             return -1;
         }
@@ -593,7 +673,9 @@ static int enroll_administrator(void) {
             "Задайте свой пароль root и введите его два раза."));
     fflush(stdout);
     char *const arguments[] = {"passwd", "root", NULL};
+    keyboard_show();
     int status = run_plain("/bin/passwd", arguments, -1);
+    keyboard_hide();
     int restored = tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved_termios);
     int raw = terminal_raw();
     if (status != 0 || restored != 0 || raw != 0 || administrator_password_ready() != 1) {
@@ -1043,13 +1125,11 @@ static void main_menu(struct settings *s) {
                    en + (live ? 0 : 1), rr + (live ? 0 : 1), live ? 11 : 10, 0, false);
         if (live && choice == 0) {
             terminal_restore();
+            keyboard_show();
             hi_installer(ru);
-            fputs(tr("\nPress Enter to return...", "\nНажмите Enter для возврата..."),
-                  stdout);
-            fflush(stdout);
-            char line[8];
-            fgets(line, sizeof(line), stdin);
+            keyboard_hide();
             terminal_raw();
+            pause_screen();
             continue;
         }
         if (live) {
@@ -1141,7 +1221,7 @@ static int touch_first_boot(void) {
             setenv("LD_LIBRARY_PATH", "/usr/lib/labwc/runtime:/usr/lib/weston/runtime:/usr/lib", 1)) {
             _exit(126);
         }
-        execl("/usr/libexec/labwc/labwc", "labwc", "-C", "/etc/synapse-greeter",
+        execl("/usr/libexec/labwc/labwc", "labwc", "-C", "/etc/synapse-hi",
               "-S", "/bin/weston-terminal --maximized --font-size=18 --shell=/bin/hi", (char *)NULL);
         _exit(127);
     }
@@ -1193,6 +1273,7 @@ int main(int argc, char **argv) {
     }
     bool touch_terminal = argc == 1 && getenv("HI_TOUCH_SESSION") && getenv("WAYLAND_DISPLAY");
     if (touch_terminal) {
+        touch_ui = true;
         first = first_boot = true;
     }
 
