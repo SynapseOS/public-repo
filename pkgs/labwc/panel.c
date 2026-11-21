@@ -15,6 +15,8 @@
 #include <limits.h>
 #include <errno.h>
 #include <poll.h>
+#include <signal.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <sys/file.h>
 #include <stdbool.h>
@@ -70,6 +72,8 @@ static struct {
     uint32_t last_click;
     struct timespec desktop_mtime;
     bool desktop_scanned;
+    bool keyboard_available;
+    pid_t keyboard_pid;
     int last_minute;
     int theme;
     cairo_surface_t *menu_icon;
@@ -611,7 +615,9 @@ static void panel_draw(void) {
 
     time_t now = time(NULL);
     struct tm local;
-    if (localtime_r(&now, &local) != NULL) {
+    if (panel.keyboard_available) {
+        draw_button(context, panel.width - PANEL_DESKTOP_WIDTH - 180, 180, "Клавиатура", false);
+    } else if (localtime_r(&now, &local) != NULL) {
         char clock_text[32];
         if (strftime(clock_text, sizeof(clock_text), "%d.%m.%Y %H:%M", &local) != 0) {
             set_panel_color(context, colors->text);
@@ -638,6 +644,20 @@ static void panel_launch(const char *path, const char *argument) {
             execl(path, path, argument, (char *)NULL);
         }
 
+        _exit(127);
+    }
+}
+
+// Открыть или закрыть клавиатуру текущего сеанса
+static void toggle_keyboard(void) {
+    if (panel.keyboard_pid > 0 && waitpid(panel.keyboard_pid, NULL, WNOHANG) == 0) {
+        kill(panel.keyboard_pid, SIGTERM);
+        return;
+    }
+
+    panel.keyboard_pid = fork();
+    if (panel.keyboard_pid == 0) {
+        execl("/usr/libexec/labwc/deck-keyboard", "deck-keyboard", "-L", "224", "-H", "240", (char *)NULL);
         _exit(127);
     }
 }
@@ -702,6 +722,8 @@ static void pointer_button(void *data, struct wl_pointer *pointer, uint32_t seri
             zwlr_foreign_toplevel_handle_v1_activate(previous_focus->handle, panel.seat);
         }
         panel_draw();
+    } else if (panel.keyboard_available && panel.pointer_x >= panel.width - PANEL_DESKTOP_WIDTH - 180) {
+        toggle_keyboard();
     } else if (panel.pointer_x < PANEL_MENU_WIDTH) {
         panel_launch("/bin/synapse-menuctl", NULL);
     } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_FILES_WIDTH) {
@@ -993,6 +1015,7 @@ static const struct wl_registry_listener registry_listener = {
 
 // Создать панель и обрабатывать окна до выхода из сеанса
 int main(void) {
+    panel.keyboard_available = access("/usr/libexec/labwc/deck-keyboard", X_OK) == 0;
     panel.theme = read_theme();
     panel.last_index = panel.selected = -1;
     const char *home = getenv("HOME");

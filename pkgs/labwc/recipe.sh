@@ -255,6 +255,15 @@ SYNAPSE_LINK_MODE=dynamic "$CC" -std=c11 -O2 -Wall -Wextra -Werror \
 	-o "$work/synapse-panel"
 copy "$work/synapse-panel" usr/libexec/labwc/synapse-panel
 
+fetch "https://dl-cdn.alpinelinux.org/alpine/v3.22/community/x86_64/wvkbd-0.16-r0.apk" \
+    bbe863dc2a63b28be67219ab8d8ef653d1f71558ebb5b1df1bab59239cf79d58 "$work/wvkbd.apk"
+bsdtar -xOf "$work/wvkbd.apk" usr/bin/wvkbd-mobintl > "$work/wvkbd-mobintl"
+chmod 755 "$work/wvkbd-mobintl"
+copy "$work/wvkbd-mobintl" usr/libexec/labwc/wvkbd-mobintl
+fetch "https://raw.githubusercontent.com/jjsullivan5196/wvkbd/v0.16/LICENSE" \
+    3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986 "$work/wvkbd-LICENSE"
+copy "$work/wvkbd-LICENSE" usr/share/licenses/labwc/wvkbd-LICENSE
+
 copy "$work/swaybg-1.2.2/LICENSE" usr/share/licenses/labwc/swaybg-LICENSE
 copy "$port/Desktop-dark.png" usr/share/backgrounds/synapse/Desktop-dark.png
 copy "$port/Desktop-light.png" usr/share/backgrounds/synapse/Desktop-light.png
