@@ -255,6 +255,14 @@ SYNAPSE_LINK_MODE=dynamic "$CC" -std=c11 -O2 -Wall -Wextra -Werror \
 	-o "$work/synapse-panel"
 copy "$work/synapse-panel" usr/libexec/labwc/synapse-panel
 
+if [[ $TARGET_ARCH == aarch64 ]]; then
+    SYNAPSE_LINK_MODE=dynamic "$CC" -std=c11 -O2 -Wall -Wextra -Werror -I"$work" \
+        $(pkg-config --cflags wayland-client) "$port/pi-window-timing.c" "$work/foreign-toplevel.c" \
+        $(pkg-config --libs wayland-client) -Wl,-rpath-link,"$alias_path/usr/lib" \
+        -Wl,-rpath,/usr/lib/labwc/runtime:/usr/lib/weston/runtime:/usr/lib -o "$work/pi-window-timing"
+    copy "$work/pi-window-timing" usr/libexec/labwc/pi-window-timing
+fi
+
 fetch "https://dl-cdn.alpinelinux.org/alpine/v3.22/community/x86_64/wvkbd-0.16-r0.apk" \
     bbe863dc2a63b28be67219ab8d8ef653d1f71558ebb5b1df1bab59239cf79d58 "$work/wvkbd.apk"
 bsdtar -xOf "$work/wvkbd.apk" usr/bin/wvkbd-mobintl > "$work/wvkbd-mobintl"

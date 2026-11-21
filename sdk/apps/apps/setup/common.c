@@ -5,7 +5,7 @@
 // Работа с путями, метаданными, JSON и контрольными суммами
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 03.11.2026
+// Последнее изменение: 21.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -427,6 +427,33 @@ static void privileged_elf(const struct package *p, enum package_origin origin) 
         fail("sudo marker must match the executable SHA-256");
 }
 
+// Сортируем указатели отдельно, порядок файлов подписанного манифеста нужен при сравнении пакетов
+static int path_order(const void *left, const void *right) {
+    return strcmp(*(const char *const *)left, *(const char *const *)right);
+}
+
+// В упорядоченном манифесте достаточно сравнить соседние записи
+static void check_unique_paths(const struct package *package) {
+    for (int i = 1; i < package->nfile; ++i) {
+        int order = strcmp(package->files[i - 1].path, package->files[i].path);
+        if (!order) fail("duplicate payload path");
+        if (order < 0) continue;
+
+        const char **paths = malloc((size_t)package->nfile * sizeof(*paths));
+        if (!paths) fail("out of memory");
+        for (int k = 0; k < package->nfile; ++k) paths[k] = package->files[k].path;
+        qsort(paths, (size_t)package->nfile, sizeof(*paths), path_order);
+        for (int k = 1; k < package->nfile; ++k) {
+            if (!strcmp(paths[k - 1], paths[k])) {
+                free(paths);
+                fail("duplicate payload path");
+            }
+        }
+        free(paths);
+        return;
+    }
+}
+
 struct package *parse_manifest(struct json *j, int t, enum package_origin origin) {
     object_fields(j, t,
                   "|format||name||version||description||kind||arch||abi||depends||"
@@ -535,12 +562,8 @@ struct package *parse_manifest(struct json *j, int t, enum package_origin origin
             fail("unsupported payload type %s", type);
         }
 
-        for (int i = 0; i < p->nfile - 1; i++) {
-            if (!strcmp(f->path, p->files[i].path)) {
-                fail("duplicate payload path");
-            }
-        }
     }
+    check_unique_paths(p);
     privileged_elf(p, origin);
     p->manifest_len = j->t[t].end - j->t[t].start;
     p->manifest = strndup(j->text + j->t[t].start, p->manifest_len);

@@ -10,6 +10,7 @@
     Доступ: общедоступный
 */
 
+#include <ctime>
 #include <QApplication>
 #include <QCheckBox>
 #include <QColor>
@@ -1429,8 +1430,18 @@ static void watchMenu(int fd, QMainWindow *window) {
 	});
 }
 
+// В тесте записываем монотонные отметки и печатаем их только после закрытия окна
+static long long startupMicros(bool enabled) {
+    if (!enabled) return 0;
+    struct timespec stamp = {};
+    if (clock_gettime(CLOCK_MONOTONIC, &stamp) != 0) return 0;
+    return stamp.tv_sec * 1000000LL + stamp.tv_nsec / 1000;
+}
+
 // Выбрать меню программ либо окно настроек и проверить его в госте
 int main(int argc, char **argv) {
+	const bool timing = std::getenv("SYNAPSE_PI_WINDOW_TIMING") != nullptr;
+	const auto entered = startupMicros(timing);
 	bool settingsMode = false;
 	QString subsystem;
 	bool selfTest = false;
@@ -1450,6 +1461,7 @@ int main(int argc, char **argv) {
 	}
 
 	QApplication application(argc, argv);
+	const auto qtReady = startupMicros(timing);
 	application.setStyle(QStringLiteral("Fusion"));
 	applyDesktopPalette(desktopTheme());
 	QByteArray menuPath;
@@ -1463,11 +1475,14 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	application.setQuitOnLastWindowClosed(!persistent);
+	const auto paletteReady = startupMicros(timing);
 	QMainWindow *window = settingsMode ? static_cast<QMainWindow *>(new SettingsWindow(subsystem))
 	                                 : static_cast<QMainWindow *>(new MenuWindow());
+	const auto built = startupMicros(timing);
 	if (!serviceMode) {
 		window->show();
 	}
+	const auto shown = startupMicros(timing);
 	if (persistent) {
 		watchMenu(menuFd, window);
 	}
@@ -1489,6 +1504,10 @@ int main(int argc, char **argv) {
 	}
 
 	const int result = application.exec();
+	if (timing && settingsMode) {
+		std::printf("SETTINGS_PHASE pid=%ld main_us=%lld qt_us=%lld palette_us=%lld built_us=%lld show_us=%lld\n",
+		            static_cast<long>(getpid()), entered, qtReady, paletteReady, built, shown);
+	}
 	if (persistent) {
 		unlink(menuPath.constData());
 		close(menuFd);
