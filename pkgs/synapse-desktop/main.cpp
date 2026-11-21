@@ -39,6 +39,9 @@
 #include <QProcessEnvironment>
 #include <QPushButton>
 #include <QSaveFile>
+#include <QSlider>
+#include <QPlainTextEdit>
+#include <QSysInfo>
 #include <QSettings>
 #include <QSize>
 #include <QStackedWidget>
@@ -697,6 +700,7 @@ public:
 		addOnDemand(tabs, QStringLiteral("Сеть"), &SettingsWindow::buildNetworkPage);
 		addWifiPage(tabs);
 		addOnDemand(tabs, QStringLiteral("Электропитание"), &SettingsWindow::buildPowerPage);
+		addOnDemand(tabs, QStringLiteral("Звук"), &SettingsWindow::buildSoundPage);
 		addOnDemand(tabs, QStringLiteral("О системе"), &SettingsWindow::buildAboutPage);
 	}
 
@@ -1365,14 +1369,180 @@ private:
 	}
 
 	// Показать краткую справку о доступных действиях на рабочем столе
-	void buildAboutPage(QWidget *page) {
-		QVBoxLayout *layout = new QVBoxLayout(page);
-		layout->addWidget(new QLabel(QStringLiteral("Рабочий стол SynapseOS\nLabwc и Qt 6"), page));
-		layout->addWidget(new QLabel(
-		    QStringLiteral("Print Screen сохраняет PNG в домашнем каталоге.\n"
-		                   "Alt+Tab переключает окна. Alt+Shift меняет раскладку клавиатуры."), page));
-		layout->addStretch();
-	}
+    static QByteArray readReport(const QString &name) {
+        QFile source(name);
+        return source.open(QIODevice::ReadOnly) ? source.read(16384) : QByteArray();
+    }
+
+    void buildSoundPage(QWidget *page) {
+        auto *form = new QFormLayout(page);
+        auto *device = new QComboBox(page);
+        auto *gain = new QSlider(Qt::Horizontal, page);
+        gain->setRange(0, 100);
+        auto *level = new QLabel(page);
+        auto *mute = new QCheckBox(QStringLiteral("Выключить звук"), page);
+        auto *apply = new QPushButton(QStringLiteral("Применить"), page);
+        auto *status = new QLabel(page);
+        status->setWordWrap(true);
+        form->addRow(QStringLiteral("Выход"), device);
+        auto *volumeRow = new QHBoxLayout;
+        volumeRow->addWidget(gain);
+        volumeRow->addWidget(level);
+        form->addRow(QStringLiteral("Общая громкость"), volumeRow);
+        form->addRow(mute);
+        form->addRow(apply);
+        form->addRow(status);
+        auto displayGain = [level](int value) { level->setText(QString::number(value) + "%"); };
+        connect(gain, &QSlider::valueChanged, page, displayGain);
+        const QString control = QStringLiteral("/proc/audio-settings");
+        const auto current = readReport(control).simplified().split(' ');
+        if (current.size() == 3) {
+            device->addItem(QStringLiteral("Автоматически"), "auto");
+            if (QFileInfo::exists("/dev/audio-hdmi")) device->addItem(QStringLiteral("HDMI"), "hdmi");
+            if (QFileInfo::exists("/dev/audio-jack")) device->addItem(QStringLiteral("Наушники 3,5 мм"), "jack");
+            device->setCurrentIndex(qMax(0, device->findData(QString::fromLatin1(current[0]))));
+            gain->setValue(current[1].toInt());
+            mute->setChecked(current[2] == "1");
+            displayGain(gain->value());
+            status->setText(QStringLiteral("Громкость применяется к воспроизведению. Выход меняется при следующем открытии системного звукового устройства."));
+            connect(apply, &QPushButton::clicked, page, [=]() {
+                const QByteArray value = device->currentData().toByteArray() + " " + QByteArray::number(gain->value()) +
+                                         (mute->isChecked() ? " 1\n" : " 0\n");
+                QSaveFile saved("/etc/audio.conf");
+                if (!saved.open(QIODevice::WriteOnly) || saved.write(value) != value.size()) {
+                    status->setText(saved.errorString());
+                    return;
+                }
+                const QByteArray before = readReport(control);
+                auto set = [&](const QByteArray &data) {
+                    QFile backend(control);
+                    return backend.open(QIODevice::WriteOnly | QIODevice::Unbuffered) && backend.write(data) == data.size();
+                };
+                if (!set(value)) { status->setText(QStringLiteral("Ядро отклонило параметры звука")); return; }
+                if (!saved.commit()) { set(before); status->setText(saved.errorString()); return; }
+                status->setText(QStringLiteral("Параметры звука применены и сохранены"));
+            });
+            return;
+        }
+        // PulseAudio управляет системными выходами на настольных сборках с запущенным сервером
+        auto pulse = [](const QStringList &args, QByteArray *output) {
+            QProcess cmd;
+            auto env = QProcessEnvironment::systemEnvironment();
+            env.insert("LC_ALL", "C");
+            cmd.setProcessEnvironment(env);
+            cmd.start("/bin/pactl", args);
+            if (!cmd.waitForFinished(1200) || cmd.exitCode() || cmd.exitStatus() != QProcess::NormalExit) return false;
+            if (output) *output = cmd.readAllStandardOutput().trimmed();
+            return true;
+        };
+        QByteArray sinks, selected;
+        if (pulse({"list", "short", "sinks"}, &sinks) && pulse({"get-default-sink"}, &selected)) {
+            for (const auto &row : sinks.split('\n')) {
+                const auto fields = row.split('\t');
+                if (fields.size() >= 2) device->addItem(QString::fromUtf8(fields[1]), fields[1]);
+            }
+            device->setCurrentIndex(qMax(0, device->findData(selected)));
+        }
+        auto refresh = [=]() {
+            QByteArray volume, muted;
+            QString sink = device->currentData().toString();
+            bool ok = !sink.isEmpty() && pulse({"get-sink-volume", sink}, &volume) && pulse({"get-sink-mute", sink}, &muted);
+            if (ok) {
+                int pct = volume.indexOf('%');
+                int first = pct;
+                while (first > 0 && volume[first - 1] >= '0' && volume[first - 1] <= '9') --first;
+                ok = pct > first && (muted.endsWith("yes") || muted.endsWith("no"));
+                if (ok) { gain->setValue(volume.mid(first, pct - first).toInt()); mute->setChecked(muted.endsWith("yes")); }
+            }
+            displayGain(gain->value());
+            gain->setEnabled(ok); mute->setEnabled(ok); apply->setEnabled(ok);
+            status->setText(ok ? QString() : QStringLiteral("Системный звуковой выход недоступен"));
+        };
+        connect(device, &QComboBox::currentIndexChanged, page, refresh);
+        refresh();
+        connect(apply, &QPushButton::clicked, page, [=]() {
+            QString sink = device->currentData().toString();
+            bool ok = pulse({"set-sink-volume", sink, QString::number(gain->value()) + "%"}, nullptr) &&
+                      pulse({"set-sink-mute", sink, mute->isChecked() ? "1" : "0"}, nullptr) &&
+                      pulse({"set-default-sink", sink}, nullptr);
+            refresh();
+            status->setText(ok ? QStringLiteral("Параметры звука применены") : QStringLiteral("Ошибка управления PulseAudio"));
+        });
+    }
+
+    void buildAboutPage(QWidget *page) {
+        auto *layout = new QVBoxLayout(page);
+        auto *summary = new QPlainTextEdit(page);
+        summary->setReadOnly(true);
+        summary->setAccessibleName(QStringLiteral("Оборудование и датчики"));
+        summary->setLineWrapMode(QPlainTextEdit::WidgetWidth);
+        layout->addWidget(summary);
+        auto *update = new QPushButton(QStringLiteral("Обновить показания"), page);
+        layout->addWidget(update);
+        auto refresh = [summary]() {
+            QStringList lines;
+            lines << QStringLiteral("SynapseOS · Labwc и Qt 6") << QSysInfo::currentCpuArchitecture();
+            auto fields = [](const QByteArray &text) {
+                QHash<QByteArray, QByteArray> values;
+                for (const auto &line : text.split('\n')) {
+                    auto items = line.simplified().split(' ');
+                    if (items.size() >= 2) values.insert(items[0], items[1]);
+                }
+                return values;
+            };
+            unsigned cores = 0;
+            QByteArray model, implementer, part;
+            for (const auto &row : readReport("/proc/cpuinfo").split('\n')) {
+                int colon = row.indexOf(':');
+                if (colon < 0) continue;
+                QByteArray key = row.left(colon).trimmed(), value = row.mid(colon + 1).trimmed();
+                if (key == "processor") ++cores;
+                if (key == "model name") model = value;
+                if (key == "CPU implementer") implementer = value;
+                if (key == "CPU part") part = value;
+            }
+            if (model.isEmpty() && implementer == "0x41" && part == "0xd03") model = "ARM Cortex-A53";
+            if (!model.isEmpty()) lines << QString::fromUtf8(model);
+            if (cores) lines << QStringLiteral("Логических процессоров: %1").arg(cores);
+            const auto sd = fields(readReport("/proc/storage"));
+            if (sd.value("clock_hz").toUInt()) lines << QStringLiteral("microSD: %1 МГц, шина %2 бит")
+                .arg(sd.value("clock_hz").toUInt() / 1000000).arg(sd.value("bus_width").toUInt());
+            const auto memory = fields(readReport("/proc/meminfo"));
+            if (memory.contains("MemTotal:")) {
+                lines << QStringLiteral("ОЗУ: %1 МиБ всего, %2 МиБ доступно")
+                    .arg(memory["MemTotal:"].toULongLong() / 1024).arg(memory["MemAvailable:"].toULongLong() / 1024);
+            }
+            lines << "" << QStringLiteral("Датчики температуры");
+            const auto zones = readReport("/proc/thermal").trimmed().split('\n');
+            if (zones.size() <= 1) lines << QStringLiteral("Нет показаний");
+            for (const auto &zone : zones.mid(1)) {
+                auto part = zone.simplified().split(' ');
+                if (part.size() == 3) {
+                    bool valid = false;
+                    double degrees = part[1].toLongLong(&valid) / 1000.0;
+                    lines << QString::fromUtf8(part[0]) + "   " +
+                        (part[2] == "0" && valid ? QString::number(degrees, 'f', 1) + QStringLiteral(" °C") : QStringLiteral("нет показания"));
+                }
+            }
+            const auto clocks = fields(readReport("/proc/power"));
+            const auto rate = clocks.value("arm_measured_hz").toULongLong();
+            if (rate) lines << QStringLiteral("Частота CPU: %1 МГц (диапазон %2–%3 МГц)")
+                .arg(rate / 1000000).arg(clocks.value("arm_min_hz").toULongLong() / 1000000)
+                .arg(clocks.value("arm_max_hz").toULongLong() / 1000000);
+            if (clocks.value("firmware_throttle_valid") == "1") {
+                const auto flags = clocks.value("firmware_throttle_flags").toUInt(nullptr, 0);
+                auto yes = [](bool active) { return active ? QStringLiteral("да") : QStringLiteral("нет"); };
+                lines << QStringLiteral("Пониженное напряжение: сейчас %1, с момента загрузки %2").arg(yes(flags & 1), yes(flags & (1u << 16)));
+                lines << QStringLiteral("Троттлинг: сейчас %1, с момента загрузки %2").arg(yes(flags & 4), yes(flags & (1u << 18)));
+            }
+            auto media = readReport("/proc/media").trimmed();
+            if (!media.isEmpty()) lines << "" << QStringLiteral("Дисплей и звук") << QString::fromUtf8(media);
+            lines << "" << QStringLiteral("Print Screen — снимок экрана. Alt+Tab — переключение окон. Alt+Shift — раскладка.");
+            summary->setPlainText(lines.join('\n'));
+        };
+        connect(update, &QPushButton::clicked, page, refresh);
+        refresh();
+    }
 };
 
 // Открыть настройки в уже загруженной Qt-сессии меню и освободить окно при закрытии

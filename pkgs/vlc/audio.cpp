@@ -1,6 +1,7 @@
 // Декодирование одного файла и вывод PCM через OSS
 #include <vlc/vlc.h>
 #include <sys/soundcard.h>
+#include <sys/stat.h>
 #include <atomic>
 #include <cerrno>
 #include <cstdio>
@@ -9,6 +10,17 @@
 #include <poll.h>
 #include <unistd.h>
 
+// Краткий итог сеанса на карте, без имён файлов и постоянной записи во время потока
+static void traceAudio(const char *phase, const char *output, unsigned long long frames, int err) {
+    const char *name = "/var/log/vlc-audio.log";
+    struct stat meta;
+    if (!stat(name, &meta) && meta.st_size >= 65536) rename(name, "/var/log/vlc-audio.log.1");
+    int fd = open(name, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    if (fd >= 0) {
+        dprintf(fd, "%s device=%s frames=%llu errno=%d\n", phase, output, frames, err);
+        close(fd);
+    }
+}
 struct Playback {
     libvlc_instance_t *instance = nullptr;
     libvlc_media_player_t *player = nullptr;
@@ -27,9 +39,9 @@ struct Playback {
         auto &out = *static_cast<Playback *>(context);
         const auto *src = static_cast<const int16_t *>(samples);
         const int gain = out.volume.load();
-        int16_t chunk[1024];
+        int16_t chunk[2048];
         while (count && !out.error.load()) {
-            unsigned n = count > 512 ? 512 : count;
+            unsigned n = count > 1024 ? 1024 : count;
             bool nonzero = false;
             for (unsigned i = 0; i < n * 2; ++i) {
                 chunk[i] = static_cast<int16_t>(src[i] * gain / 100);
@@ -103,18 +115,22 @@ int main(int argc, char **argv) {
         strcmp(argv[2], "/dev/audio-jack")) return 2;
     Playback song;
     if (!song.start(argv[argc - 1], check ? nullptr : argv[2])) {
+        if (!check) traceAudio("open-error", argv[2], 0, song.error);
         fprintf(stderr, "%s\n", strerror(song.error));
         return 1;
     }
+    if (!check) traceAudio("playing", argv[2], 0, 0);
     int64_t previous = -1;
     for (;;) {
         const auto state = libvlc_media_player_get_state(song.player);
         if (state == libvlc_Error || song.error) {
+            if (!check) traceAudio("error", argv[2], song.frames.load(), song.error ? song.error.load() : EIO);
             fprintf(stderr, "%s\n", song.error ? strerror(song.error) : "Ошибка декодирования VLC");
             return 1;
         }
         if (state == libvlc_Ended) {
             Playback::drainAudio(&song);
+            if (!check) traceAudio("ended", argv[2], song.frames.load(), song.error);
             if (check) printf("PCM 48000 Hz stereo: %llu frames, signal=%u\n", song.frames.load(),
                               unsigned(song.audible.load()));
             return song.frames && !song.error ? 0 : 1;
@@ -131,7 +147,10 @@ int main(int argc, char **argv) {
         if (ready < 0 && errno != EINTR) return 1;
         if (ready > 0) {
             unsigned char command;
-            if (read(0, &command, 1) != 1 || command == 202) return 0;
+            if (read(0, &command, 1) != 1 || command == 202) {
+                traceAudio("stopped", argv[2], song.frames.load(), song.error);
+                return 0;
+            }
             if (command <= 100) song.volume = command;
             else if (command == 200 || command == 201) libvlc_media_player_set_pause(song.player, command == 201);
         }

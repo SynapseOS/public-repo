@@ -1,6 +1,6 @@
 {
   "name": "vlc",
-  "version": "3.0.24-r2",
+  "version": "3.0.24-r3",
   "description": "VLC audio player with a Qt 6 frontend and OSS output",
   "build_system": "recipe",
   "source": "https://download.videolan.org/pub/videolan/vlc/3.0.24/vlc-3.0.24.tar.xz",

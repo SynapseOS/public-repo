@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "vlc",
-  "version": "3.0.24-r2",
+  "version": "3.0.24-r3",
   "description": "Music player using VideoLAN libVLC, Qt 6 and OSS",
   "kind": "application",
   "arch": "x86_64",
