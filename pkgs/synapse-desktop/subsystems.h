@@ -309,10 +309,18 @@ static void androidControls(QWidget *page, QFormLayout *form, int version) {
 	}
 	auto *objects = new QSpinBox(page);
 	if (version >= 3) {
-		objects->setRange(512, 65536);
+		objects->setRange(version >= 5 ? 0 : 512, 65536);
+		if (version >= 5) {
+			objects->setSpecialValueText(QStringLiteral("Автоматически (32 768)"));
+			QObject::connect(objects, &QSpinBox::editingFinished, objects, [objects]() {
+				if (objects->value() > 0 && objects->value() < 512) {
+					objects->setValue(512);
+				}
+			});
+		}
 		objects->setSingleStep(512);
 		const int stored = parts.value(3).toInt();
-		objects->setValue(stored >= 512 && stored <= 65536 ? stored : 4096);
+		objects->setValue(stored >= 512 && stored <= 65536 ? stored : (version >= 5 ? 0 : 4096));
 		form->addRow(QStringLiteral("Лимит Java-объектов при запуске"), objects);
 	} else {
 		objects->hide();
