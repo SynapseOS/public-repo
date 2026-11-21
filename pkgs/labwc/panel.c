@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <signal.h>
+#include <spawn.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <sys/file.h>
@@ -32,6 +33,7 @@
 
 #include "foreign-toplevel.h"
 #include "layer-shell.h"
+extern char **environ;
 
 struct panel_window {
     struct zwlr_foreign_toplevel_handle_v1 *handle;
@@ -62,6 +64,9 @@ static struct {
     struct panel_window *windows;
     int width;
     int height;
+    bool dirty;
+    bool background_committed;
+    struct wl_callback *frame;
     int background_width;
     int background_height;
     int pointer_x, pointer_y;
@@ -422,6 +427,7 @@ static void background_draw(void) {
     wl_surface_damage_buffer(panel.background_surface, 0, 0,
         panel.background_width, panel.background_height);
     wl_surface_commit(panel.background_surface);
+    panel.background_committed = true;
 }
 
 // Нарисовать одну кнопку на панели
@@ -562,7 +568,19 @@ static char active_recording(void) {
     return result;
 }
 
-// Подготовить разделяемый буфер и обновить видимую панель
+// Композитор готов принять следующий кадр панели
+static void panel_frame_done(void *data, struct wl_callback *callback, uint32_t time) {
+    (void)data;
+    (void)time;
+    wl_callback_destroy(callback);
+    panel.frame = NULL;
+}
+
+static const struct wl_callback_listener frame_listener = {
+    .done = panel_frame_done,
+};
+
+// Нарисовать последние изменения одной группой перед ожиданием событий
 static void panel_draw(void) {
     if (panel.surface == NULL || panel.width < 320 || panel.height < 20) {
         return;
@@ -629,6 +647,11 @@ static void panel_draw(void) {
     cairo_destroy(context);
     cairo_surface_destroy(image);
     wl_buffer_add_listener(buffer->handle, &buffer_listener, buffer);
+    panel.frame = wl_surface_frame(panel.surface);
+    if (panel.frame != NULL) {
+        wl_callback_add_listener(panel.frame, &frame_listener, NULL);
+    }
+    panel.dirty = false;
     wl_surface_attach(panel.surface, buffer->handle, 0, 0);
     wl_surface_damage_buffer(panel.surface, 0, 0, panel.width, panel.height);
     wl_surface_commit(panel.surface);
@@ -636,15 +659,11 @@ static void panel_draw(void) {
 
 // Запустить приложение из кнопки панели
 static void panel_launch(const char *path, const char *argument) {
-    pid_t child = fork();
-    if (child == 0) {
-        if (argument == NULL) {
-            execl(path, path, (char *)NULL);
-        } else {
-            execl(path, path, argument, (char *)NULL);
-        }
-
-        _exit(127);
+    char *const args[] = {(char *)path, (char *)argument, NULL};
+    pid_t child;
+    int error = posix_spawn(&child, path, NULL, NULL, args, environ);
+    if (error != 0) {
+        fprintf(stderr, "synapse-panel: %s: %s\n", path, strerror(error));
     }
 }
 
@@ -721,7 +740,7 @@ static void pointer_button(void *data, struct wl_pointer *pointer, uint32_t seri
         if (previous_focus) {
             zwlr_foreign_toplevel_handle_v1_activate(previous_focus->handle, panel.seat);
         }
-        panel_draw();
+        panel.dirty = true;
     } else if (panel.keyboard_available && panel.pointer_x >= panel.width - PANEL_DESKTOP_WIDTH - 180) {
         toggle_keyboard();
     } else if (panel.pointer_x < PANEL_MENU_WIDTH) {
@@ -881,7 +900,7 @@ static void window_parent(void *data, struct zwlr_foreign_toplevel_handle_v1 *ha
 static void window_done(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle) {
     (void)data;
     (void)handle;
-    panel_draw();
+    panel.dirty = true;
 }
 
 // Убрать закрытое окно из панели
@@ -900,7 +919,7 @@ static void window_closed(void *data, struct zwlr_foreign_toplevel_handle_v1 *ha
     zwlr_foreign_toplevel_handle_v1_destroy(handle);
     free(window->title);
     free(window);
-    panel_draw();
+    panel.dirty = true;
 }
 
 static const struct zwlr_foreign_toplevel_handle_v1_listener window_listener = {
@@ -950,7 +969,7 @@ static void layer_configure(void *data, struct zwlr_layer_surface_v1 *layer,
     zwlr_layer_surface_v1_ack_configure(layer, serial);
     panel.width = (int)width;
     panel.height = (int)height;
-    panel_draw();
+    panel.dirty = true;
 }
 
 // Завершить работу, когда композитор закрыл панель
@@ -970,6 +989,11 @@ static void background_configure(void *data, struct zwlr_layer_surface_v1 *layer
     uint32_t serial, uint32_t width, uint32_t height) {
     (void)data;
     zwlr_layer_surface_v1_ack_configure(layer, serial);
+    if (panel.background_committed && panel.background_width == (int)width &&
+        panel.background_height == (int)height) {
+        return;
+    }
+    panel.background_committed = false;
     panel.background_width = (int)width;
     panel.background_height = (int)height;
     background_draw();
@@ -1076,7 +1100,11 @@ int main(void) {
         return 1;
     }
 
+    time_t last_inspection = (time_t)-1;
     while (wl_display_dispatch_pending(panel.display) >= 0) {
+        if (panel.dirty && panel.frame == NULL) {
+            panel_draw();
+        }
         if (wl_display_flush(panel.display) < 0 && errno != EAGAIN) {
             break;
         }
@@ -1091,24 +1119,35 @@ int main(void) {
             break;
         }
 
+        pid_t finished;
+        while ((finished = waitpid(-1, NULL, WNOHANG)) > 0) {
+            if (finished == panel.keyboard_pid) {
+                panel.keyboard_pid = 0;
+            }
+        }
+
         time_t now = time(NULL);
         static time_t last_check;
         if (now!=last_check) {
             last_check=now; char active=active_recording();
-            if (active!=recording) { recording=active; panel_draw(); }
+            if (active!=recording) { recording=active; panel.dirty = true; }
         }
         struct tm local;
         if (localtime_r(&now, &local) != NULL && local.tm_min != panel.last_minute) {
             panel.last_minute = local.tm_min;
-            panel_draw();
+            panel.dirty = true;
         }
 
+        if (now == last_inspection) {
+            continue;
+        }
+        last_inspection = now;
         bool desktop_changed = scan_desktop();
         int theme = read_theme();
         if (theme != panel.theme) {
             panel.theme = theme;
             clear_menu_icon();
-            panel_draw();
+            panel.dirty = true;
             desktop_changed = true;
         }
         if (desktop_changed) background_draw();
