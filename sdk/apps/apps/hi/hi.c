@@ -1119,6 +1119,36 @@ static void usage(void) {
          "  --report=PATH write the same report to an explicit new file");
 }
 
+// На Deck запустить мастер в отдельном сеансе с клавиатурой экрана входа
+static int touch_first_boot(void) {
+    const char *runtime = "/var/run/hi-wayland";
+    struct stat st;
+    if ((mkdir(runtime, 0700) != 0 && errno != EEXIST) ||
+        lstat(runtime, &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != 0 ||
+        (st.st_mode & 0777) != 0700) {
+        return 1;
+    }
+
+    pid_t child = fork();
+    if (child < 0) {
+        return 1;
+    }
+    if (child == 0) {
+        if (setenv("XDG_RUNTIME_DIR", runtime, 1) || setenv("SYNAPSE_FB", "1", 1) ||
+            setenv("WLR_BACKENDS", "headless", 1) || setenv("WLR_HEADLESS_OUTPUTS", "1", 1) ||
+            setenv("WLR_XWAYLAND", "/bin/Xwayland", 1) || setenv("WLR_RENDERER", "pixman", 1) ||
+            setenv("HI_TOUCH_SESSION", "1", 1) ||
+            setenv("LD_LIBRARY_PATH", "/usr/lib/labwc/runtime:/usr/lib/weston/runtime:/usr/lib", 1)) {
+            _exit(126);
+        }
+        execl("/usr/libexec/labwc/labwc", "labwc", "-C", "/etc/synapse-greeter",
+              "-S", "/bin/weston-terminal --maximized --font-size=18 --shell=/bin/hi", (char *)NULL);
+        _exit(127);
+    }
+    wait_child(child);
+    return access(HI_DONE, F_OK) == 0 ? 0 : 1;
+}
+
 int main(int argc, char **argv) {
     bool first = false, first_boot = false, install = false;
     const char *report = NULL;
@@ -1153,6 +1183,19 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    const char *session = getenv("SYNAPSE_SESSION");
+    if (first_boot && (!session || strcmp(session, "console")) && access(HI_DONE, F_OK) != 0 &&
+        access("/usr/libexec/labwc/deck-keyboard", X_OK) == 0) {
+        if (touch_first_boot() == 0) {
+            return 0;
+        }
+        fputs("HI: graphical setup closed, continuing on console\n", stderr);
+    }
+    bool touch_terminal = argc == 1 && getenv("HI_TOUCH_SESSION") && getenv("WAYLAND_DISPLAY");
+    if (touch_terminal) {
+        first = first_boot = true;
+    }
+
     struct settings s;
     if (settings_load(&s, "")) {
         fprintf(stderr, "hi: %s\n", s.error);
@@ -1183,6 +1226,14 @@ int main(int argc, char **argv) {
         main_menu(&s);
     }
     terminal_restore();
+    if (touch_terminal && access(HI_DONE, F_OK) == 0) {
+        const char *pid = getenv("LABWC_PID");
+        char *end = NULL;
+        long compositor = pid ? strtol(pid, &end, 10) : 0;
+        if (compositor > 1 && compositor <= INT32_MAX && end && !*end) {
+            kill((pid_t)compositor, SIGTERM);
+        }
+    }
     if (first && !first_boot) {
         execl("/bin/sh", "sh", (char *)NULL);
         perror("hi: /bin/sh");
