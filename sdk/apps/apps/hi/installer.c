@@ -5,7 +5,7 @@
 // Работа с GPT и копирование файлов на выбранный целевой раздел
 // Подсистема: установка и начальная настройка системы
 // Первое изменение: до текущей уборки, исходная дата не установлена
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 21.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -347,11 +347,32 @@ static unsigned device_index(struct disk *d, unsigned entry_index) {
     return result;
 }
 
+static bool media_payload(char *path, size_t capacity, const char *directory) {
+    const char *names[] = {"delta.xz", "install.xz"};
+
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        int n = snprintf(path, capacity, "%s/boot/%s", directory, names[i]);
+        if (n > 0 && (size_t)n < capacity && !access(path, R_OK)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static const char *find_payload(void) {
     static char path[256];
+    if (media_payload(path, sizeof(path), "/mnt/live")) {
+        // Идентификатор исходного диска предоставлен ядром через readlink
+        ssize_t n = readlink("/dev/live-source", source_device, sizeof(source_device) - 1);
+        if (n > 0 && (size_t)n < sizeof(source_device) - 1) {
+            source_device[n] = 0;
+            return path;
+        }
+    }
     for (char c = 'a'; c <= 'z'; ++c) {
-        snprintf(path, sizeof(path), "/mnt/iso%c/boot/install.xz", c);
-        if (!access(path, R_OK)) {
+        char directory[32];
+        snprintf(directory, sizeof(directory), "/mnt/iso%c", c);
+        if (media_payload(path, sizeof(path), directory)) {
             return path;
         }
     }
@@ -370,8 +391,7 @@ static const char *find_payload(void) {
             if (mount(devices.gl_pathv[i], directory, "isofs", MS_RDONLY, NULL)) {
                 continue;
             }
-            snprintf(path, sizeof(path), "%s/boot/install.xz", directory);
-            if (!access(path, R_OK)) {
+            if (media_payload(path, sizeof(path), directory)) {
                 snprintf(source_device, sizeof(source_device), "%s",
                          devices.gl_pathv[i]);
                 globfree(&devices);
@@ -403,6 +423,83 @@ static uint64_t payload_size(const char *payload) {
     return size;
 }
 
+// Прочитать исходный блок с ISO, из потока отличий или заполнить его нулями
+static int delta_record(FILE *stream, int base, unsigned char *buffer, uint64_t remaining) {
+    uint32_t header[3];
+    if (fread(header, sizeof(header), 1, stream) != 1) {
+        return -1;
+    }
+    uint32_t source = header[0], length = header[1];
+    if (!length || length > 65536 || length % 4096 || length > remaining) {
+        return -1;
+    }
+    if (source == UINT32_MAX) {
+        if (fread(buffer, 1, length, stream) != length) {
+            return -1;
+        }
+    } else if (source == UINT32_MAX - 1) {
+        memset(buffer, 0, length);
+    } else if (read_full(base, buffer, length, (off_t)source * 4096)) {
+        return -1;
+    }
+    if (crc32_bytes(buffer, length) != header[2]) {
+        return -1;
+    }
+    return (int)length;
+}
+
+static int copy_payload(FILE *stream, const char *payload, int disk_fd, uint64_t offset, uint64_t expected) {
+    unsigned char buffer[65536];
+    int base = -1;
+    const char *name = strrchr(payload, '/');
+    if (name && !strcmp(name, "/delta.xz")) {
+        char path[320];
+        static const char delta_magic[] __attribute__((used)) = "SYNDEL01";
+        char magic[8];
+        if (fread(magic, 1, sizeof(magic), stream) != sizeof(magic) || memcmp(magic, delta_magic, sizeof(magic))) {
+            return -1;
+        }
+        // Имена одного файла в Rock Ridge и ISO9660
+        const char *names[] = {"live-root.ext4", "live_roo.ext"};
+        for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+            snprintf(path, sizeof(path), "%.*s/%s", (int)(name - payload), payload, names[i]);
+            base = open(path, O_RDONLY);
+            if (base >= 0) {
+                break;
+            }
+        }
+        if (base < 0) {
+            snprintf(path, sizeof(path), "%.*s/root.lz4", (int)(name - payload), payload);
+            if (!access(path, R_OK)) {
+                base = open("/dev/livebase", O_RDONLY);
+            }
+        }
+        if (base < 0) {
+            return -1;
+        }
+    }
+
+    uint64_t total = 0;
+    while (total < expected) {
+        uint64_t left = expected - total;
+        size_t want = left < sizeof(buffer) ? (size_t)left : sizeof(buffer);
+        int n = base >= 0 ? delta_record(stream, base, buffer, left) : (int)fread(buffer, 1, want, stream);
+        if (n <= 0 || write_full(disk_fd, buffer, (size_t)n, (off_t)(offset + total))) {
+            break;
+        }
+        uint64_t previous = total;
+        total += (size_t)n;
+        if (previous / 1048576 != total / 1048576) {
+            printf("\r%s: %llu MiB", tt("Writing system", "Запись системы"), (unsigned long long)(total / 1048576));
+            fflush(stdout);
+        }
+    }
+    if (base >= 0) {
+        close(base);
+    }
+    return total == expected && fgetc(stream) == EOF && !ferror(stream) ? 0 : -1;
+}
+
 static int copy_stream_to_disk(const char *payload, int disk_fd, uint64_t offset,
                                uint64_t limit, uint64_t expected) {
     int pipefd[2];
@@ -424,38 +521,23 @@ static int copy_stream_to_disk(const char *payload, int disk_fd, uint64_t offset
         _exit(127);
     }
     close(pipefd[1]);
-    unsigned char buffer[64 * 1024];
-    uint64_t total = 0;
-    int failed = 0;
-    for (;;) {
-        ssize_t n = read(pipefd[0], buffer, sizeof(buffer));
-        if (!n) {
-            break;
+    FILE *stream = fdopen(pipefd[0], "rb");
+    int failed = -1;
+    if (stream) {
+        if (expected <= limit) {
+            failed = copy_payload(stream, payload, disk_fd, offset, expected);
         }
-        if (n < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            failed = 1;
-            break;
-        }
-        if (total + (uint64_t)n > limit ||
-            write_full(disk_fd, buffer, (size_t)n, (off_t)(offset + total))) {
-            failed = 1;
-            break;
-        }
-        total += (uint64_t)n;
-        printf("\r%s: %llu MiB", tt("Writing system", "Запись системы"),
-               (unsigned long long)(total / 1048576));
-        fflush(stdout);
+        fclose(stream);
+    } else {
+        close(pipefd[0]);
     }
-    close(pipefd[0]);
     int status = 0;
-    while (waitpid(child, &status, 0) < 0 && errno == EINTR) {
-    }
+    pid_t waited;
+    do {
+        waited = waitpid(child, &status, 0);
+    } while (waited < 0 && errno == EINTR);
     puts("");
-    if (!WIFEXITED(status) || WEXITSTATUS(status) || failed || total != expected ||
-        fsync(disk_fd)) {
+    if (waited != child || !WIFEXITED(status) || WEXITSTATUS(status) || failed || fsync(disk_fd)) {
         errno = EIO;
         return -1;
     }
@@ -516,6 +598,7 @@ static int install_boot(struct disk *d, unsigned root_index, const char *iso_roo
     if (mount(dev, "/tmp/hi-efi", "fat32", 0, NULL)) {
         return -1;
     }
+    bool empty_efi = access("/tmp/hi-efi/EFI", F_OK) != 0 && errno == ENOENT;
     if (mkdir_ok("/tmp/hi-efi/EFI") || mkdir_ok("/tmp/hi-efi/EFI/Synapse") ||
         mkdir_ok("/tmp/hi-efi/boot") || mkdir_ok("/tmp/hi-efi/boot/synapse") ||
         mkdir_ok("/tmp/hi-efi/boot/limine")) {
@@ -523,8 +606,12 @@ static int install_boot(struct disk *d, unsigned root_index, const char *iso_roo
     }
 
     char source[320];
-    snprintf(source, sizeof(source), "%s/EFI/BOOT/BOOTX64.EFI", iso_root);
+    snprintf(source, sizeof(source), "%s/efi/boot/bootx64.efi", iso_root);
     if (copy_file(source, "/tmp/hi-efi/EFI/Synapse/BOOTX64.EFI")) {
+        return -1;
+    }
+    if (empty_efi && (mkdir_ok("/tmp/hi-efi/EFI/BOOT") ||
+                      copy_file(source, "/tmp/hi-efi/EFI/BOOT/BOOTX64.EFI"))) {
         return -1;
     }
     snprintf(source, sizeof(source), "%s/boot/kernel", iso_root);
@@ -587,7 +674,7 @@ static int install_boot(struct disk *d, unsigned root_index, const char *iso_roo
         if (fclose(f)) {
             return -1;
         }
-    } else {
+    } else if (!empty_efi) {
         printf("%s\n", tt("No GRUB configuration found; Synapse EFI files were "
                           "installed, but a firmware entry must be added manually.",
                           "Конфигурация GRUB не найдена; EFI-файлы Synapse "
