@@ -1,6 +1,9 @@
 #!/bin/sh
 # Synapse compiler: static by default, explicit ELF shared-library/runtime modes.
 set -eu
+: "${CCACHE_DIR:=$(CDPATH= cd -- "$(dirname -- "$0")/../../../../.." && pwd)/../.ccache}"
+export CCACHE_DIR
+export CCACHE_COMPILERCHECK=${CCACHE_COMPILERCHECK:-content}
 base=$(CDPATH= cd -- "$(dirname -- "$0")/.." &&
 	pwd)
 musl="$base/../musl"
