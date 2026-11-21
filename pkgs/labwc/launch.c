@@ -4,13 +4,16 @@
 // Описание: Передать управление композитору без зависимости от командной оболочки
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 01.11.2026
+// Последнее изменение: 21.11.2026
 // Доступ: общедоступный
 
 #include "posix-profile.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <amdgpu_drm.h>
+#include <sys/ioctl.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -296,6 +299,33 @@ static bool prepare_data_dirs(void) {
     return setenv("XDG_DATA_DIRS", paths, 1) == 0;
 }
 
+// Проверить наличие очереди графических команд, помимо доступности узла DRM
+static bool supports_graphics(const char *device) {
+    int fd = open(device, O_RDWR | O_CLOEXEC);
+    if (fd < 0) {
+        return false;
+    }
+
+    char name[32] = {0};
+    struct drm_version version = {.name_len = sizeof(name) - 1, .name = name};
+    bool graphics = true;
+    if (ioctl(fd, DRM_IOCTL_VERSION, &version) == 0 && strcmp(name, "amdgpu") == 0) {
+        struct drm_amdgpu_info_hw_ip info = {0};
+        struct drm_amdgpu_info query = {
+            .return_pointer = (uintptr_t)&info,
+            .return_size = sizeof(info),
+            .query = AMDGPU_INFO_HW_IP_INFO,
+            .query_hw_ip = {.type = AMDGPU_HW_IP_GFX},
+        };
+        graphics = ioctl(fd, DRM_IOCTL_AMDGPU_INFO, &query) == 0 && info.available_rings != 0;
+        if (!graphics) {
+            fputs("labwc: AMDGPU graphics rings unavailable, using software rendering\n", stderr);
+        }
+    }
+    close(fd);
+    return graphics;
+}
+
 // Подготовить прямой вывод на экран, когда родительского Wayland-сеанса нет
 static bool prepare_native_session(char *runtime, size_t capacity) {
     if (getenv("WAYLAND_DISPLAY") != NULL || getenv("WAYLAND_SOCKET") != NULL) {
@@ -326,13 +356,17 @@ static bool prepare_native_session(char *runtime, size_t capacity) {
         return false;
     }
 
-    bool render_node = access("/dev/dri/renderD128", R_OK | W_OK) == 0;
+    const char *render_device = getenv("WLR_RENDER_DRM_DEVICE");
+    if (!render_device || !*render_device) {
+        render_device = "/dev/dri/renderD128";
+    }
+    bool render_node = access(render_device, R_OK | W_OK) == 0;
     const char *renderer = getenv("WLR_RENDERER");
 
     if (renderer == NULL || renderer[0] == 0) {
         if (getenv("SYNAPSE_LABWC_GLES2") != NULL) {
             renderer = "gles2";
-        } else if (render_node) {
+        } else if (render_node && supports_graphics(render_device)) {
             // wlroots вернётся к Pixman, если не сможет создать контекст EGL
             renderer = "auto";
         } else {

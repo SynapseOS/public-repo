@@ -6,7 +6,7 @@
     Описание: Подготовка каталогов, Java и библиотек клиента SynapseOS
     Подсистема: пакет Mindustry
     Первое изменение: 17.10.2026
-    Последнее изменение: 23.10.2026
+    Последнее изменение: 21.11.2026
 */
 
 #define _GNU_SOURCE
@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdbool.h>
 
 #ifndef MINDUSTRY_SERVER
 #define MINDUSTRY_SERVER 1
@@ -31,17 +33,29 @@ int main(int argc, char **argv) {
 
 	const char *dir = getenv("MINDUSTRY_DATA_DIR");
 
+	char personal[PATH_MAX];
 	if (dir == NULL || *dir == '\0') {
 		dir = MINDUSTRY_SERVER ? "/var/lib/mindustry/server" : "/var/lib/mindustry/client";
-	}
-
-	const char *parents[] = { "/var", "/var/lib", "/var/lib/mindustry", dir };
-
-	for (size_t i = 0; i < sizeof(parents) / sizeof(parents[0]); i++) {
-		if (mkdir(parents[i], 0755) != 0 && errno != EEXIST) {
-			perror(parents[i]);
+		uid_t uid = getuid();
+		struct stat old_data;
+		bool personal_data = !MINDUSTRY_SERVER && uid != 0 &&
+		    (stat(dir, &old_data) != 0 || old_data.st_uid != uid || access(dir, W_OK | X_OK) != 0);
+		if (personal_data) {
+			const char *home = getenv("HOME");
+			if (!home || home[0] != '/' || snprintf(personal, sizeof(personal), "%s/.mindustry", home) >=
+				(int)sizeof(personal)) {
+				fputs("Mindustry: недоступен домашний каталог пользователя\n", stderr);
+				return 1;
+			}
+			dir = personal;
+		} else if (mkdir("/var/lib/mindustry", 0755) && errno != EEXIST) {
+			perror("/var/lib/mindustry");
 			return 1;
 		}
+	}
+	if (mkdir(dir, 0755) && errno != EEXIST) {
+		perror(dir);
+		return 1;
 	}
 
 	if (setenv("XDG_DATA_HOME", dir, 1) != 0 || chdir(dir) != 0) {
@@ -72,7 +86,8 @@ int main(int argc, char **argv) {
 			args[n++] = "-XX:+UseSerialGC";
 		}
 
-		if (setenv("SDL_VIDEODRIVER", "synapse", 1) != 0 ||
+		if (setenv("LD_LIBRARY_PATH", "/usr/lib:/lib", 1) != 0 ||
+		    setenv("SDL_VIDEODRIVER", "synapse", 1) != 0 ||
 		    setenv("LP_NUM_THREADS", "2", 0) != 0 ||
 		    setenv("SYNAPSE_HUD", "0", 0) != 0) {
 			perror("Mindustry environment");

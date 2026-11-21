@@ -60,11 +60,10 @@ class Media : public QWidget {
         if (!w || w>640 || !h || h>8192) { source->terminate(); return; }
         qsizetype size=8+qsizetype(w)*h*4;
         if (incoming.size()<size) return;
+        if (source->state()==QProcess::Running && !wantRecord && !closing) source->write("F",1);
         latest=QImage(p+8,w,h,w*4,QImage::Format_RGB32).copy();
-        picture->setPixmap(QPixmap::fromImage(latest).scaled(picture->size(),Qt::KeepAspectRatio,Qt::SmoothTransformation));
+        picture->setPixmap(QPixmap::fromImage(latest).scaled(picture->size(),Qt::KeepAspectRatio,Qt::FastTransformation));
         incoming.remove(0,size); controls();
-        QTimer::singleShot(60,this,[this,source]{if (source->state()==QProcess::Running && !wantRecord && !closing)
-            source->write("F",1);});
     }
 public:
     explicit Media(bool isCamera):camera(isCamera) {
@@ -83,7 +82,7 @@ public:
                 state->setText(devices->count()?"Камера готова":"Камера не найдена"); controls();
             };
             row->addWidget(devices,1); row->addWidget(refresh); layout->addLayout(row);
-            picture->setMinimumSize(250,180); picture->setAlignment(Qt::AlignCenter);
+            picture->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Ignored); picture->setMinimumSize(250,180); picture->setAlignment(Qt::AlignCenter);
             picture->setStyleSheet("background:#172027;color:white"); picture->setText("Просмотр выключен");
             layout->addWidget(picture,1);
             connect(refresh,&QPushButton::clicked,this,reload); reload();

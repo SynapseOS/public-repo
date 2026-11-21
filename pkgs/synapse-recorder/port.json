@@ -1,6 +1,6 @@
 {
   "name": "synapse-recorder",
-  "version": "1.0.0-r2",
+  "version": "1.0.0-r3",
   "description": "Screen and UVC camera recorder with CLI and terminal controls",
   "build_system": "recipe",
   "status": "experimental",

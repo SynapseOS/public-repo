@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "synapse-store",
-  "version": "0.1.0-r10",
+  "version": "0.1.0-r11",
   "description": "Graphical software manager for SynapseOS, Flathub and Debian",
   "kind": "application",
   "arch": "x86_64",

@@ -6,7 +6,7 @@
     Описание: Каталог программ SynapseOS и Flatpak с явным состоянием Debian
     Подсистема: графические программы
     Первое изменение: 01.11.2026
-    Последнее изменение: 03.11.2026
+    Последнее изменение: 21.11.2026
     Доступ: общедоступный
 */
 
@@ -35,6 +35,8 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QShortcut>
+#include <QSignalBlocker>
 #include <QSet>
 #include <QSharedPointer>
 #include <QStackedWidget>
@@ -253,9 +255,8 @@ class StoreWindow final : public QMainWindow {
         header->setFont(titleFont);
         layout->addWidget(header);
 
-        auto *description = new QLabel(
-            QStringLiteral("Пакеты SynapseOS, приложения Flathub и проверенные программы Debian"), central);
-        layout->addWidget(description);
+        layout->setContentsMargins(20, 16, 20, 16);
+        layout->setSpacing(10);
 
         tabs_ = new QTabBar(central);
         tabs_->setExpanding(false);
@@ -288,25 +289,33 @@ class StoreWindow final : public QMainWindow {
         category_->addItem(QStringLiteral("Другое"), static_cast<int>(Category::Other));
         controls->addWidget(category_);
 
-        refresh_ = new QPushButton(QStringLiteral("Перечитать списки"), catalogPage);
+        refresh_ = new QPushButton(QStringLiteral("Обновить список"), catalogPage);
         controls->addWidget(refresh_);
         catalogLayout->addLayout(controls);
 
         table_ = new QTableWidget(catalogPage);
         table_->setColumnCount(5);
+        table_->verticalHeader()->hide();
+        table_->setShowGrid(false);
+        table_->setAlternatingRowColors(true);
+        table_->verticalHeader()->setDefaultSectionSize(48);
         table_->setHorizontalHeaderLabels(
             {QStringLiteral("Программа"), QStringLiteral("Источник"), QStringLiteral("Версия"),
              QStringLiteral("Состояние"), QStringLiteral("Описание")});
-        table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-        table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-        table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-        table_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-        table_->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+        table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+        for (int column = 1; column <= 3; ++column)
+            table_->horizontalHeader()->setSectionResizeMode(column, QHeaderView::ResizeToContents);
+        table_->hideColumn(4);
+        table_->horizontalHeader()->setStretchLastSection(false);
         table_->setSelectionBehavior(QAbstractItemView::SelectRows);
         table_->setSelectionMode(QAbstractItemView::SingleSelection);
         table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
         catalogLayout->addWidget(table_, 1);
 
+        detail_ = new QLabel(catalogPage);
+        detail_->setWordWrap(true);
+        detail_->setTextFormat(Qt::PlainText);
+        catalogLayout->addWidget(detail_);
         auto *actions = new QHBoxLayout();
         status_ = new QLabel(catalogPage);
         actions->addWidget(status_, 1);
@@ -319,7 +328,18 @@ class StoreWindow final : public QMainWindow {
         log_->setReadOnly(true);
         log_->document()->setMaximumBlockCount(500);
         log_->setMaximumHeight(120);
+        auto *details = new QPushButton(QStringLiteral("Журнал"), catalogPage);
+        details->setCheckable(true);
+        actions->insertWidget(1, details);
+        connect(details, &QPushButton::toggled, log_, &QWidget::setVisible);
+        log_->hide();
         catalogLayout->addWidget(log_);
+        auto *find = new QShortcut(QKeySequence::Find, this);
+        connect(find, &QShortcut::activated, this, [this]() {
+            if (tabs_->currentIndex() == 5) tabs_->setCurrentIndex(0);
+            search_->setFocus();
+            search_->selectAll();
+        });
 
         auto *settingsPage = new QWidget(pages_);
         auto *settingsLayout = new QVBoxLayout(settingsPage);
@@ -892,6 +912,10 @@ class StoreWindow final : public QMainWindow {
 
     // Показать пакеты, соответствующие запросу пользователя
     void renderCatalog() {
+        const auto *old = table_->item(table_->currentRow(), 0);
+        const QStringList previous = old ? old->data(Qt::UserRole).toStringList() : QStringList();
+        int selected = -1;
+        const QSignalBlocker block(table_);
         visible_.clear();
         table_->setUpdatesEnabled(false);
         table_->setRowCount(0);
@@ -922,7 +946,11 @@ class StoreWindow final : public QMainWindow {
 
             const int row = table_->rowCount();
             table_->insertRow(row);
-            table_->setItem(row, 0, new QTableWidgetItem(package.name));
+            auto *name = new QTableWidgetItem(package.name);
+            const QStringList key = {sourceName(package.source), package.id, package.ref, package.origin};
+            name->setData(Qt::UserRole, key);
+            if (key == previous) selected = row;
+            table_->setItem(row, 0, name);
             const QString origin = package.source == Source::Flathub && package.origin != QStringLiteral("flathub")
                                        ? QStringLiteral("Flatpak") : sourceName(package.source);
             table_->setItem(row, 1, new QTableWidgetItem(origin));
@@ -947,6 +975,7 @@ class StoreWindow final : public QMainWindow {
             visible_.append(index);
         }
 
+        if (selected >= 0 || visible_.size() == 1) table_->selectRow(selected >= 0 ? selected : 0);
         table_->setUpdatesEnabled(true);
         if (!installing_) {
             status_->setText(QStringLiteral("Показано %1 из %2 программ").arg(visible_.size()).arg(matches));
@@ -982,7 +1011,11 @@ class StoreWindow final : public QMainWindow {
                                packages_[visible_[row]].installable &&
                                (!packages_[visible_[row]].installed || canUpdate(packages_[visible_[row]]));
         const bool update = row >= 0 && row < visible_.size() && canUpdate(packages_[visible_[row]]);
-        install_->setText(update ? QStringLiteral("Обновить") : QStringLiteral("Установить"));
+        const bool chosen = row >= 0 && row < visible_.size();
+        detail_->setText(chosen ? packages_[visible_[row]].description : QString());
+        detail_->setVisible(!detail_->text().isEmpty());
+        install_->setText(chosen && packages_[visible_[row]].installed && !update ? QStringLiteral("Установлено") :
+                          update ? QStringLiteral("Обновить") : QStringLiteral("Установить"));
         install_->setEnabled(available);
     }
 
@@ -1230,6 +1263,7 @@ class StoreWindow final : public QMainWindow {
     QTabBar *tabs_ = nullptr;
     QStackedWidget *pages_ = nullptr;
     QTableWidget *table_ = nullptr;
+    QLabel *detail_ = nullptr;
     QLabel *status_ = nullptr;
     QLabel *backendStatus_ = nullptr;
     QPushButton *prepareDebian_ = nullptr;

@@ -34,6 +34,7 @@ struct camera {
     AVFrame *frame;
     struct SwsContext *scale;
 };
+#define CAMERA_PREVIEW_MODE (-2)
 int camera_open(struct camera *, const char *, int);
 int camera_read(struct camera *, struct image *);
 void camera_close(struct camera *);

@@ -1,6 +1,8 @@
 // Synapse Recorder, захват UVC MJPEG и YUY2, 21.11.2026
 #include "studio.h"
+#include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,14 +13,35 @@
 int camera_open(struct camera *c, const char *path, int wanted) {
     c->fd = open(path, O_RDWR | O_CLOEXEC);
     if (c->fd < 0) return -1;
-    struct syn_uvc_mode m;
-    for (unsigned i = 0; ; i++) {
-        memset(&m, 0, sizeof(m));
-        m.index = i;
-        if (ioctl(c->fd, SYN_UVC_ENUM, &m) < 0) return -1;
-        if (wanted >= 0 && i != (unsigned)wanted) continue;
-        if (m.subtype == 6 || !memcmp(m.guid, "YUY2", 4)) break;
-        if (wanted >= 0) return -1;
+    struct syn_uvc_mode m = {0};
+    uint64_t best = UINT64_MAX;
+    for (unsigned i = wanted >= 0 ? (unsigned)wanted : 0; ; i++) {
+        struct syn_uvc_mode candidate = {.index = i};
+        if (ioctl(c->fd, SYN_UVC_ENUM, &candidate) < 0) {
+            if (wanted != CAMERA_PREVIEW_MODE || best == UINT64_MAX || errno != EINVAL) return -1;
+            break;
+        }
+        bool jpeg = candidate.subtype == 6;
+        if (!candidate.width || !candidate.height || candidate.width > 8192 || candidate.height > 8192 ||
+            (!jpeg && (memcmp(candidate.guid, "YUY2", 4) || (candidate.width & 1)))) {
+            if (wanted >= 0) return -1;
+            continue;
+        }
+        if (wanted != CAMERA_PREVIEW_MODE) {
+            m = candidate;
+            break;
+        }
+        // Для просмотра выбираем плавный режим, близкий к размеру окна
+        unsigned pixels = (unsigned)candidate.width * candidate.height;
+        unsigned target = 640 * 480;
+        uint64_t distance = pixels > target ? pixels - target : target - pixels;
+        uint64_t slow = candidate.minimum > 400000 ? candidate.minimum - 400000 : 0;
+        // MJPEG уменьшает трафик на USB при близких разрешении и частоте кадров
+        uint64_t score = (slow << 27) + distance + (jpeg ? 0 : target);
+        if (score < best) {
+            best = score;
+            m = candidate;
+        }
     }
     c->mjpeg = m.subtype == 6;
     c->w = m.width;

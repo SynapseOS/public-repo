@@ -1,6 +1,6 @@
 {
   "name": "synapse-recorder-desktop",
-  "version": "1.0.0-r2",
+  "version": "1.0.0-r3",
   "description": "Graphical screen recorder and Wayland capture for SynapseOS Desktop",
   "build_system": "recipe",
   "status": "experimental"

@@ -24,21 +24,60 @@ static int send_bytes(int fd, const void *ptr, size_t size) {
     return 0;
 }
 
-// Клиент запрашивает следующий кадр после отрисовки предыдущего
-int preview_recorded_frame(const struct image *view) {
-    struct pollfd p={0,POLLIN,0};
-    char request;
-    if (poll(&p,1,0)<=0 || !(p.revents&POLLIN) || read(0,&request,1)!=1 || request!='F') return 0;
-    uint32_t w=FFMIN(640,view->w), h=FFMAX(1,(int64_t)w*view->h/view->w);
-    uint32_t dims[]={w,h};
-    if (send_bytes(1,dims,sizeof(dims))<0) return -1;
-    uint8_t row[640*4];
-    for (uint32_t y=0; y<h; y++) {
-        const uint8_t *src=view->pixels+(int64_t)y*view->h/h*view->stride;
-        for (uint32_t x=0; x<w; x++) memcpy(row+x*4,src+(int64_t)x*view->w/w*4,4);
-        if (send_bytes(1,row,w*4)<0) return -1;
+// Отложенный вывод миниатюры сохраняет границы кадра даже при заполненном канале GUI
+static int flush_preview(const uint8_t *packet, size_t size, size_t *sent) {
+    while (*sent < size) {
+        ssize_t n = write(STDOUT_FILENO, packet + *sent, size - *sent);
+        if (n > 0) {
+            *sent += (size_t)n;
+        } else if (n < 0 && errno == EINTR) {
+            continue;
+        } else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            return 0;
+        } else {
+            return -1;
+        }
     }
     return 0;
+}
+
+// Один запрос GUI получает целую миниатюру, запись видео продолжается независимо от скорости чтения
+int preview_recorded_frame(const struct image *view) {
+    static uint8_t packet[8 + 320 * 240 * 4];
+    static size_t size, sent;
+    static int configured;
+    if (!configured) {
+        int flags = fcntl(STDOUT_FILENO, F_GETFL);
+        if (flags < 0 || fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK) < 0) {
+            return -1;
+        }
+        configured = 1;
+    }
+    if (sent < size) {
+        return flush_preview(packet, size, &sent);
+    }
+    struct pollfd p = {STDIN_FILENO, POLLIN, 0};
+    char request;
+    if (poll(&p, 1, 0) <= 0 || !(p.revents & POLLIN) || read(p.fd, &request, 1) != 1 || request != 'F') {
+        return 0;
+    }
+    uint32_t w = FFMIN(320, view->w), h = FFMAX(1, (int64_t)w * view->h / view->w);
+    if (h > 240) {
+        h = 240;
+        w = FFMAX(1, (int64_t)h * view->w / view->h);
+    }
+    memcpy(packet, &w, 4);
+    memcpy(packet + 4, &h, 4);
+    size = 8;
+    sent = 0;
+    for (unsigned y = 0; y < h; y++) {
+        const uint8_t *row = view->pixels + (int64_t)y * view->h / h * view->stride;
+        for (unsigned x = 0; x < w; x++) {
+            memcpy(packet + size, row + (int64_t)x * view->w / w * 4, 4);
+            size += 4;
+        }
+    }
+    return flush_preview(packet, size, &sent);
 }
 
 int camera_preview(const char *device) {
@@ -46,15 +85,16 @@ int camera_preview(const char *device) {
     struct image view = {0};
     int rc = 1;
     signal(SIGPIPE,SIG_IGN);
-    if (camera_open(&camera,device,-1) < 0) goto out;
+    if (camera_open(&camera, device, CAMERA_PREVIEW_MODE) < 0) goto out;
     int width = FFMIN(camera.w,640);
     if (allocate_image(&view,width,FFMAX(1,(int64_t)width*camera.h/camera.w)) < 0) goto out;
     uint32_t dimensions[] = {view.w,view.h};
     char req;
     while (read(0,&req,1) == 1 && req == 'F') {
         if (camera_read(&camera,&view) < 0 || send_bytes(1,dimensions,sizeof(dimensions)) < 0) goto out;
-        for (int y=0; y<view.h; y++)
-            if (send_bytes(1,view.pixels+y*view.stride,view.w*4u) < 0) goto out;
+        if (send_bytes(1, view.pixels, (size_t)view.stride * view.h) < 0) {
+            goto out;
+        }
     }
     rc = 0;
 out:

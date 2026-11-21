@@ -45,6 +45,7 @@
 #include <QSettings>
 #include <QSize>
 #include <QStackedWidget>
+#include <QTabBar>
 #include <QTabWidget>
 #include <QTimer>
 #include <QToolButton>
@@ -688,10 +689,20 @@ public:
 	explicit SettingsWindow(const QString &subsystem = {}) {
 		setWindowTitle(QStringLiteral("Настройки SynapseOS"));
 		setWindowIcon(QIcon(QStringLiteral("/usr/share/weston/settings-icon.png")));
-		resize(690, 480);
+		resize(800, 520);
 
-		QTabWidget *tabs = new QTabWidget(this);
-		setCentralWidget(tabs);
+		auto *content = new QWidget(this);
+		auto *layout = new QHBoxLayout(content);
+		auto *sections = new QListWidget(content);
+		sections->setAccessibleName(QStringLiteral("Разделы настроек"));
+		sections->setFixedWidth(160);
+		sections->setUniformItemSizes(true);
+		tabs_ = new QTabWidget(content);
+		auto *tabs = tabs_;
+		tabs->tabBar()->hide();
+		layout->addWidget(sections);
+		layout->addWidget(tabs, 1);
+		setCentralWidget(content);
 		addDisplayPage(tabs);
 		addOnDemand(tabs, QStringLiteral("Оформление"), &SettingsWindow::buildAppearancePage);
 		addOnDemand(tabs, QStringLiteral("Система"), &SettingsWindow::buildSystemPage);
@@ -702,11 +713,20 @@ public:
 		addOnDemand(tabs, QStringLiteral("Электропитание"), &SettingsWindow::buildPowerPage);
 		addOnDemand(tabs, QStringLiteral("Звук"), &SettingsWindow::buildSoundPage);
 		addOnDemand(tabs, QStringLiteral("О системе"), &SettingsWindow::buildAboutPage);
+		for (int index = 0; index < tabs->count(); ++index) {
+			auto *section = new QListWidgetItem(tabs->tabText(index), sections);
+			section->setSizeHint(QSize(0, 36));
+		}
+		sections->setCurrentRow(tabs->currentIndex());
+		connect(sections, &QListWidget::currentRowChanged, tabs, &QTabWidget::setCurrentIndex);
+		connect(tabs, &QTabWidget::currentChanged, sections, [sections](int index) {
+			sections->setCurrentRow(index);
+		});
 	}
 
 	// Открыть все вкладки при самопроверке, включая те, что создаются при первом переходе
 	bool ready() const {
-		auto *tabs = qobject_cast<QTabWidget *>(centralWidget());
+		auto *tabs = tabs_;
 		if (!tabs || !tabs->count()) {
 			return false;
 		}
@@ -721,6 +741,8 @@ public:
 	}
 
 private:
+	QTabWidget *tabs_ = nullptr;
+
 	// Прочитать настройки вкладки один раз при первом переходе на неё
 	void addOnDemand(QTabWidget *tabs, const QString &title, void (SettingsWindow::*build)(QWidget *)) {
 		auto *page = new QWidget(tabs);

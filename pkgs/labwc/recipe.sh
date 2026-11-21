@@ -193,7 +193,8 @@ copy "$work/labwc-build/clients/labnag" usr/libexec/labwc/labnag
 copy "$work/sdk/usr/bin/xkbcomp" bin/xkbcomp
 copy "$work/wlroots-stage/usr/lib/libwlroots-0.19.so" \
 	usr/lib/labwc/runtime/libwlroots-0.19.so
-"$CC" -O2 -Wall -Wextra -Werror "$port/launch.c" -o "$work/labwc-launch"
+"$CC" -O2 -Wall -Wextra -Werror -I"$work/sdk/usr/include/libdrm" \
+    -idirafter "$BUILD_ROOT/mesa/linux-headers/usr/include" "$port/launch.c" -o "$work/labwc-launch"
 copy "$work/labwc-launch" bin/labwc
 copy "$source/LICENSE" usr/share/licenses/labwc/LICENSE
 copy "$wlroots/LICENSE" usr/share/licenses/labwc/wlroots-LICENSE

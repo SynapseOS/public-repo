@@ -1,18 +1,186 @@
 {
   "format": 1,
   "name": "openjdk-current",
-  "version": "21.0.11-r6",
-  "description": "Current supported OpenJDK 21 runtime",
+  "version": "21.0.11-r7",
+  "description": "OpenJDK 21 runtime with AWT, Swing and X11 support",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
-    "openjdk >= 21.0.11-r6"
+    "openjdk = 21.0.11-r6"
   ],
   "conflicts": [],
   "files": [
     {
       "path": "usr/share/doc/openjdk-current/README.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libX11.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libXau.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libXdmcp.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libXext.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libXi.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libXrender.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libXtst.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libasound.so.2",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libawt_xawt.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libbrotlicommon.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libbrotlidec.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libbsd.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libbz2.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libexpat.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libfontconfig.so.1",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libfontmanager.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libfreetype.so.6",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libgif.so.7",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjavajpeg.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjawt.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjpeg.so.8",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libjsound.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/liblcms.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/liblcms2.so.2",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libmd.so.0",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libpng16.so.16",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libsplashscreen.so",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/jvm/java-21-openjdk/lib/libxcb.so.1",
       "type": "file",
       "mode": 420,
       "config": false

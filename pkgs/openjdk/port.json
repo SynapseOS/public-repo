@@ -27,5 +27,161 @@
       "sha256": "ee62e1864c235901e2aa4d1868c7ae8f7cc5d0740a98c48a2525332eb4bfda73"
     }
   ],
-  "build_system": "recipe"
+  "build_system": "recipe",
+  "desktop_assets": [
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/community/x86_64/openjdk21-jre-21.0.11_p10-r0.apk",
+      "sha256": "8081752f281becc18ed88532ac4463d40904d64e40aaad522987d35cdcbc64e1",
+      "files": [
+        "usr/lib/jvm/java-21-openjdk/lib/libawt_xawt.so",
+        "usr/lib/jvm/java-21-openjdk/lib/libfontmanager.so",
+        "usr/lib/jvm/java-21-openjdk/lib/libjavajpeg.so",
+        "usr/lib/jvm/java-21-openjdk/lib/libjawt.so",
+        "usr/lib/jvm/java-21-openjdk/lib/libjsound.so",
+        "usr/lib/jvm/java-21-openjdk/lib/liblcms.so",
+        "usr/lib/jvm/java-21-openjdk/lib/libsplashscreen.so"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libx11-1.8.11-r0.apk",
+      "sha256": "97663f719b7e182d628eb08af97d885b83c7b2cdda073f2afe1eb999641f8398",
+      "files": [
+        "usr/lib/libX11.so.6"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxext-1.3.6-r2.apk",
+      "sha256": "a810d2fe785927bdee31c2b2610920925ebb9a6480f0f5e397b959695296a819",
+      "files": [
+        "usr/lib/libXext.so.6"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxi-1.8.2-r0.apk",
+      "sha256": "283af7eccec2b5340794461acfe82709ac7d7009aa2c9a43e6f3d0643cc45f68",
+      "files": [
+        "usr/lib/libXi.so.6"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxrender-0.9.12-r0.apk",
+      "sha256": "f3f8b79c792c27301ec0059ae13e9043c6d829e81bc1466c68c10c39a6a61490",
+      "files": [
+        "usr/lib/libXrender.so.1"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxtst-1.2.5-r0.apk",
+      "sha256": "cd85941c2efdc8c8df58e91d81dcf3707b47cbeec391c0996614df98ec0f0241",
+      "files": [
+        "usr/lib/libXtst.so.6"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/alsa-lib-1.2.14-r0.apk",
+      "sha256": "adab6ff082d6e2536a27b27b545651a2d24851ba0a4125d812eab392699ac07a",
+      "files": [
+        "usr/lib/libasound.so.2"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/fontconfig-2.15.0-r3.apk",
+      "sha256": "4965295a16e09af6e3a8d6898da50883fc604fabddde8157e6c3e5f8e789f3fb",
+      "files": [
+        "usr/lib/libfontconfig.so.1"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libexpat-2.10.0-r0.apk",
+      "sha256": "8ff83a897b5393832edbd2a7500c37bab685a17d7821925d95460f01747dbac2",
+      "files": [
+        "usr/lib/libexpat.so.1"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/freetype-2.13.3-r0.apk",
+      "sha256": "82cf77ed8ad409f41e2234e66dfcf6fb520906dec4a46ab2ad952b1a4001fa03",
+      "files": [
+        "usr/lib/libfreetype.so.6"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/brotli-libs-1.1.1-r0.apk",
+      "sha256": "9e52618457762f65bf273f42d71db8084633a1e9d938ff2611015ba20d44a8cf",
+      "files": [
+        "usr/lib/libbrotlidec.so.1",
+        "usr/lib/libbrotlicommon.so.1"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libbz2-1.0.8-r6.apk",
+      "sha256": "0c98810f9332bf1bb1b0acc64eaac4b101036689bffba9ea621416b4b3c190cd",
+      "files": [
+        "usr/lib/libbz2.so.1"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/giflib-5.2.2-r2.apk",
+      "sha256": "b0e79105bcf65ddba7feb24225191db8d7c75e989a55ecb2cd68631cb785833f",
+      "files": [
+        "usr/lib/libgif.so.7"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libjpeg-turbo-3.1.0-r0.apk",
+      "sha256": "3b7230030b8876e966a11238144a9a08e89f72cfec9b99789acdca5d1ee9c78a",
+      "files": [
+        "usr/lib/libjpeg.so.8"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/lcms2-2.19-r0.apk",
+      "sha256": "7f73e98a2d6983358a075843e12b8fe71277a51154d59047449f6a3626c64c1e",
+      "files": [
+        "usr/lib/liblcms2.so.2"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libpng-1.6.59-r0.apk",
+      "sha256": "b1edbc6f993b91dce6097dec1aab3b37f081ec70454de69dd573cf53e784f096",
+      "files": [
+        "usr/lib/libpng16.so.16"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxcb-1.17.0-r0.apk",
+      "sha256": "b46b8cbf0098fc320ebb6d29ed3df47516b5b45c06a5aeee363078c5b7781447",
+      "files": [
+        "usr/lib/libxcb.so.1"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxau-1.0.12-r0.apk",
+      "sha256": "cc1cb2d10587aa1ab850ac881f3223574555bf7acf7bce5e3c46d2c95534e95c",
+      "files": [
+        "usr/lib/libXau.so.6"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libxdmcp-1.1.5-r1.apk",
+      "sha256": "2d26da8177d27a870067eba372ef0c01b0229e10a084b5d58449f094068255e7",
+      "files": [
+        "usr/lib/libXdmcp.so.6"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libbsd-0.12.2-r0.apk",
+      "sha256": "22f0a114fb8cbe8d828f48b9fe44f0119d7131fcfa5370c9841b017f2f678137",
+      "files": [
+        "usr/lib/libbsd.so.0"
+      ]
+    },
+    {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libmd-1.1.0-r0.apk",
+      "sha256": "47294e0d7bf7763ae4e22f49b1bd6ee8fc3cd0af1b86e1cc8a5a352abd4e8d08",
+      "files": [
+        "usr/lib/libmd.so.0"
+      ]
+    }
+  ]
 }
