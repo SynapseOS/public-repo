@@ -12,7 +12,19 @@ linkpaths+=":$probe/usr/lib:$BUILD_ROOT/weston/payload/usr/lib/weston/runtime"
 mkdir -p "$payload/usr/libexec/qt6" "$payload/usr/share/applications"
 cp "$port/synapse-store.desktop" "$payload/usr/share/applications/synapse-store.desktop"
 
-bash "$ROOT/build/cxx-shared.sh" \
+cxx=(bash "$ROOT/build/cxx-shared.sh")
+launcher_flags=()
+if [[ $TARGET_ARCH == aarch64 ]]; then
+    probe=${ARM64_DESKTOP_SYSROOT:-$probe}
+    gcc_object=$(find "$probe/usr/lib/gcc/aarch64-alpine-linux-musl" -name crtbeginS.o -print -quit)
+    test -f "$gcc_object"
+    cxx=("${ARM64_CXX:-clang++}" --target=aarch64-alpine-linux-musl "--sysroot=$probe"
+         "--gcc-install-dir=$(dirname "$gcc_object")" -fuse-ld=lld -fPIC -pie)
+    linkpaths="$probe/usr/lib:$probe/lib"
+    launcher_flags+=('-DQT_APP_LIBRARY_PATH="/usr/lib/synapse-files:"')
+fi
+
+"${cxx[@]}" \
 	-std=c++20 -O2 -Wall -Wextra -Werror \
 	-I"$probe/usr/include/qt6" \
 	-I"$probe/usr/include/qt6/QtWidgets" \
@@ -23,7 +35,7 @@ bash "$ROOT/build/cxx-shared.sh" \
 	-lQt6Widgets -lQt6Gui -lQt6Core -lQt6DBus \
 	-o "$payload/usr/libexec/qt6/synapse-store"
 
-"$CC" -O2 -Wall -Wextra -Werror -Wl,--build-id=none \
+"$CC" "${launcher_flags[@]}" -O2 -Wall -Wextra -Werror -Wl,--build-id=none \
 	"-DAPPLICATION_PATH=\"/usr/libexec/qt6/synapse-store\"" \
 	"$ROOT/pkgs/qt6-base/launch.c" -o "$payload/bin/synapse-store"
 

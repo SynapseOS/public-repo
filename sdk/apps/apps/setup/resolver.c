@@ -5,7 +5,7 @@
 // Построение плана установки с учётом конфликтов и установленных версий
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 13.11.2026
+// Последнее изменение: 21.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -242,9 +242,18 @@ static int search(void) {
         fail("dependency search limit exceeded");
     }
 
-    for (int i = 0; i < nselected; i++) {
-        if (!constraints(selected[i])) {
-            return 0;
+    // Ранее выбранные пакеты совместимы. Новый кандидат уже прошёл constraints()
+    // до добавления, теперь проверить его зависимости на выбранные версии.
+    if (nselected) {
+        const struct package *last = selected[nselected - 1];
+        for (int d = 0; d < last->ndep; ++d) {
+            char name[64];
+            const char *constraint;
+            dependency(last->dep[d], name, &constraint);
+            int index = lookup(name);
+            if (index >= 0 && !satisfies(selected[index]->version, constraint)) {
+                return 0;
+            }
         }
     }
     if (conflicts()) {
@@ -273,7 +282,8 @@ static int search(void) {
         }
     }
     if (!*missing) {
-        int colors[MAXPKG] = {0};
+        static int colors[MAXPKG];
+        memset(colors, 0, sizeof colors);
         for (int i = 0; i < nselected; i++) {
             if (cycle_visit(i, colors)) {
                 return 0;
@@ -285,12 +295,8 @@ static int search(void) {
         fail("too many packages in plan");
     }
 
-    struct package *candidates[MAXPKG + 1];
-    int n = 0;
     struct package *old = oldpkg(missing);
-    if (old) {
-        candidates[n++] = old;
-    }
+    int matches = 0;
 
     int priority = -1;
     for (int i = 0; i < navailable; i++) {
@@ -302,7 +308,22 @@ static int search(void) {
         int pr = repos[p->repo].priority;
         if (pr > priority) {
             priority = pr;
+            matches = 0;
         }
+        if (pr == priority) {
+            matches++;
+        }
+    }
+    if (!old && !matches) {
+        return 0;
+    }
+    struct package **candidates = calloc((size_t)matches + (old != NULL), sizeof *candidates);
+    if (!candidates) {
+        fail("out of memory");
+    }
+    int n = 0;
+    if (old) {
+        candidates[n++] = old;
     }
 
     for (int i = 0; i < navailable; i++) {
@@ -360,10 +381,12 @@ static int search(void) {
         }
         selected[nselected++] = p;
         if (search()) {
+            free(candidates);
             return 1;
         }
         nselected--;
     }
+    free(candidates);
     return 0;
 }
 void solve(int argc, char **argv, int upgrade) {

@@ -11,7 +11,7 @@ export LIBS="-L$ncurses/lib -lncursesw" CPPFLAGS="-I$ncurses/include" PKG_CONFIG
 
 (
 	cd "$source" &&
-		./configure --host=x86_64-linux-musl --build=x86_64-linux-gnu --prefix=/usr \
+		./configure --host="$TARGET_ARCH-linux-musl" --build="$(gcc -dumpmachine)" --prefix=/usr \
 			--disable-pam --disable-utmp --disable-telnet
 )
 

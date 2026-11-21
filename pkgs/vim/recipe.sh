@@ -14,7 +14,7 @@ export PKG_CONFIG=false
 
 (
     cd "$source/src" &&
-        ./configure --host=x86_64-linux-musl --build=x86_64-linux-gnu --prefix=/usr \
+        ./configure --host="$TARGET_ARCH-linux-musl" --build="$(gcc -dumpmachine)" --prefix=/usr \
             --with-features=normal --enable-gui=no --without-x --disable-nls \
             --disable-gpm --disable-selinux --disable-xattr --with-tlib=ncursesw
 )

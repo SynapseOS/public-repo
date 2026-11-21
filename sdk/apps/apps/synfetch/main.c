@@ -302,13 +302,6 @@ static int get_packages(void) {
 }
 
 static void get_disk_usage(char *buf, size_t len) {
-    // В этой версии не используем поля statfs для вывода ёмкости диска
-    struct utsname u;
-    if (uname(&u) == 0 && !strcmp(u.sysname, "SynapseOS")) {
-        snprintf(buf, len, "N/A (filesystem statistics unavailable)");
-        return;
-    }
-
     struct statvfs stat;
     if (statvfs("/", &stat) == 0) {
         unsigned long total = (stat.f_blocks * stat.f_frsize) / (1024 * 1024);

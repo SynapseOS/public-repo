@@ -7,6 +7,12 @@
 # Статус доступа: общедоступный
 
 prepare
+host_triplet=x86_64-linux-musl
+strip_tool=strip
+if [[ $TARGET_ARCH == aarch64 ]]; then
+    host_triplet=aarch64-linux-musl
+    strip_tool=${ARM64_STRIP:-llvm-strip}
+fi
 
 ncurses="$SDK/apps/apps/common/ncurses/install"
 if [[ ! -f "$ncurses/lib/libncursesw.a" ]]; then
@@ -25,7 +31,7 @@ mkdir -p "$stage"
 	CFLAGS="-O2 -ffunction-sections -fdata-sections" \
 	LDFLAGS="-static -Wl,--gc-sections -L$ncurses/lib" \
 	LIBS="-lncursesw" \
-		./configure --host=x86_64-linux-musl --build=x86_64-linux-gnu \
+		./configure --host="$host_triplet" --build=x86_64-linux-gnu \
 			--prefix=/usr --bindir=/bin --disable-dynamic --enable-multibyte \
 			--enable-libc-musl --with-term-lib=ncursesw
 
@@ -46,7 +52,7 @@ if [[ ! -f "$stage/bin/zsh" ]]; then
 fi
 
 copy "$stage/bin/zsh" bin/zsh
-strip --strip-debug "$payload/bin/zsh"
+"$strip_tool" --strip-debug "$payload/bin/zsh"
 copy "$port/zshrc" etc/zshrc
 
 while IFS= read -r -d '' file; do

@@ -97,10 +97,19 @@ $(BUILD_ROOT)/qt6-llvm-runtime/.built: $(ROOT)/pkgs/qt6-base/runtime.sh
 $(BUILD_ROOT)/qt6-base/.built: $(BUILD_ROOT)/weston/.built $(BUILD_ROOT)/opengl/.built $(BUILD_ROOT)/qt6-llvm-runtime/.built $(ROOT)/build/cxx-shared.sh
 $(BUILD_ROOT)/qt6-wayland/.built: $(BUILD_ROOT)/qt6-base/.built
 $(BUILD_ROOT)/synapse-files/.built: $(BUILD_ROOT)/qt6-wayland/.built $(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
+ifneq ($(and $(filter aarch64,$(TARGET_ARCH)),$(strip $(ARM64_DESKTOP_SYSROOT)),$(strip $(ARM64_DESKTOP_TREE))),)
+# Для уже подготовленного сеанса использовать его AArch64 SDK и приложения.
+QT_DESKTOP_INPUTS := $(ARM64_DESKTOP_SYSROOT)/usr/lib/libQt6Widgets.so $(ARM64_DESKTOP_SYSROOT)/usr/lib/libQt6Core.so
+$(BUILD_ROOT)/synapse-desktop/.built: $(QT_DESKTOP_INPUTS) $(ARM64_DESKTOP_TREE)/bin/synapse-files $(BUILD_ROOT)/synapse-store/.built $(ROOT)/pkgs/qt6-base/launch.c
+$(BUILD_ROOT)/synapse-store/.built: $(QT_DESKTOP_INPUTS) $(BUILD_ROOT)/setup/.built $(ROOT)/pkgs/qt6-base/launch.c
+$(BUILD_ROOT)/synapse-recorder-desktop/.built: $(QT_DESKTOP_INPUTS) $(ARM64_DESKTOP_SYSROOT)/usr/lib/libwayland-client.so $(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/pkgs/labwc/synapse-window-capture.xml $(ROOT)/pkgs/labwc/port.json
+else
 $(BUILD_ROOT)/synapse-desktop/.built: $(BUILD_ROOT)/synapse-files/.built $(BUILD_ROOT)/synapse-store/.built \
 	$(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
 $(BUILD_ROOT)/synapse-store/.built: $(BUILD_ROOT)/qt6-wayland/.built $(BUILD_ROOT)/setup/.built \
 	$(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
+$(BUILD_ROOT)/synapse-recorder-desktop/.built: $(BUILD_ROOT)/qt6-wayland/.built $(BUILD_ROOT)/labwc/.built $(ROOT)/pkgs/qt6-base/launch.c
+endif
 $(BUILD_ROOT)/go-runtime/.built: $(BUILD_ROOT)/go/.built
 go: $(BUILD_ROOT)/go-runtime/.built
 
@@ -108,4 +117,3 @@ $(BUILD_ROOT)/caddy/.built: $(BUILD_ROOT)/go-runtime/.built
 $(BUILD_ROOT)/prometheus/.built: $(BUILD_ROOT)/synapse-exporter/.built
 
 $(BUILD_ROOT)/synapse-recorder/.built: $(BUILD_ROOT)/zlib/.built
-$(BUILD_ROOT)/synapse-recorder-desktop/.built: $(BUILD_ROOT)/qt6-wayland/.built $(BUILD_ROOT)/labwc/.built $(ROOT)/pkgs/qt6-base/launch.c

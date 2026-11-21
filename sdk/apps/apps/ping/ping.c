@@ -1,10 +1,10 @@
 // ping.c: Запросы ICMP Echo
 // Автор: Елчинян Арен Артурович, 2026
-// Архитектура: x86_64, ABI: Linux (ELF64)
+// Архитектура: x86_64, AArch64, ABI: Linux (ELF64)
 //
 // Подсистема: Запросы ICMP Echo в пользовательском пространстве
 // Первое изменение в истории Git: 09.10.2026
-// Последнее изменение: 14.10.2026
+// Последнее изменение: 21.11.2026
 // Доступ: общедоступный
 
 // ICMP Echo для SynapseOS на musl
@@ -15,6 +15,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <stdint.h>
 #include <errno.h>
 #include <signal.h>
@@ -64,7 +65,7 @@ static double time_diff_ms(struct timeval *t1, struct timeval *t2) {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: ping <ip> [count]\n");
+        fprintf(stderr, "Usage: ping <host> [count]\n");
         return 1;
     }
 
@@ -76,22 +77,24 @@ int main(int argc, char **argv) {
         count = 10;
     }
 
-    uint32_t dst_ip = inet_addr(target);
-    if (dst_ip == INADDR_NONE) {
-        fprintf(stderr, "ping: invalid address '%s'\n", target);
+    struct addrinfo hints = {.ai_family = AF_INET, .ai_socktype = SOCK_DGRAM}, *addresses;
+    int error = getaddrinfo(target, NULL, &hints, &addresses);
+    if (error) {
+        fprintf(stderr, "ping: %s: %s\n", target, error == EAI_SYSTEM ? strerror(errno) : gai_strerror(error));
         return 1;
     }
+    struct sockaddr_in dst = *(struct sockaddr_in *)addresses->ai_addr;
+    freeaddrinfo(addresses);
 
-    int fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    int datagram = fd >= 0;
+    if (!datagram) {
+        fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    }
     if (fd < 0) {
         perror("ping: socket");
         return 1;
     }
-
-    struct sockaddr_in dst;
-    memset(&dst, 0, sizeof(dst));
-    dst.sin_family = AF_INET;
-    dst.sin_addr.s_addr = dst_ip;
 
     int seq = 0;
     int sent = 0, received = 0;
@@ -104,7 +107,7 @@ int main(int argc, char **argv) {
         seq++;
         sent++;
 
-        uint8_t pkt[64];
+        _Alignas(struct icmp_echo) uint8_t pkt[64];
         memset(pkt, 0, sizeof(pkt));
 
         struct icmp_echo *icmp = (struct icmp_echo *)pkt;
@@ -112,7 +115,7 @@ int main(int argc, char **argv) {
         icmp->code = 0;
         icmp->checksum = 0;
         icmp->id = (uint16_t)(getpid() & 0xFFFF);
-        icmp->seq = (uint16_t)seq;
+        icmp->seq = htons((uint16_t)seq);
 
         gettimeofday(&icmp->timestamp, NULL);
 
@@ -135,8 +138,6 @@ int main(int argc, char **argv) {
         socklen_t fromlen = sizeof(from);
         int got_reply = 0;
 
-        struct timeval start_wait;
-        gettimeofday(&start_wait, NULL);
 
         for (int attempt = 0; attempt < 200 && running; attempt++) {
             ssize_t n = recvfrom(fd, rbuf, sizeof(rbuf), MSG_DONTWAIT,
@@ -145,7 +146,7 @@ int main(int argc, char **argv) {
             if (n > 0) {
                 uint8_t *icmp_start = rbuf;
 
-                if ((rbuf[0] >> 4) == 4) {
+                if (!datagram && (rbuf[0] >> 4) == 4) {
                     int ihl = (rbuf[0] & 0x0F) * 4;
                     if (ihl < 20 || ihl > n) {
                         continue;
@@ -155,15 +156,17 @@ int main(int argc, char **argv) {
                 }
 
                 if (n >= (ssize_t)sizeof(struct icmp_echo)) {
-                    struct icmp_echo *reply = (struct icmp_echo *)icmp_start;
-                    if (reply->type == 0 &&
-                        reply->id == (uint16_t)(getpid() & 0xFFFF)) {
+                    struct icmp_echo reply;
+                    memcpy(&reply, icmp_start, sizeof(reply));
+                    if (from.sin_addr.s_addr == dst.sin_addr.s_addr && reply.type == 0 &&
+                        reply.code == 0 && reply.seq == htons((uint16_t)seq) &&
+                        (datagram || reply.id == (uint16_t)(getpid() & 0xFFFF))) {
                         struct timeval now;
                         gettimeofday(&now, NULL);
 
-                        double rtt = time_diff_ms(&reply->timestamp, &now);
+                        double rtt = time_diff_ms(&reply.timestamp, &now);
 
-                        printf("%d bytes from %s: icmp_seq=%d ttl=~64 time=%.3f ms\n",
+                        printf("%d bytes from %s: icmp_seq=%d time=%.3f ms\n",
                                (int)n, inet_ntoa(from.sin_addr), seq, rtt);
 
                         received++;
@@ -204,5 +207,5 @@ int main(int argc, char **argv) {
                max_rtt);
     }
 
-    return 0;
+    return received > 0 ? 0 : 1;
 }

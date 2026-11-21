@@ -5,7 +5,19 @@
 # Статус доступа: общедоступный
 
 prepare
-headers=$(gcc -print-file-name=include)
+host_triplet=x86_64-linux-musl
+strip_tool=strip
+if [[ $TARGET_ARCH == aarch64 ]]; then
+    host_triplet=aarch64-linux-musl
+    strip_tool=${ARM64_STRIP:-llvm-strip}
+fi
+openssl_target=linux-x86_64
+if [[ $TARGET_ARCH == aarch64 ]]; then
+    openssl_target=linux-aarch64
+    headers="$("${ARM64_CC:-clang}" --print-resource-dir)/include"
+else
+    headers=$(gcc -print-file-name=include)
+fi
 fetch "$(jq -r .openssl.source "$spec")" "$(jq -r .openssl.sha256 "$spec")" "$work/openssl.tar.gz"
 bsdtar -xf "$work/openssl.tar.gz" -C "$work"
 tls_source="$work/$(jq -r .openssl.source_directory "$spec")"
@@ -15,7 +27,7 @@ sed -i 's|#define X509_CERT_FILE OPENSSLDIR "/cert.pem"|#define X509_CERT_FILE "
 
 (
 	cd "$tls_source" &&
-		CFLAGS="-O2 -D__synapse__ -isystem $headers" LDFLAGS='' ./Configure linux-x86_64 \
+		CFLAGS="-O2 -D__synapse__ -isystem $headers" LDFLAGS='' ./Configure "$openssl_target" \
 			--prefix="$openssl" --libdir=lib --openssldir=/etc/ssl no-shared no-async no-asm no-dso no-engine \
 			no-tests no-module no-secure-memory -D__synapse__ -isystem "$headers"
 )
@@ -54,7 +66,7 @@ done
 
 (
 	cd "$source" &&
-		./configure --host=x86_64-linux-musl --build=x86_64-linux-gnu --prefix=/usr \
+		./configure --host="$host_triplet" --build=x86_64-linux-gnu --prefix=/usr \
 			--disable-shared --without-ensurepip --disable-test-modules --with-build-python="$host_python" \
 			--with-openssl="$openssl" --with-openssl-rpath=no --without-readline
 )
@@ -62,7 +74,7 @@ done
 grep -q 'MODULE__SQLITE3_STATE=yes' "$source/config.log"
 make -C "$source" -j"$JOBS" python pybuilddir.txt
 copy "$source/python" bin/python3
-strip --strip-debug "$payload/bin/python3"
+"$strip_tool" --strip-debug "$payload/bin/python3"
 copy "$port/pip.conf" etc/pip.conf
 wheel="$source/$(jq -r .pip_bootstrap.archive_member "$spec")"
 printf '%s  %s\n' "$(jq -r .pip_bootstrap.sha256 "$spec")" "$wheel" | sha256sum --check --status

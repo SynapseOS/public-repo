@@ -23,13 +23,13 @@ cat >"$work/cross.ini" <<CROSS
 [binaries]
 c = '$CC'
 ar = 'ar'
-strip = 'strip'
+strip = '${STRIP:-strip}'
 pkg-config = '/usr/bin/pkg-config'
 
 [host_machine]
 system = 'linux'
-cpu_family = 'x86_64'
-cpu = 'x86_64'
+cpu_family = '$TARGET_ARCH'
+cpu = '$TARGET_ARCH'
 endian = 'little'
 
 [properties]

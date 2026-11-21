@@ -11,7 +11,7 @@ prepare
 (
 	cd "$source"
 	CC="$CC" CFLAGS='-O2 -Werror -fPIC' CPPFLAGS='-D__synapse__' \
-		./configure --build=x86_64-linux-gnu --host=x86_64-linux-musl \
+		./configure --build="$(gcc -dumpmachine)" --host="$TARGET_ARCH-linux-musl" \
 			--prefix=/usr --disable-shared --enable-static \
 			--without-docbook --without-examples --without-tests \
 			--without-xmlwf

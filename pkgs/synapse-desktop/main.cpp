@@ -80,6 +80,13 @@ static const ApplicationEntry applications[] = {
 	{"Настройки", "Система", "/bin/synapse-desktop", "--settings", "/usr/share/weston/settings-icon.png"},
 	{"Магазин программ", "Система", "/bin/synapse-store", nullptr, "/usr/share/weston/synapse-logo.png"},
 	{"Монитор системы", "Система", "/bin/weston-terminal", "--shell=/bin/htop", nullptr},
+	{"Midnight Commander", "Система", "/bin/weston-terminal", "--shell=/bin/mc", nullptr},
+	{"Редактор nano", "Система", "/bin/weston-terminal", "--shell=/bin/nano", nullptr},
+	{"Занятое место (ncdu)", "Система", "/bin/weston-terminal", "--shell=/bin/ncdu", nullptr},
+	{"Python 3", "Система", "/bin/weston-terminal", "--shell=/bin/python3", nullptr},
+	{"Lua", "Система", "/bin/weston-terminal", "--shell=/bin/lua", nullptr},
+	{"SQLite", "Система", "/bin/weston-terminal", "--shell=/bin/sqlite3", nullptr},
+	{"Оболочка Zsh", "Система", "/bin/weston-terminal", "--shell=/bin/zsh", nullptr},
 	{"Mindustry", "Игры", "/bin/mindustry", nullptr, "/usr/share/weston/mindustry-icon.png"},
 	{"Настройки Android", "Система", "/bin/android-settings", "--settings", "/usr/share/weston/settings-icon.png"},
 	{"Запись экрана", "Мультимедиа", "/bin/recorder-desktop", nullptr, "/usr/share/icons/hicolor/128x128/apps/synapse-recorder.png"},
@@ -558,6 +565,8 @@ private:
 			QString group = QString::fromUtf8(entry.category);
 
 			if (!QFileInfo(QString::fromUtf8(entry.path)).isExecutable() ||
+			    (entry.argument && std::strncmp(entry.argument, "--shell=", 8) == 0 &&
+			     !QFileInfo(QString::fromUtf8(entry.argument + 8)).isExecutable()) ||
 			    !title.contains(query, Qt::CaseInsensitive) ||
 			    (category->currentRow() != 0 && category->currentItem()->text() != group)) {
 				continue;
