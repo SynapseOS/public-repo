@@ -78,6 +78,7 @@ typedef struct {
     int serial_consoles;
     int net_interface;
     char net_mode[16];
+    char power_profile[16];
     char net_ip[64];
     char net_subnet[64];
     char net_gateway[64];
@@ -217,6 +218,11 @@ static int synapse_config_handler(void *user, const char *section, const char *k
             strncpy(cfg->language, value, sizeof(cfg->language) - 1);
         } else if (strcmp(key, "Timezone") == 0) {
             strncpy(cfg->timezone, value, sizeof(cfg->timezone) - 1);
+        }
+    } else if (!strcmp(section, "Power") && !strcmp(key, "Profile")) {
+        if (!strcmp(value, "balanced") || !strcmp(value, "firmware") ||
+            !strcmp(value, "powersave") || !strcmp(value, "performance")) {
+            snprintf(cfg->power_profile, sizeof(cfg->power_profile), "%s", value);
         }
     } else if (strcmp(section, "Setup") == 0) {
         if (!strcmp(key, "CheckUpdates")) {
@@ -1753,6 +1759,16 @@ static int run_first_boot_setup(void) {
 
 static void apply_boot_session(syn_cfg_t *config) {
     // Выбор сессии в Limine действует на эту загрузку и не меняет settings.ini
+    if (config->power_profile[0]) {
+        int fd = open("/proc/power-profile", O_WRONLY | O_CLOEXEC);
+        size_t length = strlen(config->power_profile);
+        if (fd >= 0) {
+            if (write(fd, config->power_profile, length) != (ssize_t)length) {
+                perror("[init] CPU power profile");
+            }
+            close(fd);
+        }
+    }
     const char *session = getenv("SYNAPSE_SESSION");
     if (session && !strcmp(session, "console")) {
         config->desktop_enabled = 0;

@@ -1,6 +1,6 @@
 {
   "name": "synapse-desktop",
-  "version": "0.1.0-r27",
+  "version": "0.1.0-r28",
   "description": "SynapseOS application menu and graphical control center",
   "build_system": "recipe",
   "status": "experimental",

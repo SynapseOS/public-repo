@@ -52,6 +52,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <lumine/wifi.h>
+#include <synapse/gpu.h>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <cstdio>
@@ -89,6 +90,7 @@ static const ApplicationEntry applications[] = {
 	{"Оболочка Zsh", "Система", "/bin/weston-terminal", "--shell=/bin/zsh", nullptr},
 	{"Mindustry", "Игры", "/bin/mindustry", nullptr, "/usr/share/weston/mindustry-icon.png"},
 	{"Настройки Android", "Система", "/bin/android-settings", "--settings", "/usr/share/weston/settings-icon.png"},
+	{"Музыка VLC", "Мультимедиа", "/bin/vlc", nullptr, "/usr/share/icons/hicolor/48x48/apps/vlc.png"},
 	{"Запись экрана", "Мультимедиа", "/bin/recorder-desktop", nullptr, "/usr/share/icons/hicolor/128x128/apps/synapse-recorder.png"},
 	{"Камера", "Мультимедиа", "/bin/synapse-camera", nullptr, "/usr/share/icons/hicolor/128x128/apps/synapse-camera.png"},
 	{"Диктофон", "Мультимедиа", "/bin/synapse-dictaphone", nullptr, "/usr/share/icons/hicolor/128x128/apps/synapse-dictaphone.png"},
@@ -694,6 +696,7 @@ public:
 		addSubsystemsPage(tabs, subsystem);
 		addOnDemand(tabs, QStringLiteral("Сеть"), &SettingsWindow::buildNetworkPage);
 		addWifiPage(tabs);
+		addOnDemand(tabs, QStringLiteral("Электропитание"), &SettingsWindow::buildPowerPage);
 		addOnDemand(tabs, QStringLiteral("О системе"), &SettingsWindow::buildAboutPage);
 	}
 
@@ -804,6 +807,59 @@ private:
 		return true;
 	}
 
+    // Показать профиль, принятый ядром на этом процессоре
+    void buildPowerPage(QWidget *page) {
+        auto *form = new QFormLayout(page);
+        auto *choice = new QComboBox(page);
+        choice->addItem(QStringLiteral("Сбалансированный"), "balanced");
+        choice->addItem(QStringLiteral("Экономия энергии"), "powersave");
+        choice->addItem(QStringLiteral("Производительность"), "performance");
+        choice->addItem(QStringLiteral("Управление прошивкой"), "firmware");
+        form->addRow(QStringLiteral("Профиль процессора"), choice);
+        auto *apply = new QPushButton(QStringLiteral("Применить"), page);
+        auto *status = new QLabel(page);
+        status->setWordWrap(true);
+        form->addRow(apply);
+        form->addRow(status);
+        auto refresh = [=]() {
+            QFile report("/proc/power-profile");
+            QByteArray current, backend;
+            if (report.open(QIODevice::ReadOnly)) {
+                for (const auto &field : report.read(512).simplified().split(' ')) {
+                    if (field.startsWith("profile=")) current = field.mid(8);
+                    if (field.startsWith("backend=")) backend = field.mid(8);
+                }
+            }
+            bool supported = !backend.isEmpty() && backend != "unavailable";
+            choice->setCurrentIndex(choice->findData(QString::fromLatin1(current)));
+            choice->setEnabled(supported);
+            apply->setEnabled(supported);
+            status->setText(supported ? QStringLiteral("Драйвер: %1").arg(QString::fromLatin1(backend)) :
+                QStringLiteral("Драйвер управления частотой на этом процессоре недоступен"));
+            return current;
+        };
+        refresh();
+        connect(apply, &QPushButton::clicked, this, [=, this]() {
+            auto set = [](const QByteArray &profile) {
+                int fd = ::open("/proc/power-profile", O_WRONLY | O_CLOEXEC);
+                if (fd < 0) return false;
+                ssize_t count = ::write(fd, profile.constData(), static_cast<size_t>(profile.size()));
+                int error = errno;
+                ::close(fd);
+                errno = error;
+                return count == profile.size();
+            };
+            QByteArray value = choice->currentData().toByteArray();
+            QByteArray before = refresh();
+            if (!set(value)) {
+                status->setText(QStringLiteral("Не удалось применить профиль: %1").arg(QString::fromLocal8Bit(strerror(errno))));
+                return;
+            }
+            if (!writeSetting(this, "Power.Profile", QString::fromLatin1(value)) && !before.isEmpty()) set(before);
+            refresh();
+        });
+    }
+
 	// Добавить готовые темы Labwc с переключением в текущем сеансе
 	void buildAppearancePage(QWidget *page) {
 		QVBoxLayout *layout = new QVBoxLayout(page);
@@ -836,8 +892,12 @@ private:
 		resolution->addItems({QStringLiteral("800x600"),
 		                      QStringLiteral("1024x768"), QStringLiteral("1280x720"),
 		                      QStringLiteral("1280x800"), QStringLiteral("1600x900"),
-		                      QStringLiteral("1920x1080"), QStringLiteral("2560x1440"),
-		                      QStringLiteral("3840x2160")});
+		                      QStringLiteral("1920x1080")});
+        struct syn_gpu_info gpu = {};
+        int fd = ::open("/dev/fb0", O_RDONLY | O_CLOEXEC);
+        bool pi3 = fd >= 0 && ioctl(fd, SYN_FB_GPU_INFO, &gpu) == 0 && !strcmp(gpu.name, "BCM2837 VideoCore IV");
+        if (fd >= 0) ::close(fd);
+        if (!pi3) resolution->addItems({QStringLiteral("2560x1440"), QStringLiteral("3840x2160")});
 		const QString configuredResolution = readSetting(QStringLiteral("Display.Resolution"));
 		int selectedResolution = resolution->findText(configuredResolution);
 		resolution->setCurrentIndex(selectedResolution < 0 ? 0 : selectedResolution);

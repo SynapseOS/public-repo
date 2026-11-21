@@ -29,6 +29,8 @@ const struct setting_spec setting_specs[] = {
           SET_TEXT, 0, 0, "reboot"),
     FIELD(SYS, "System", "Timezone", "Timezone", "Часовой пояс", "Europe/Moscow", NULL,
           SET_TEXT, 0, 0, "reboot"),
+    FIELD(SYS, "Power", "Profile", "CPU power profile", "Профиль питания процессора", "balanced",
+          "balanced|firmware|powersave|performance", SET_CHOICE, 0, 0, "reboot"),
     FIELD(SYS, "Boot", "DefaultShell", "Default shell", "Оболочка консоли", "/bin/sh",
           "/bin/sh|/bin/bash|/bin/zsh", SET_CHOICE, 0, 0, "session"),
     FIELD(SYS, "Network", "Mode", "Network mode", "Режим сети", "DHCP", "DHCP|Static",

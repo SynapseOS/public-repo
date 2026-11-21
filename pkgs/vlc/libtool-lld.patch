@@ -1,0 +1,6 @@
+--- a/configure
++++ b/configure
+@@ -16584 +16584,2 @@
+-      if $LD --help 2>&1 | $EGREP ': supported targets:.* elf' > /dev/null \
++      if { $LD --help 2>&1 | $EGREP ': supported targets:.* elf' > /dev/null ||
++           $LD --version 2>&1 | $GREP '^LLD ' > /dev/null; } \

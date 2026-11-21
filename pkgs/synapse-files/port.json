@@ -1,6 +1,6 @@
 {
   "name": "synapse-files",
-  "version": "0.1.0-r5",
+  "version": "0.1.0-r6",
   "description": "Graphical file manager for SynapseOS Desktop",
   "implib_source": "https://codeload.github.com/yugr/Implib.so/tar.gz/a3e167cf978a5b8a38ec0f710d8c4331e8dcdd9a",
   "implib_sha256": "c4fdcae8a6a7db45eb636e5b862be3da914e666d66a803944aedbeeefe0c70aa",

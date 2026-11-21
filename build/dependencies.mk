@@ -101,11 +101,13 @@ ifneq ($(and $(filter aarch64,$(TARGET_ARCH)),$(strip $(ARM64_DESKTOP_SYSROOT)),
 # Для уже подготовленного сеанса использовать его AArch64 SDK и приложения.
 QT_DESKTOP_INPUTS := $(ARM64_DESKTOP_SYSROOT)/usr/lib/libQt6Widgets.so $(ARM64_DESKTOP_SYSROOT)/usr/lib/libQt6Core.so
 $(BUILD_ROOT)/synapse-desktop/.built: $(QT_DESKTOP_INPUTS) $(ARM64_DESKTOP_TREE)/bin/synapse-files $(BUILD_ROOT)/synapse-store/.built $(ROOT)/pkgs/qt6-base/launch.c
+$(BUILD_ROOT)/vlc/.built: $(QT_DESKTOP_INPUTS) $(ROOT)/pkgs/qt6-base/launch.c
 $(BUILD_ROOT)/synapse-store/.built: $(QT_DESKTOP_INPUTS) $(BUILD_ROOT)/setup/.built $(ROOT)/pkgs/qt6-base/launch.c
 $(BUILD_ROOT)/synapse-recorder-desktop/.built: $(QT_DESKTOP_INPUTS) $(ARM64_DESKTOP_SYSROOT)/usr/lib/libwayland-client.so $(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/pkgs/labwc/synapse-window-capture.xml $(ROOT)/pkgs/labwc/port.json
 else
 $(BUILD_ROOT)/synapse-desktop/.built: $(BUILD_ROOT)/synapse-files/.built $(BUILD_ROOT)/synapse-store/.built \
 	$(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
+$(BUILD_ROOT)/vlc/.built: $(BUILD_ROOT)/qt6-wayland/.built $(ROOT)/build/cxx-shared.sh $(ROOT)/pkgs/qt6-base/launch.c
 $(BUILD_ROOT)/synapse-store/.built: $(BUILD_ROOT)/qt6-wayland/.built $(BUILD_ROOT)/setup/.built \
 	$(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
 $(BUILD_ROOT)/synapse-recorder-desktop/.built: $(BUILD_ROOT)/qt6-wayland/.built $(BUILD_ROOT)/labwc/.built $(ROOT)/pkgs/qt6-base/launch.c

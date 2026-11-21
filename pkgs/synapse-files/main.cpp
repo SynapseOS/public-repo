@@ -28,6 +28,7 @@
 #include <QPixmap>
 #include <QPalette>
 #include <QPushButton>
+#include <QProcess>
 #include <QScrollArea>
 #include <QShortcut>
 #include <QSplitter>
@@ -364,6 +365,14 @@ private:
 		}
 
 		if (!info.isFile()) {
+			return;
+		}
+
+		static const QStringList music = {"mp3", "m4a", "aac", "wav"};
+		if (music.contains(info.suffix().toLower()) && QFileInfo("/bin/vlc").isExecutable()) {
+			if (!QProcess::startDetached("/bin/vlc", {info.absoluteFilePath()})) {
+				QMessageBox::warning(this, info.fileName(), QStringLiteral("Не удалось запустить VLC"));
+			}
 			return;
 		}
 

@@ -262,6 +262,10 @@
       "upstream_license": null
     },
     {
+      "name": "vlc",
+      "upstream_license": "GPL-2.0-or-later AND LGPL-2.1-or-later"
+    },
+    {
       "name": "wget",
       "upstream_license": null
     },
