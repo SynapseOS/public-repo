@@ -74,6 +74,9 @@ const struct setting_spec setting_specs[] = {
     FIELD(SYS, "Display", "Resolution", "Display resolution", "Разрешение экрана", "auto",
           "auto|800x600|1024x768|1280x720|1280x800|1600x900|1920x1080|2560x1440|3840x2160",
           SET_CHOICE, 0, 0, "live"),
+    FIELD(SYS, "LanDiscovery", "Enabled", "LAN device discovery and sharing",
+          "Обнаружение и обмен с устройствами в локальной сети", "0", NULL, SET_BOOL, 0, 1,
+          "live"),
 
     FIELD(SYS, "DataConsent", "Token", "", "", "", NULL, SET_TEXT, 0, 0, "internal"),
     FIELD(SYS, "DataConsent", "State", "", "", "none", "none|pending|active|revoking|revoked",

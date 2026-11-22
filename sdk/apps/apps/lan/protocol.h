@@ -14,6 +14,10 @@
 #define LAN_QUERY_SIZE 24
 #define LAN_REPLY_SIZE 104
 
+// Обмен сообщениями и файлами идёт по TCP на LAN_TCP_PORT из lan.c
+// Заголовок: SYNLAN2 <команда> <slen> <nlen> <size>\n затем sender, имя и данные
+// Команда MSG читает текст из size байт, FILE читает имя из nlen и данные из size
+
 // Размер сообщения фиксирован, nonce копируется без изменений. Текст соседа требует
 // очистки
 static int lan_query_valid(const unsigned char *p, size_t n) {

@@ -1582,6 +1582,7 @@ public:
 		addOnDemand(tabs, QStringLiteral("Приватность"), &SettingsWindow::buildPrivacyPage);
 		discoverSubsystems(tabs, subsystem);
 		addOnDemand(tabs, QStringLiteral("Сеть"), &SettingsWindow::buildNetworkPage);
+		addOnDemand(tabs, QStringLiteral("Локальная сеть"), &SettingsWindow::buildLanPage);
 		addWifiPage(tabs);
 		addOnDemand(tabs, QStringLiteral("Электропитание"), &SettingsWindow::buildPowerPage);
 		addOnDemand(tabs, QStringLiteral("Звук"), &SettingsWindow::buildSoundPage);
@@ -1644,7 +1645,8 @@ private:
 
 	// Назначить разделу одну из постоянных групп боковой панели
 	static QString sectionGroup(const QString &title) {
-		if (title == QStringLiteral("Сеть") || title == QStringLiteral("Wi-Fi")) {
+		if (title == QStringLiteral("Сеть") || title == QStringLiteral("Wi-Fi") ||
+		    title == QStringLiteral("Локальная сеть")) {
 			return QStringLiteral("Сеть и связь");
 		}
 		if (title == QStringLiteral("Электропитание") || title == QStringLiteral("Звук")) {
@@ -2998,6 +3000,123 @@ private:
 				return;
 			}
 			writeSetting(this, QStringLiteral("DNS.2"), dnsSecond->text());
+		});
+	}
+
+	// Управление обнаружением устройств и обменом в локальной сети
+	void buildLanPage(QWidget *page) {
+		QVBoxLayout *layout = new QVBoxLayout(page);
+		QCheckBox *enabled = new QCheckBox(QStringLiteral("Обнаружение и обмен с устройствами SynapseOS"), page);
+		enabled->setChecked(readSetting(QStringLiteral("LanDiscovery.Enabled")) == QStringLiteral("1"));
+		layout->addWidget(enabled);
+
+		QHBoxLayout *buttons = new QHBoxLayout();
+		QPushButton *scan = new QPushButton(QStringLiteral("Найти устройства"), page);
+		QPushButton *message = new QPushButton(QStringLiteral("Сообщение..."), page);
+		QPushButton *sendFile = new QPushButton(QStringLiteral("Отправить файл..."), page);
+		QPushButton *inbox = new QPushButton(QStringLiteral("Входящие"), page);
+		buttons->addWidget(scan);
+		buttons->addWidget(message);
+		buttons->addWidget(sendFile);
+		buttons->addWidget(inbox);
+		layout->addLayout(buttons);
+
+		QListWidget *devices = new QListWidget(page);
+		devices->setMinimumHeight(160);
+		layout->addWidget(devices);
+
+		QLabel *note = new QLabel(QStringLiteral(
+		    "Устройство видно соседям, когда настройка включена на обоих. "
+		    "Принятые файлы и сообщения лежат в /var/spool/lan/inbox."), page);
+		note->setWordWrap(true);
+		layout->addWidget(note);
+		layout->addStretch();
+
+		connect(enabled, &QCheckBox::toggled, this, [this](bool on) {
+			writeSetting(this, QStringLiteral("LanDiscovery.Enabled"),
+			             on ? QStringLiteral("1") : QStringLiteral("0"));
+		});
+
+		auto runLan = [](const QStringList &args, QString &out) -> bool {
+			QProcess process;
+			process.start(QStringLiteral("/bin/lan"), args);
+			if (!process.waitForStarted(5000) || !process.waitForFinished(30000)) {
+				process.kill();
+				return false;
+			}
+			out = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+			return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+		};
+
+		auto selectedIp = [devices]() -> QString {
+			auto *item = devices->currentItem();
+			return item ? item->data(Qt::UserRole).toString() : QString();
+		};
+
+		connect(scan, &QPushButton::clicked, this, [this, devices, runLan]() {
+			devices->clear();
+			QString out;
+			if (!runLan({QStringLiteral("scan")}, out)) {
+				QMessageBox::warning(this, QStringLiteral("Локальная сеть"),
+				                     QStringLiteral("Не удалось выполнить поиск устройств"));
+				return;
+			}
+			const QStringList lines = out.split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+			for (const QString &line : lines) {
+				const QString trimmed = line.trimmed();
+				const qsizetype split = trimmed.indexOf(QStringLiteral("  "));
+				if (split <= 0 || !trimmed.contains(QStringLiteral("SynapseOS"))) {
+					continue;
+				}
+				auto *item = new QListWidgetItem(trimmed, devices);
+				item->setData(Qt::UserRole, trimmed.left(split).trimmed());
+			}
+		});
+
+		connect(message, &QPushButton::clicked, this, [this, selectedIp, runLan]() {
+			const QString ip = selectedIp();
+			if (ip.isEmpty()) {
+				QMessageBox::information(this, QStringLiteral("Локальная сеть"),
+				                         QStringLiteral("Сначала найдите устройство"));
+				return;
+			}
+			bool accepted = false;
+			QString text = QInputDialog::getText(this, QStringLiteral("Сообщение в локальной сети"),
+			    QStringLiteral("Текст для %1:").arg(ip), QLineEdit::Normal, QString(), &accepted);
+			if (!accepted || text.isEmpty()) {
+				return;
+			}
+			QString out;
+			if (!runLan({QStringLiteral("msg"), ip, text}, out)) {
+				QMessageBox::warning(this, QStringLiteral("Локальная сеть"),
+				                     QStringLiteral("Сообщение не доставлено"));
+			}
+		});
+
+		connect(sendFile, &QPushButton::clicked, this, [this, selectedIp, runLan]() {
+			const QString ip = selectedIp();
+			if (ip.isEmpty()) {
+				QMessageBox::information(this, QStringLiteral("Локальная сеть"),
+				                         QStringLiteral("Сначала найдите устройство"));
+				return;
+			}
+			const QString path = QFileDialog::getOpenFileName(this,
+			    QStringLiteral("Файл для отправки"));
+			if (path.isEmpty()) {
+				return;
+			}
+			QString out;
+			if (!runLan({QStringLiteral("send"), ip, path}, out)) {
+				QMessageBox::warning(this, QStringLiteral("Локальная сеть"),
+				                     QStringLiteral("Файл не доставлен"));
+			}
+		});
+
+		connect(inbox, &QPushButton::clicked, this, [this, runLan]() {
+			QString out;
+			runLan({QStringLiteral("inbox")}, out);
+			QMessageBox::information(this, QStringLiteral("Входящие"),
+			                         out.isEmpty() ? QStringLiteral("Пусто") : out);
 		});
 	}
 

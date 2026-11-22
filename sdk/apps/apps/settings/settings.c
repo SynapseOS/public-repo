@@ -355,7 +355,8 @@ static int setting_category(int index) {
         return 1;
     }
 
-    if (!strcmp(section, "Network") || !strcmp(section, "DNS")) {
+    if (!strcmp(section, "Network") || !strcmp(section, "DNS") ||
+        !strcmp(section, "LanDiscovery")) {
         return 2;
     }
 
