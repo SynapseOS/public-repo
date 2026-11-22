@@ -1,7 +1,7 @@
 # recipe.sh: Собрать меню программ и графические настройки SynapseOS
 # Автор: Елчинян Арен Артурович, 2026, архитектуры x86_64 и AArch64, ABI musl
 # Подсистема: графические пакеты
-# Первое изменение: 25.10.2026, последнее изменение: 21.11.2026
+# Первое изменение: 25.10.2026, последнее изменение: 22.11.2026
 # Статус доступа: общедоступный
 
 probe="$BUILD_ROOT/qt6-base/stage"
@@ -28,6 +28,7 @@ fi
 	-I"$probe/usr/include/qt6/QtWidgets" \
 	-I"$probe/usr/include/qt6/QtGui" \
 	-I"$probe/usr/include/qt6/QtCore" \
+	-I"$probe/usr/include/qt6/QtDBus" \
 	"$port/main.cpp" -L"$probe/usr/lib" \
 	-Wl,-rpath-link,"$linkpaths" -Wl,--no-allow-shlib-undefined \
 	-lQt6Widgets -lQt6Gui -lQt6Core -lQt6DBus \

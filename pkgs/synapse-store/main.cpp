@@ -6,7 +6,7 @@
     Описание: Каталог программ SynapseOS и Flatpak с явным состоянием Debian
     Подсистема: графические программы
     Первое изменение: 01.11.2026
-    Последнее изменение: 21.11.2026
+    Последнее изменение: 23.11.2026
     Доступ: общедоступный
 */
 
@@ -27,6 +27,7 @@
 #include <QJsonParseError>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPalette>
@@ -41,6 +42,7 @@
 #include <QSharedPointer>
 #include <QStackedWidget>
 #include <QStringDecoder>
+#include <QStyle>
 #include <QTabBar>
 #include <QTableWidget>
 #include <QTemporaryFile>
@@ -199,33 +201,39 @@ static void clearSecret(QByteArray &secret) {
     secret.clear();
 }
 
-// Согласовать основные цвета магазина с выбранной темой рабочего стола
+// Применить общие цвета, текст и размеры штатного рабочего стола
 static void applyDesktopTheme() {
     QString path = QDir::homePath() + QStringLiteral("/.config/labwc/rc.xml");
     if (!QFileInfo::exists(path)) {
         path = QStringLiteral("/etc/xdg/labwc/rc.xml");
     }
-
     QFile file(path);
     const QString config = file.open(QIODevice::ReadOnly | QIODevice::Text)
-                               ? QString::fromUtf8(file.readAll())
-                               : QString();
-    const bool light = config.contains(QStringLiteral("<name>Arc-Clone</name>"));
+                               ? QString::fromUtf8(file.readAll()) : QString();
+    const bool classic = config.contains(QStringLiteral("<name>synapse-classic</name>"));
+    const bool light = classic || config.contains(QStringLiteral("<name>Arc-Clone</name>")) ||
+                       config.contains(QStringLiteral("<name>Synapse-Light</name>"));
     const bool penumbra = config.contains(QStringLiteral("<name>Penumbra</name>"));
     const bool numix = config.contains(QStringLiteral("<name>Numix-Clone</name>"));
-    const QColor background(light ? QStringLiteral("#e7e9ed") :
-                            penumbra ? QStringLiteral("#243842") :
-                            numix ? QStringLiteral("#303238") : QStringLiteral("#1b2027"));
-    const QColor base(light ? QStringLiteral("#ffffff") :
-                      penumbra ? QStringLiteral("#1b2e37") :
-                      numix ? QStringLiteral("#26282d") : QStringLiteral("#141920"));
-    const QColor surface(light ? QStringLiteral("#d9e0e7") :
-                         penumbra ? QStringLiteral("#304b57") :
-                         numix ? QStringLiteral("#41434a") : QStringLiteral("#29333d"));
-    const QColor foreground(light ? QStringLiteral("#202a34") : QStringLiteral("#f3f4f5"));
-    const QColor accent(numix ? QStringLiteral("#d65d3a") :
-                        penumbra ? QStringLiteral("#769fb4") : QStringLiteral("#4388c5"));
-
+    QColor background(classic ? QStringLiteral("#f4f3ec") : light ? QStringLiteral("#e7e9ed") :
+        penumbra ? QStringLiteral("#243842") : numix ? QStringLiteral("#303238") : QStringLiteral("#1b2027"));
+    QColor base(classic || light ? QStringLiteral("#ffffff") : penumbra ? QStringLiteral("#1b2e37") :
+        numix ? QStringLiteral("#26282d") : QStringLiteral("#141920"));
+    QColor surface(classic ? QStringLiteral("#e3e8e9") : light ? QStringLiteral("#d9e0e7") :
+        penumbra ? QStringLiteral("#304b57") : numix ? QStringLiteral("#41434a") : QStringLiteral("#29333d"));
+    QColor foreground(classic ? QStringLiteral("#17333c") : light ? QStringLiteral("#202a34") : QStringLiteral("#f3f4f5"));
+    QColor accent(classic ? QStringLiteral("#006f8f") : numix ? QStringLiteral("#d65d3a") :
+        penumbra ? QStringLiteral("#769fb4") : QStringLiteral("#4388c5"));
+    QSettings preferences(QStringLiteral("SynapseOS"), QStringLiteral("Desktop"));
+    const QStringList keys = {QStringLiteral("background"), QStringLiteral("base"), QStringLiteral("surface"),
+                              QStringLiteral("foreground"), QStringLiteral("accent")};
+    QList<QColor *> colors = {&background, &base, &surface, &foreground, &accent};
+    for (int index = 0; index < colors.size(); ++index) {
+        const QColor configured(preferences.value(QStringLiteral("appearance/") + keys[index]).toString());
+        if (configured.isValid()) {
+            *colors[index] = configured;
+        }
+    }
     QPalette palette;
     palette.setColor(QPalette::Window, background);
     palette.setColor(QPalette::WindowText, foreground);
@@ -236,7 +244,24 @@ static void applyDesktopTheme() {
     palette.setColor(QPalette::ButtonText, foreground);
     palette.setColor(QPalette::Highlight, accent);
     palette.setColor(QPalette::HighlightedText, QColor(QStringLiteral("#ffffff")));
+    QApplication::setStyle(QStringLiteral("Fusion"));
     QApplication::setPalette(palette);
+    QFont font = QApplication::font();
+    font.setFamily(preferences.value(QStringLiteral("appearance/font-family"), font.family()).toString());
+    font.setPointSize(preferences.value(QStringLiteral("appearance/font-size"), 10).toInt());
+    QApplication::setFont(font);
+    const int radius = preferences.value(QStringLiteral("appearance/corner-radius"), classic ? 0 : 7).toInt();
+    const int padding = preferences.value(QStringLiteral("appearance/padding"), 6).toInt();
+    qApp->setStyleSheet(QStringLiteral(
+        "QLineEdit, QListWidget, QComboBox, QPlainTextEdit, QTableWidget { background-color: %2; color: %4;"
+        " border: 1px solid %3; border-radius: %6px; padding: %7px; }"
+        "QPushButton, QToolButton { background-color: %3; color: %4; border: 1px solid %3;"
+        " border-radius: %6px; padding: %7px 12px; }"
+        "QPushButton:hover, QToolButton:hover { background-color: %5; color: white; }"
+        "QListWidget::item:selected, QTableWidget::item:selected { background-color: %5; color: white; }"
+        "QHeaderView::section { background-color: %3; color: %4; border: 0; padding: 7px; }")
+        .arg(background.name(), base.name(), surface.name(), foreground.name(), accent.name())
+        .arg(radius).arg(padding));
 }
 
 class StoreWindow final : public QMainWindow {
@@ -258,15 +283,15 @@ class StoreWindow final : public QMainWindow {
         layout->setContentsMargins(20, 16, 20, 16);
         layout->setSpacing(10);
 
-        tabs_ = new QTabBar(central);
-        tabs_->setExpanding(false);
-        tabs_->addTab(QStringLiteral("Все"));
-        tabs_->addTab(QStringLiteral("SynapseOS"));
-        tabs_->addTab(QStringLiteral("Flathub"));
-        tabs_->addTab(QStringLiteral("Debian"));
-        tabs_->addTab(QStringLiteral("Установленные"));
-        tabs_->addTab(QStringLiteral("Настройки"));
-        layout->addWidget(tabs_);
+        tabs_ = new QListWidget(central);
+        tabs_->setFixedWidth(190);
+        tabs_->setUniformItemSizes(true);
+        tabs_->addItems({QStringLiteral("Обзор"), QStringLiteral("SynapseOS"), QStringLiteral("Flathub"),
+                         QStringLiteral("Debian"), QStringLiteral("Установленные"), QStringLiteral("Обновления"),
+                         QStringLiteral("Настройки")});
+        tabs_->setIconSize(QSize(22, 22));
+        tabs_->setSpacing(4);
+        tabs_->setCurrentRow(0);
 
         pages_ = new QStackedWidget(central);
         auto *catalogPage = new QWidget(pages_);
@@ -291,6 +316,9 @@ class StoreWindow final : public QMainWindow {
 
         refresh_ = new QPushButton(QStringLiteral("Обновить список"), catalogPage);
         controls->addWidget(refresh_);
+        prepareAll_ = new QPushButton(QStringLiteral("Подготовить всё"), catalogPage);
+        prepareAll_->setToolTip(QStringLiteral("Обновить индекс, установить APT и Flatpak, подключить источники"));
+        controls->addWidget(prepareAll_);
         catalogLayout->addLayout(controls);
 
         table_ = new QTableWidget(catalogPage);
@@ -315,12 +343,22 @@ class StoreWindow final : public QMainWindow {
         detail_ = new QLabel(catalogPage);
         detail_->setWordWrap(true);
         detail_->setTextFormat(Qt::PlainText);
+        detail_->setMinimumHeight(92);
+        detail_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        detail_->setStyleSheet(QStringLiteral("QLabel { padding: 12px; border: 1px solid palette(mid);"
+                                               " border-radius: %1px; background: palette(base); }")
+            .arg(QSettings(QStringLiteral("SynapseOS"), QStringLiteral("Desktop"))
+                .value(QStringLiteral("appearance/corner-radius"), 0).toInt()));
         catalogLayout->addWidget(detail_);
         auto *actions = new QHBoxLayout();
         status_ = new QLabel(catalogPage);
         actions->addWidget(status_, 1);
+        remove_ = new QPushButton(QStringLiteral("Удалить"), catalogPage);
+        remove_->setEnabled(false);
+        actions->addWidget(remove_);
         install_ = new QPushButton(QStringLiteral("Установить"), catalogPage);
         install_->setEnabled(false);
+        install_->setDefault(true);
         actions->addWidget(install_);
         catalogLayout->addLayout(actions);
 
@@ -336,7 +374,7 @@ class StoreWindow final : public QMainWindow {
         catalogLayout->addWidget(log_);
         auto *find = new QShortcut(QKeySequence::Find, this);
         connect(find, &QShortcut::activated, this, [this]() {
-            if (tabs_->currentIndex() == 5) tabs_->setCurrentIndex(0);
+            if (tabs_->currentRow() == 6) tabs_->setCurrentRow(0);
             search_->setFocus();
             search_->selectAll();
         });
@@ -356,6 +394,38 @@ class StoreWindow final : public QMainWindow {
         sourceLayout->addWidget(showDebian_);
         settingsLayout->addWidget(sources);
 
+        auto *behavior = new QGroupBox(QStringLiteral("Каталог и отображение"), settingsPage);
+        auto *behaviorLayout = new QVBoxLayout(behavior);
+        refreshOnOpen_ = new QCheckBox(QStringLiteral("Обновлять каталог при открытии магазина"), behavior);
+        refreshOnOpen_->setChecked(settings_.value(QStringLiteral("catalog/refresh-on-open"), true).toBool());
+        autoSearchDebian_ = new QCheckBox(QStringLiteral("Искать Debian-пакеты по мере ввода"), behavior);
+        autoSearchDebian_->setChecked(settings_.value(QStringLiteral("catalog/debian-auto-search"), true).toBool());
+        compactTable_ = new QCheckBox(QStringLiteral("Компактные строки таблицы"), behavior);
+        compactTable_->setChecked(settings_.value(QStringLiteral("catalog/compact-table"), false).toBool());
+        showDetails_ = new QCheckBox(QStringLiteral("Показывать описание выбранной программы"), behavior);
+        showDetails_->setChecked(settings_.value(QStringLiteral("catalog/show-details"), true).toBool());
+        behaviorLayout->addWidget(refreshOnOpen_);
+        behaviorLayout->addWidget(autoSearchDebian_);
+        behaviorLayout->addWidget(compactTable_);
+        behaviorLayout->addWidget(showDetails_);
+        settingsLayout->addWidget(behavior);
+        table_->verticalHeader()->setDefaultSectionSize(compactTable_->isChecked() ? 34 : 48);
+        detail_->setVisible(showDetails_->isChecked());
+        connect(refreshOnOpen_, &QCheckBox::toggled, this, [this](bool enabled) {
+            settings_.setValue(QStringLiteral("catalog/refresh-on-open"), enabled);
+        });
+        connect(autoSearchDebian_, &QCheckBox::toggled, this, [this](bool enabled) {
+            settings_.setValue(QStringLiteral("catalog/debian-auto-search"), enabled);
+        });
+        connect(compactTable_, &QCheckBox::toggled, this, [this](bool enabled) {
+            settings_.setValue(QStringLiteral("catalog/compact-table"), enabled);
+            table_->verticalHeader()->setDefaultSectionSize(enabled ? 34 : 48);
+        });
+        connect(showDetails_, &QCheckBox::toggled, this, [this](bool enabled) {
+            settings_.setValue(QStringLiteral("catalog/show-details"), enabled);
+            updateAction();
+        });
+
         auto *settingsNote = new QLabel(
             QStringLiteral("Категории определяются по названию и описанию программы. "
                            "Debian показывает только пакеты, проверенные для SynapseOS. "
@@ -366,6 +436,20 @@ class StoreWindow final : public QMainWindow {
         backendStatus_ = new QLabel(settingsPage);
         backendStatus_->setWordWrap(true);
         settingsLayout->addWidget(backendStatus_);
+
+        auto *plus = new QGroupBox(QStringLiteral("Synapse Plus"), settingsPage);
+        auto *plusLayout = new QVBoxLayout(plus);
+        plusStatus_ = new QLabel(QStringLiteral("Состояние подписки проверяется при обращении к серверу"), plus);
+        plusStatus_->setWordWrap(true);
+        plusStatus_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        plusLayout->addWidget(plusStatus_);
+        plusLogin_ = new QPushButton(QStringLiteral("Войти по одноразовому коду"), plus);
+        plusCheck_ = new QPushButton(QStringLiteral("Проверить аккаунт и подписку"), plus);
+        plusDisable_ = new QPushButton(QStringLiteral("Отключить Plus на этом компьютере"), plus);
+        plusLayout->addWidget(plusLogin_);
+        plusLayout->addWidget(plusCheck_);
+        plusLayout->addWidget(plusDisable_);
+        settingsLayout->addWidget(plus);
 
         updateSynapse_ = new QPushButton(QStringLiteral("Обновить индекс SynapseOS"), settingsPage);
         updateSynapse_->setEnabled(QFileInfo(QStringLiteral("/bin/setup")).isExecutable());
@@ -384,7 +468,10 @@ class StoreWindow final : public QMainWindow {
         settingsLayout->addWidget(settingsStatus_);
         settingsLayout->addStretch();
         pages_->addWidget(settingsPage);
-        layout->addWidget(pages_, 1);
+        auto *body = new QHBoxLayout();
+        body->addWidget(tabs_);
+        body->addWidget(pages_, 1);
+        layout->addLayout(body, 1);
 
         setCentralWidget(central);
 
@@ -397,24 +484,29 @@ class StoreWindow final : public QMainWindow {
         connect(updateSynapse_, &QPushButton::clicked, this, [this]() { updateSystemCatalog(false); });
         connect(prepareDebian_, &QPushButton::clicked, this, [this]() { updateSystemCatalog(true); });
         connect(category_, &QComboBox::currentIndexChanged, this, [this]() { renderCatalog(); });
-        connect(tabs_, &QTabBar::currentChanged, this, [this](int index) {
-            pages_->setCurrentIndex(index == 5 ? 1 : 0);
+        connect(tabs_, &QListWidget::currentRowChanged, this, [this](int index) {
+            pages_->setCurrentIndex(index == 6 ? 1 : 0);
             renderCatalog();
             if ((index == 0 || index == 3) && showDebian_->isChecked()) {
                 debianSearchTimer_->start();
             }
         });
-        const auto connectSource = [this](QCheckBox *check, Source source, const QString &key) {
-            connect(check, &QCheckBox::toggled, this, [this, source, key](bool enabled) {
+        const auto setSourceEnabled = [this](Source source, bool enabled) {
+            auto *item = tabs_->item(static_cast<int>(source) + 1);
+            if (item) {
+                item->setFlags(enabled ? item->flags() | Qt::ItemIsEnabled : item->flags() & ~Qt::ItemIsEnabled);
+            }
+        };
+        const auto connectSource = [this, setSourceEnabled](QCheckBox *check, Source source, const QString &key) {
+            connect(check, &QCheckBox::toggled, this, [this, setSourceEnabled, source, key](bool enabled) {
                 settings_.setValue(key, enabled);
-                if (!enabled && tabs_->currentIndex() == static_cast<int>(source) + 1) {
-                    tabs_->setCurrentIndex(0);
+                if (!enabled && tabs_->currentRow() == static_cast<int>(source) + 1) {
+                    tabs_->setCurrentRow(0);
                 }
-
-                tabs_->setTabEnabled(static_cast<int>(source) + 1, enabled);
+                setSourceEnabled(source, enabled);
                 refreshCatalogs();
             });
-            tabs_->setTabEnabled(static_cast<int>(source) + 1, check->isChecked());
+            setSourceEnabled(source, check->isChecked());
         };
         connectSource(showSynapse_, Source::Synapse, QStringLiteral("sources/synapse"));
         connectSource(showFlathub_, Source::Flathub, QStringLiteral("sources/flathub"));
@@ -422,17 +514,233 @@ class StoreWindow final : public QMainWindow {
         connect(search_, &QLineEdit::textChanged, this, [this]() {
             ++debianSearchGeneration_;
             renderCatalog();
-            if (showDebian_->isChecked() && (tabs_->currentIndex() == 0 || tabs_->currentIndex() == 3)) {
+            if (autoSearchDebian_->isChecked() && showDebian_->isChecked() &&
+                (tabs_->currentRow() == 0 || tabs_->currentRow() == 3)) {
                 debianSearchTimer_->start();
             }
         });
         connect(table_, &QTableWidget::itemSelectionChanged, this, [this]() { updateAction(); });
+        connect(table_, &QTableWidget::itemActivated, this, [this]() { installSelected(); });
         connect(install_, &QPushButton::clicked, this, [this]() { installSelected(); });
+        connect(remove_, &QPushButton::clicked, this, [this]() { removeSelected(); });
+        connect(prepareAll_, &QPushButton::clicked, this, &StoreWindow::prepareAll);
+        connect(plusLogin_, &QPushButton::clicked, this, &StoreWindow::plusLogin);
+        connect(plusCheck_, &QPushButton::clicked, this, [this]() { runPlus({QStringLiteral("auth"), QStringLiteral("status")}); });
+        connect(plusDisable_, &QPushButton::clicked, this, [this]() {
+            if (QMessageBox::question(this, QStringLiteral("Synapse Plus"),
+                QStringLiteral("Отключить приватный каталог Plus? Установленные пакеты сохранятся")) == QMessageBox::Yes) {
+                runPlus({QStringLiteral("plus"), QStringLiteral("disable")});
+            }
+        });
 
-        refreshCatalogs();
+        if (refreshOnOpen_->isChecked()) {
+            refreshCatalogs();
+        }
     }
 
   private:
+    // Войти в Plus по одноразовому коду из кабинета
+    void plusLogin() {
+        bool accepted = false;
+        QString code = QInputDialog::getText(this, QStringLiteral("Вход в Synapse Plus"),
+            QStringLiteral("12-значный код из https://synapseos.ru/lk/devices"), QLineEdit::Password,
+            QString(), &accepted).trimmed();
+        if (!accepted) {
+            return;
+        }
+        if (!QRegularExpression(QStringLiteral("^[0-9]{12}$")).match(code).hasMatch()) {
+            QMessageBox::warning(this, QStringLiteral("Synapse Plus"), QStringLiteral("Код должен содержать 12 цифр"));
+            code.fill(QChar(0));
+            return;
+        }
+        const QByteArray secret = code.toUtf8();
+        code.fill(QChar(0));
+        runPlus({QStringLiteral("auth")}, secret);
+    }
+
+    // Выполнить одну операцию аккаунта через setup или проверенную root-службу
+    void runPlus(const QStringList &arguments, const QByteArray &secret = QByteArray()) {
+        if (plusRunning_ || installing_ || !QFileInfo(QStringLiteral("/bin/setup")).isExecutable()) {
+            return;
+        }
+        plusRunning_ = true;
+        plusLogin_->setEnabled(false);
+        plusCheck_->setEnabled(false);
+        plusDisable_->setEnabled(false);
+        plusStatus_->setText(QStringLiteral("Выполняется операция Plus…"));
+        auto *process = new QProcess(this);
+        process->setProcessChannelMode(QProcess::MergedChannels);
+        auto input = QSharedPointer<QByteArray>::create();
+        if (geteuid() == 0) {
+            process->setProgram(QStringLiteral("/bin/setup"));
+            process->setArguments(arguments);
+            *input = secret;
+        } else {
+            bool accepted = false;
+            QString password = QInputDialog::getText(this, QStringLiteral("Права администратора"),
+                QStringLiteral("Пароль администратора"), QLineEdit::Password, QString(), &accepted);
+            if (!accepted || password.isEmpty()) {
+                password.fill(QChar(0));
+                plusRunning_ = false;
+                plusLogin_->setEnabled(true);
+                plusCheck_->setEnabled(true);
+                plusDisable_->setEnabled(true);
+                plusStatus_->setText(QStringLiteral("Операция отменена"));
+                process->deleteLater();
+                return;
+            }
+            *input = password.toUtf8() + "\n" + secret;
+            password.fill(QChar(0));
+            process->setProgram(QStringLiteral("/bin/synapse-store-control"));
+            process->setArguments(QStringList{QStringLiteral("--setup")} + arguments);
+        }
+        connect(process, &QProcess::started, this, [process, input]() {
+            if (!input->isEmpty()) {
+                process->write(*input);
+                process->closeWriteChannel();
+                clearSecret(*input);
+            }
+        });
+        connect(process, &QProcess::finished, this,
+                [this, process, arguments, input](int code, QProcess::ExitStatus result) {
+            clearSecret(*input);
+            const QString output = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
+            plusStatus_->setText(output.isEmpty() ? QStringLiteral("Операция завершена") : output);
+            plusRunning_ = false;
+            plusLogin_->setEnabled(true);
+            plusCheck_->setEnabled(true);
+            plusDisable_->setEnabled(true);
+            process->deleteLater();
+            if (code == 0 && result == QProcess::NormalExit && arguments.contains(QStringLiteral("auth")) &&
+                arguments.size() == 1) {
+                updateSystemCatalog(false);
+            } else {
+                refreshCatalogs();
+            }
+        });
+        connect(process, &QProcess::errorOccurred, this, [this, process, input](QProcess::ProcessError error) {
+            if (error != QProcess::FailedToStart) {
+                return;
+            }
+            clearSecret(*input);
+            plusRunning_ = false;
+            plusLogin_->setEnabled(true);
+            plusCheck_->setEnabled(true);
+            plusDisable_->setEnabled(true);
+            plusStatus_->setText(process->errorString());
+            process->deleteLater();
+        });
+        process->start();
+    }
+
+    // Подготовить все источники одной последовательной операцией
+    void prepareAll() {
+        if (installing_ || catalogUpdating_ || plusRunning_) {
+            return;
+        }
+        if (!QFileInfo(QStringLiteral("/bin/setup")).isExecutable()) {
+            QMessageBox::warning(this, QStringLiteral("Подготовка"), QStringLiteral("Пакет setup не установлен"));
+            return;
+        }
+        if (QMessageBox::question(this, QStringLiteral("Подготовка магазина"),
+            QStringLiteral("Обновить индекс, установить недостающие APT и Flatpak и подключить источники?")) !=
+            QMessageBox::Yes) {
+            return;
+        }
+        maintenancePassword_.clear();
+        if (geteuid() != 0) {
+            bool accepted = false;
+            QString password = QInputDialog::getText(this, QStringLiteral("Подготовка магазина"),
+                QStringLiteral("Пароль администратора"), QLineEdit::Password, QString(), &accepted);
+            if (!accepted || password.isEmpty()) {
+                password.fill(QChar(0));
+                return;
+            }
+            maintenancePassword_ = password.toUtf8();
+            password.fill(QChar(0));
+        }
+        installing_ = true;
+        maintenanceFailures_ = 0;
+        refresh_->setEnabled(false);
+        prepareAll_->setEnabled(false);
+        updateAction();
+        maintenanceQueue_.clear();
+        maintenanceQueue_.append({QStringLiteral("/bin/setup"), {QStringLiteral("update")}});
+        if (!QFileInfo(QStringLiteral("/bin/flatpak")).isExecutable()) {
+            maintenanceQueue_.append({QStringLiteral("/bin/setup"),
+                {QStringLiteral("install"), QStringLiteral("flatpak"), QStringLiteral("--yes")}});
+        }
+        if (!QFileInfo(QStringLiteral("/bin/debian-apt")).isExecutable()) {
+            maintenanceQueue_.append({QStringLiteral("/bin/setup"),
+                {QStringLiteral("install"), QStringLiteral("apt"), QStringLiteral("--yes")}});
+        }
+        maintenanceQueue_.append({QStringLiteral("/bin/flatpak"),
+            {QStringLiteral("remote-add"), geteuid() == 0 ? QStringLiteral("--system") : QStringLiteral("--user"),
+             QStringLiteral("--if-not-exists"), QStringLiteral("--from"), QStringLiteral("flathub"),
+             QStringLiteral("https://dl.flathub.org/repo/flathub.flatpakrepo")}});
+        maintenanceQueue_.append({QStringLiteral("/bin/debian-apt"), {QStringLiteral("catalog")}});
+        log_->appendPlainText(QStringLiteral("=== Подготовка всех источников ==="));
+        nextMaintenance();
+    }
+
+    void nextMaintenance() {
+        if (maintenanceQueue_.isEmpty()) {
+            clearSecret(maintenancePassword_);
+            installing_ = false;
+            refresh_->setEnabled(true);
+            prepareAll_->setEnabled(true);
+            status_->setText(maintenanceFailures_ == 0 ? QStringLiteral("Все источники подготовлены") :
+                QStringLiteral("Подготовка завершена, ошибок: %1. Подробности в журнале").arg(maintenanceFailures_));
+            refreshCatalogs();
+            return;
+        }
+        const auto operation = maintenanceQueue_.takeFirst();
+        auto *process = new QProcess(this);
+        process->setProcessChannelMode(QProcess::MergedChannels);
+        QString program = operation.first;
+        QStringList arguments = operation.second;
+        if (geteuid() != 0 && program == QStringLiteral("/bin/setup")) {
+            program = QStringLiteral("/bin/synapse-store-control");
+            if (arguments.contains(QStringLiteral("update"))) {
+                arguments = {QStringLiteral("--update")};
+            } else {
+                arguments = {arguments.value(1)};
+            }
+        } else if (geteuid() != 0 && program == QStringLiteral("/bin/debian-apt")) {
+            program = QStringLiteral("/bin/synapse-store-control");
+            arguments = {QStringLiteral("--debian-catalog")};
+        }
+        log_->appendPlainText(QStringLiteral("$ %1 %2").arg(program, arguments.join(QLatin1Char(' '))));
+        connect(process, &QProcess::started, this, [this, process]() {
+            if (!maintenancePassword_.isEmpty()) {
+                process->write(maintenancePassword_ + "\n");
+                process->closeWriteChannel();
+            }
+        });
+        connect(process, &QProcess::readyReadStandardOutput, this, [this, process]() {
+            log_->appendPlainText(QString::fromUtf8(process->readAllStandardOutput()));
+        });
+        connect(process, &QProcess::finished, this,
+                [this, process](int code, QProcess::ExitStatus result) {
+            if (code != 0 || result != QProcess::NormalExit) {
+                ++maintenanceFailures_;
+                log_->appendPlainText(QStringLiteral("Операция завершилась с кодом %1").arg(code));
+            }
+            process->deleteLater();
+            nextMaintenance();
+        });
+        connect(process, &QProcess::errorOccurred, this, [this, process](QProcess::ProcessError error) {
+            if (error != QProcess::FailedToStart) {
+                return;
+            }
+            ++maintenanceFailures_;
+            log_->appendPlainText(process->errorString());
+            process->deleteLater();
+            nextMaintenance();
+        });
+        process->start(program, arguments);
+    }
+
     // Обновить доступные источники без блокировки графического окна
     void refreshCatalogs() {
         if (installing_) {
@@ -920,7 +1228,7 @@ class StoreWindow final : public QMainWindow {
         table_->setUpdatesEnabled(false);
         table_->setRowCount(0);
         const QString query = search_->text().trimmed();
-        const int section = tabs_->currentIndex();
+        const int section = tabs_->currentRow();
         const Category category = static_cast<Category>(category_->currentData().toInt());
         int matches = 0;
 
@@ -928,7 +1236,7 @@ class StoreWindow final : public QMainWindow {
             const Package &package = packages_[index];
             if (!sourceEnabled(package.source) ||
                 (section >= 1 && section <= 3 && static_cast<int>(package.source) + 1 != section) ||
-                (section == 4 && !package.installed) ||
+                (section == 4 && !package.installed) || (section == 5 && !canUpdate(package)) ||
                 (category != Category::All && packageCategory(package) != category)) {
                 continue;
             }
@@ -947,6 +1255,12 @@ class StoreWindow final : public QMainWindow {
             const int row = table_->rowCount();
             table_->insertRow(row);
             auto *name = new QTableWidgetItem(package.name);
+            const Category group = packageCategory(package);
+            const QStyle::StandardPixmap icon = group == Category::Games ? QStyle::SP_MediaPlay :
+                group == Category::Multimedia ? QStyle::SP_MediaVolume :
+                group == Category::Internet ? QStyle::SP_DriveNetIcon :
+                group == Category::System ? QStyle::SP_ComputerIcon : QStyle::SP_FileIcon;
+            name->setIcon(style()->standardIcon(icon));
             const QStringList key = {sourceName(package.source), package.id, package.ref, package.origin};
             name->setData(Qt::UserRole, key);
             if (key == previous) selected = row;
@@ -1012,43 +1326,66 @@ class StoreWindow final : public QMainWindow {
                                (!packages_[visible_[row]].installed || canUpdate(packages_[visible_[row]]));
         const bool update = row >= 0 && row < visible_.size() && canUpdate(packages_[visible_[row]]);
         const bool chosen = row >= 0 && row < visible_.size();
-        detail_->setText(chosen ? packages_[visible_[row]].description : QString());
-        detail_->setVisible(!detail_->text().isEmpty());
+        if (chosen) {
+            const Package &package = packages_[visible_[row]];
+            detail_->setText(QStringLiteral("%1\n%2  |  %3  |  %4\n%5\n%6")
+                .arg(package.name, sourceName(package.source), package.version,
+                     package.installed ? QStringLiteral("установлено") : QStringLiteral("доступно"),
+                     package.description, package.id));
+        } else {
+            detail_->setText(QStringLiteral("Выберите программу, чтобы увидеть подробности и доступные действия"));
+        }
+        detail_->setVisible(showDetails_->isChecked());
         install_->setText(chosen && packages_[visible_[row]].installed && !update ? QStringLiteral("Установлено") :
                           update ? QStringLiteral("Обновить") : QStringLiteral("Установить"));
         install_->setEnabled(available);
+        remove_->setEnabled(!installing_ && chosen && packages_[visible_[row]].installed);
     }
 
-    // Установить выбранный пакет через его собственный менеджер
     void installSelected() {
+        changeSelected(false);
+    }
+
+    void removeSelected() {
+        changeSelected(true);
+    }
+
+    // Установить, обновить или удалить выбранный пакет через его собственный менеджер
+    void changeSelected(bool remove) {
         const int row = table_->currentRow();
         if (row < 0 || row >= visible_.size()) {
             return;
         }
 
         const Package package = packages_[visible_[row]];
+        const bool update = canUpdate(package);
+        if ((!remove && package.installed && !update) || (remove && !package.installed)) {
+            return;
+        }
         if ((package.source == Source::Synapse || package.source == Source::Debian) && geteuid() != 0 &&
             !QFileInfo(QStringLiteral("/var/run/synapse-store.sock")).exists()) {
             QMessageBox::information(this, QStringLiteral("Нужны права администратора"),
-                                     QStringLiteral("Служба установки системных пакетов недоступна"));
+                                     QStringLiteral("Служба управления системными пакетами недоступна"));
             return;
         }
 
-        const bool update = canUpdate(package);
-        if (QMessageBox::question(this, update ? QStringLiteral("Обновление") : QStringLiteral("Установка"),
-                                  (update ? QStringLiteral("Обновить %1 из %2?")
-                                          : QStringLiteral("Установить %1 из %2?")).arg(package.name,
-                                                                            sourceName(package.source))) !=
+        const QString title = remove ? QStringLiteral("Удаление") :
+            update ? QStringLiteral("Обновление") : QStringLiteral("Установка");
+        const QString question = remove ? QStringLiteral("Удалить %1 из %2?") :
+            update ? QStringLiteral("Обновить %1 из %2?") : QStringLiteral("Установить %1 из %2?");
+        if (QMessageBox::question(this, title, question.arg(package.name, sourceName(package.source))) !=
             QMessageBox::Yes) {
             return;
         }
 
         installing_ = true;
         install_->setEnabled(false);
+        remove_->setEnabled(false);
         refresh_->setEnabled(false);
-        status_->setText(QStringLiteral("Установка %1…").arg(package.name));
+        status_->setText(remove ? QStringLiteral("Удаление %1…").arg(package.name) :
+                                  QStringLiteral("Установка %1…").arg(package.name));
 
-        if (package.source == Source::Flathub && geteuid() != 0) {
+        if (!remove && package.source == Source::Flathub && geteuid() != 0) {
             prepareUserFlatpakRemote(package);
             return;
         }
@@ -1056,8 +1393,7 @@ class StoreWindow final : public QMainWindow {
         QByteArray password;
         if ((package.source == Source::Synapse || package.source == Source::Debian) && geteuid() != 0) {
             bool accepted = false;
-            QString value = QInputDialog::getText(this, QStringLiteral("Подтверждение установки"),
-                                                  QStringLiteral("Пароль администратора"),
+            QString value = QInputDialog::getText(this, title, QStringLiteral("Пароль администратора"),
                                                   QLineEdit::Password, QString(), &accepted);
             if (!accepted || value.isEmpty()) {
                 clearSecret(password);
@@ -1072,7 +1408,7 @@ class StoreWindow final : public QMainWindow {
             value.clear();
         }
 
-        runInstall(package, password);
+        runInstall(package, password, remove);
         clearSecret(password);
     }
 
@@ -1120,32 +1456,37 @@ class StoreWindow final : public QMainWindow {
     }
 
     // Запустить менеджер пакетов после подготовки нужного источника
-    void runInstall(const Package &package, const QByteArray &password = QByteArray()) {
+    void runInstall(const Package &package, const QByteArray &password = QByteArray(), bool remove = false) {
         QString program;
         QStringList arguments;
         if (package.source == Source::Synapse) {
             if (geteuid() == 0) {
                 program = QStringLiteral("/bin/setup");
-                arguments = {QStringLiteral("install"), package.id, QStringLiteral("--yes")};
+                arguments = {remove ? QStringLiteral("remove") : QStringLiteral("install"), package.id,
+                             QStringLiteral("--yes")};
             } else {
                 program = QStringLiteral("/bin/synapse-store-control");
-                arguments = {package.id};
+                arguments = remove ? QStringList{QStringLiteral("--remove"), package.id} : QStringList{package.id};
             }
         } else if (package.source == Source::Flathub) {
             program = QStringLiteral("/bin/flatpak");
-            arguments = {QStringLiteral("install")};
+            arguments = {remove ? QStringLiteral("uninstall") : QStringLiteral("install")};
             if (geteuid() != 0) {
                 arguments.append(QStringLiteral("--user"));
             }
 
-            arguments.append({QStringLiteral("-y"), QStringLiteral("flathub"), package.ref});
+            arguments.append(QStringLiteral("-y"));
+            if (!remove) {
+                arguments.append(QStringLiteral("flathub"));
+            }
+            arguments.append(package.ref);
         } else {
             if (geteuid() == 0) {
                 program = QStringLiteral("/bin/debian-apt");
-                arguments = {QStringLiteral("install"), package.id};
+                arguments = {remove ? QStringLiteral("remove") : QStringLiteral("install"), package.id};
             } else {
                 program = QStringLiteral("/bin/synapse-store-control");
-                arguments = {QStringLiteral("--debian"), package.id};
+                arguments = {remove ? QStringLiteral("--debian-remove") : QStringLiteral("--debian"), package.id};
             }
         }
 
@@ -1213,7 +1554,7 @@ class StoreWindow final : public QMainWindow {
         }
 
         connect(process, &QProcess::finished, this,
-                [this, process, package, outputPath, outputTimer, readOutput]
+                [this, process, package, outputPath, outputTimer, readOutput, remove]
                 (int code, QProcess::ExitStatus exitStatus) {
                     outputTimer->stop();
                     while (readOutput()) {
@@ -1223,9 +1564,11 @@ class StoreWindow final : public QMainWindow {
                     QFile(outputPath).remove();
 
                     if (success) {
-                        status_->setText(QStringLiteral("Установлено: %1").arg(package.name));
+                        status_->setText(QStringLiteral("%1: %2")
+                            .arg(remove ? QStringLiteral("Удалено") : QStringLiteral("Установлено"), package.name));
                     } else {
-                        status_->setText(QStringLiteral("Не удалось установить %1").arg(package.name));
+                        status_->setText(QStringLiteral("Не удалось %1 %2")
+                            .arg(remove ? QStringLiteral("удалить") : QStringLiteral("установить"), package.name));
                         log_->appendPlainText(QStringLiteral("Код завершения: %1").arg(code));
                         if (exitStatus != QProcess::NormalExit) {
                             log_->appendPlainText(process->errorString());
@@ -1239,7 +1582,7 @@ class StoreWindow final : public QMainWindow {
                 });
 
         connect(process, &QProcess::errorOccurred, this,
-                [this, process, package, secret, outputPath, outputTimer](QProcess::ProcessError error) {
+                [this, process, package, secret, outputPath, outputTimer, remove](QProcess::ProcessError error) {
                     if (error != QProcess::FailedToStart) {
                         return;
                     }
@@ -1247,7 +1590,8 @@ class StoreWindow final : public QMainWindow {
                     outputTimer->stop();
                     clearSecret(*secret);
                     QFile(outputPath).remove();
-                    status_->setText(QStringLiteral("Не удалось установить %1").arg(package.name));
+                    status_->setText(QStringLiteral("Не удалось %1 %2")
+                        .arg(remove ? QStringLiteral("удалить") : QStringLiteral("установить"), package.name));
                     log_->appendPlainText(process->errorString());
                     installing_ = false;
                     refresh_->setEnabled(true);
@@ -1260,7 +1604,11 @@ class StoreWindow final : public QMainWindow {
 
     QLineEdit *search_ = nullptr;
     QComboBox *category_ = nullptr;
-    QTabBar *tabs_ = nullptr;
+    QListWidget *tabs_ = nullptr;
+    QCheckBox *autoSearchDebian_ = nullptr;
+    QCheckBox *refreshOnOpen_ = nullptr;
+    QCheckBox *compactTable_ = nullptr;
+    QCheckBox *showDetails_ = nullptr;
     QStackedWidget *pages_ = nullptr;
     QTableWidget *table_ = nullptr;
     QLabel *detail_ = nullptr;
@@ -1272,11 +1620,21 @@ class StoreWindow final : public QMainWindow {
     QPushButton *refresh_ = nullptr;
     QPushButton *updateSynapse_ = nullptr;
     QPushButton *install_ = nullptr;
+    QPushButton *remove_ = nullptr;
     QTimer *debianSearchTimer_ = nullptr;
     QPlainTextEdit *log_ = nullptr;
     QCheckBox *showSynapse_ = nullptr;
     QCheckBox *showFlathub_ = nullptr;
     QCheckBox *showDebian_ = nullptr;
+    QPushButton *prepareAll_ = nullptr;
+    QLabel *plusStatus_ = nullptr;
+    QPushButton *plusLogin_ = nullptr;
+    QPushButton *plusCheck_ = nullptr;
+    QPushButton *plusDisable_ = nullptr;
+    bool plusRunning_ = false;
+    QList<QPair<QString, QStringList>> maintenanceQueue_;
+    QByteArray maintenancePassword_;
+    int maintenanceFailures_ = 0;
     QSettings settings_{QStringLiteral("SynapseOS"), QStringLiteral("Software")};
     QVector<Package> packages_;
     QVector<int> visible_;

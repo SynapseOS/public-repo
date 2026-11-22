@@ -3,10 +3,22 @@
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Описание: сборка менеджера приложений без включения в образ по умолчанию
 # Подсистема: сборка пакетов
-# Первое изменение: 26.10.2026, последнее изменение: 01.11.2026
+# Первое изменение: 26.10.2026, последнее изменение: 22.11.2026
 # Статус доступа: общедоступный
 
 prepare
+
+# Steam создаёт Discord RPC после смены /var/run на symlink, пустой каталог не нужен
+patch --batch --fuzz=0 -d "$source" -p1 <<'PATCH'
+--- a/common/flatpak-exports.c
++++ b/common/flatpak-exports.c
+@@ -455,0 +456,5 @@
++
++#ifdef __synapse__
++      if (g_str_has_suffix (path, "/app/com.discordapp.Discord"))
++        continue;
++#endif
+PATCH
 
 # Без звукового сервера 32-битный Steam заполняет адресное пространство разделяемой памятью
 patch --batch --fuzz=0 -d "$source" -p1 <<'PATCH'
@@ -79,10 +91,10 @@ patch --batch --fuzz=0 -d "$source" -p1 <<'PATCH'
 
 +#ifdef __synapse__
 +  if (g_strcmp0 (app_id, "com.valvesoftware.Steam") == 0 &&
-+      g_file_test ("/usr/bin/qemu-i386", G_FILE_TEST_IS_EXECUTABLE))
++      g_file_test ("/bin/qemu-i386", G_FILE_TEST_IS_EXECUTABLE))
 +    {
 +      flatpak_bwrap_add_args (bwrap,
-+                              "--ro-bind", "/usr/bin/qemu-i386", "/run/host/qemu-i386",
++                              "--ro-bind", "/bin/qemu-i386", "/run/host/qemu-i386",
 +                              NULL);
 +      flatpak_bwrap_add_args (bwrap,
 +                              "--ro-bind", "/usr/libexec/flatpak/uname-linux", "/run/host/uname",

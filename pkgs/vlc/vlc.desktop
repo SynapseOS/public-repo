@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=VLC Music
-Name[ru]=Музыка VLC
+Name=VLC media player
+Name[ru]=VLC медиаплеер
 Exec=/bin/vlc %f
 Icon=vlc
 Terminal=false
-Categories=AudioVideo;Audio;Player;
-MimeType=audio/mpeg;audio/mp4;audio/aac;audio/x-wav;audio/wav;
+Categories=AudioVideo;Audio;Video;Player;
+MimeType=audio/mpeg;audio/mp4;audio/aac;audio/x-wav;audio/wav;video/mp4;video/x-matroska;video/x-msvideo;video/webm;video/mpeg;

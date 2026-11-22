@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cerrno>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <poll.h>
@@ -31,8 +32,11 @@ struct Playback {
     std::atomic<int> volume{75};
 
     Playback() {
-        const char *options[] = {"--quiet", "--no-video", "--no-media-library", "--no-plugins-cache", "--no-audio-time-stretch"};
-        instance = libvlc_new(sizeof(options) / sizeof(options[0]), options);
+        const char *options[] = {"--no-video"};
+        instance = libvlc_new(1, options);
+        if (!instance) {
+            fprintf(stderr, "libvlc_new failed: %s\n", libvlc_errmsg());
+        }
     }
 
     static void playAudio(void *context, const void *samples, unsigned count, int64_t) {
@@ -109,6 +113,9 @@ struct Playback {
 
 // Отдельный процесс владеет потоками декодера и звуковым дескриптором до конца трека
 int main(int argc, char **argv) {
+    if (getenv("VLC_PLUGIN_PATH") == nullptr) {
+        setenv("VLC_PLUGIN_PATH", "/usr/lib/vlc/plugins", 1);
+    }
     bool check = argc == 3 && !strcmp(argv[1], "--check-audio");
     if (!check && (argc != 4 || strcmp(argv[1], "--play"))) return 2;
     if (!check && strcmp(argv[2], "/dev/dsp") && strcmp(argv[2], "/dev/audio-hdmi") &&

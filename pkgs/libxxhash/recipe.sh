@@ -7,7 +7,7 @@
 
 prepare
 headers=$(gcc -print-file-name=include)
-make -C "$source" -j"$JOBS" CC="$CC" \
+env -u TARGET_ARCH make -C "$source" -j"$JOBS" CC="$CC" \
 	CFLAGS="-O2 -D__synapse__ -isystem $headers" libxxhash.a
 
 copy "$source/libxxhash.a" usr/lib/libxxhash.a

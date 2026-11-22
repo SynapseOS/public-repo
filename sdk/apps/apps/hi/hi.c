@@ -5,7 +5,7 @@
 // Выбор языка, первоначальные настройки и сбор сведений о системе
 // Подсистема: установка и начальная настройка системы
 // Первое изменение: до текущей уборки, исходная дата не установлена
-// Последнее изменение: 03.11.2026
+// Последнее изменение: 22.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -336,7 +336,7 @@ static void pause_screen(void) {
 static int run_visible(const char *heading_en, const char *heading_ru, const char *path,
                        char *const argv[]) {
     terminal_restore();
-    printf("\033[2J\033[H\033[1;36mHI — %s\033[0m\n\n", tr(heading_en, heading_ru));
+    printf("\033[2J\033[H\033[1;36mHI : %s\033[0m\n\n", tr(heading_en, heading_ru));
     fflush(stdout);
     int status = run_plain(path, argv, -1);
     printf("\n%s: %d\n%s", tr("Exit status", "Код завершения"), status,
@@ -520,6 +520,139 @@ static int font_page(struct settings *s, bool allow_back) {
     return settings_set(s, index, fonts[choice].path);
 }
 
+// Задать имя компьютера и оболочку при первом запуске
+static int identity_page(struct settings *s, bool allow_back) {
+    char hostname[SETTINGS_VALUE];
+    snprintf(hostname, sizeof(hostname), "%s", s->values[setting(s, "System", "Hostname")]);
+    title("Computer and shell", "Компьютер и оболочка");
+    if (prompt("Hostname", "Имя компьютера", hostname, sizeof(hostname))) {
+        return -1;
+    }
+
+    const char *en[] = {"zsh", "bash", "sh"};
+    const char *rr[] = {"zsh", "bash", "sh"};
+    int current = 0;
+    const char *configured = settings_get(s, "Boot", "DefaultShell");
+    if (!strcmp(configured, "/bin/bash")) {
+        current = 1;
+    } else if (!strcmp(configured, "/bin/sh")) {
+        current = 2;
+    }
+    int choice = choose("Default shell", "Оболочка по умолчанию", en, rr, 3, current, allow_back);
+    if (choice < 0) {
+        return -1;
+    }
+
+    const char *shells[] = {"/bin/zsh", "/bin/bash", "/bin/sh"};
+    return settings_set(s, setting(s, "System", "Hostname"), hostname) ||
+           settings_set(s, setting(s, "Boot", "DefaultShell"), shells[choice]);
+}
+
+// Изменить текстовое значение известной настройки
+static int advanced_text(struct settings *s, const char *section, const char *key,
+                         const char *title_en, const char *title_ru) {
+    char value[SETTINGS_VALUE];
+    const int index = setting(s, section, key);
+    snprintf(value, sizeof(value), "%s", s->values[index]);
+    title(title_en, title_ru);
+    if (prompt("Value", "Значение", value, sizeof(value))) {
+        return -1;
+    }
+    return settings_set(s, index, value) || settings_save(s);
+}
+
+// Переключить булеву настройку и сразу сохранить выбор
+static int advanced_bool(struct settings *s, const char *section, const char *key,
+                         const char *title_en, const char *title_ru) {
+    const int index = setting(s, section, key);
+    const int current = !strcmp(s->values[index], "1");
+    const char *en[] = {"Disabled", "Enabled"};
+    const char *rr[] = {"Выключено", "Включено"};
+    int choice = choose(title_en, title_ru, en, rr, 2, current, true);
+    if (choice < 0) {
+        return -1;
+    }
+    return settings_set(s, index, choice ? "1" : "0") || settings_save(s);
+}
+
+// Выбрать одно значение известной настройки
+static int advanced_choice(struct settings *s, const char *section, const char *key,
+                           const char *title_en, const char *title_ru,
+                           const char *const values[], const char **labels, int count) {
+    const int index = setting(s, section, key);
+    int current = 0;
+    for (int i = 0; i < count; ++i) {
+        if (!strcmp(s->values[index], values[i])) {
+            current = i;
+        }
+    }
+    int choice = choose(title_en, title_ru, labels, labels, count, current, true);
+    if (choice < 0) {
+        return -1;
+    }
+    return settings_set(s, index, values[choice]) || settings_save(s);
+}
+
+// Открыть дополнительные системные параметры, отсутствующие в коротком мастере
+static void advanced_menu(struct settings *s) {
+    static const char *en[] = {"Hostname", "Default shell", "Display resolution", "CPU power profile",
+                               "Serial consoles", "Secondary DNS", "SSH server", "SSH port",
+                               "FTP server", "FTP port", "QEMU Guest Agent", "Updates at boot",
+                               "Telemetry interval", "Back"};
+    static const char *rr[] = {"Имя компьютера", "Оболочка по умолчанию", "Разрешение экрана",
+                               "Профиль питания CPU", "Консоли COM", "Дополнительный DNS", "Сервер SSH",
+                               "Порт SSH", "Сервер FTP", "Порт FTP", "QEMU Guest Agent",
+                               "Обновления при запуске", "Интервал телеметрии", "Назад"};
+    static const char *shells[] = {"/bin/zsh", "/bin/bash", "/bin/sh"};
+    static const char *shell_names[] = {"zsh", "bash", "sh"};
+    static const char *resolutions[] = {"auto", "800x600", "1024x768", "1280x720", "1280x800",
+                                        "1600x900", "1920x1080", "2560x1440", "3840x2160"};
+    static const char *profiles[] = {"balanced", "firmware", "powersave", "performance"};
+    static const char *profile_names[] = {"Balanced", "Firmware", "Powersave", "Performance"};
+    static const char *serial[] = {"0", "1", "2"};
+    for (;;) {
+        int choice = choose("Additional settings", "Дополнительные настройки", en, rr, 14, 0, true);
+        if (choice < 0 || choice == 13) {
+            return;
+        }
+
+        int result = 0;
+        if (choice == 0) {
+            result = advanced_text(s, "System", "Hostname", "Hostname", "Имя компьютера");
+        } else if (choice == 1) {
+            result = advanced_choice(s, "Boot", "DefaultShell", "Default shell", "Оболочка", shells, shell_names, 3);
+        } else if (choice == 2) {
+            result = advanced_choice(s, "Display", "Resolution", "Resolution", "Разрешение", resolutions, resolutions, 9);
+        } else if (choice == 3) {
+            result = advanced_choice(s, "Power", "Profile", "Power profile", "Профиль питания", profiles, profile_names, 4);
+        } else if (choice == 4) {
+            result = advanced_choice(s, "Terminal", "SerialConsoles", "Serial consoles", "Консоли COM", serial, serial, 3);
+        } else if (choice == 5) {
+            result = advanced_text(s, "DNS", "2", "Secondary DNS", "Дополнительный DNS");
+        } else if (choice == 6) {
+            result = advanced_bool(s, "SSH", "Enabled", "SSH server", "Сервер SSH");
+        } else if (choice == 7) {
+            result = advanced_text(s, "SSH", "Port", "SSH port", "Порт SSH");
+        } else if (choice == 8) {
+            result = advanced_bool(s, "FTP", "Enabled", "FTP server", "Сервер FTP");
+        } else if (choice == 9) {
+            result = advanced_text(s, "FTP", "Port", "FTP port", "Порт FTP");
+        } else if (choice == 10) {
+            result = advanced_bool(s, "GuestAgent", "Enabled", "QEMU Guest Agent", "QEMU Guest Agent");
+        } else if (choice == 11) {
+            result = advanced_bool(s, "Setup", "CheckUpdates", "Updates at boot", "Обновления при запуске");
+        } else {
+            result = advanced_text(s, "stats", "statsDelay", "Telemetry interval", "Интервал телеметрии");
+        }
+
+        if (result > 0) {
+            title("Cannot apply setting", "Не удалось применить настройку");
+            printf("%s\n", s->error[0] ? s->error : strerror(errno));
+            pause_screen();
+        }
+    }
+}
+
 static int write_complete(void) {
     if (mkdir_one(HI_DIR, 0700)) {
         return -1;
@@ -690,7 +823,7 @@ static int enroll_administrator(void) {
 static int first_run(struct settings *s) {
     int page = 0;
     const bool desktop = !strcmp(settings_get(s, "Desktop", "Enabled"), "1");
-    while (page < (desktop ? 8 : 7)) {
+    while (page < (desktop ? 9 : 8)) {
         int result = 0;
         if (page == 0) {
             const char *en[] = {"Русский", "English"};
@@ -702,16 +835,18 @@ static int first_run(struct settings *s) {
             result =
                 settings_set(s, setting(s, "System", "Language"), ru ? "ru" : "en");
         } else if (page == 1) {
-            result = network_page(s, true);
+            result = identity_page(s, true);
         } else if (page == 2) {
-            result = timezone_page(s, true);
+            result = network_page(s, true);
         } else if (page == 3) {
-            result = clock_page(s, true);
+            result = timezone_page(s, true);
         } else if (page == 4) {
-            result = font_page(s, true);
+            result = clock_page(s, true);
         } else if (page == 5) {
+            result = font_page(s, true);
+        } else if (page == 6) {
             result = data_sharing_page(s);
-        } else if (page == 6 && desktop) {
+        } else if (page == 7 && desktop) {
             const char *en[] = {"Require a password", "Open the desktop directly (administrator session)"};
             const char *rr[] = {"Запрашивать пароль", "Открывать рабочий стол сразу (сеанс администратора)"};
             int current = strcmp(settings_get(s, "Desktop", "LoginManager"), "0") != 0;
@@ -1063,7 +1198,7 @@ static void diagnostics_menu(void) {
 
 static void update_system(void) {
     terminal_restore();
-    printf("\033[2J\033[H\033[1;36mHI — %s\033[0m\n\n",
+    printf("\033[2J\033[H\033[1;36mHI : %s\033[0m\n\n",
            tr("Full system update", "Комплексное обновление ОС"));
     mkdir_one(HI_DIR, 0700);
     mkdir(HI_DIR "/backups", 0700);
@@ -1106,6 +1241,7 @@ static void main_menu(struct settings *s) {
                         "Generate full report",
                         "Open system settings",
                         "Data sharing consent",
+                        "Additional settings",
                         "Exit"};
     const char *rr[] = {"Установить SynapseOS на диск",
                         "Оборудование и датчики",
@@ -1117,12 +1253,13 @@ static void main_menu(struct settings *s) {
                         "Создать полный отчёт",
                         "Открыть системные настройки",
                         "Согласие на отправку данных",
+                        "Дополнительные настройки",
                         "Выход"};
     bool live = getenv("SYNAPSE_LIVE") && !strcmp(getenv("SYNAPSE_LIVE"), "1");
     for (;;) {
         int choice =
             choose("System setup and diagnostics", "Настройка и диагностика системы",
-                   en + (live ? 0 : 1), rr + (live ? 0 : 1), live ? 11 : 10, 0, false);
+                   en + (live ? 0 : 1), rr + (live ? 0 : 1), live ? 12 : 11, 0, false);
         if (live && choice == 0) {
             terminal_restore();
             keyboard_show();
@@ -1135,7 +1272,7 @@ static void main_menu(struct settings *s) {
         if (live) {
             choice--;
         }
-        if (choice == 9) {
+        if (choice == 10) {
             return;
         }
         if (choice == 0) {
@@ -1179,6 +1316,8 @@ static void main_menu(struct settings *s) {
                         "Отправка запускается при следующей загрузке. Отзыв сразу блокирует новые отчёты."));
                 pause_screen();
             }
+        } else if (choice == 9) {
+            advanced_menu(s);
         } else {
             char *args[] = {"settings", NULL};
             run_visible("System settings", "Системные настройки", "/bin/settings",

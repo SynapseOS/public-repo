@@ -6,7 +6,7 @@
     Описание: Передаёт имя пакета и пароль root по проверенному локальному сокету
     Подсистема: графический магазин программ
     Первое изменение: 01.11.2026
-    Последнее изменение: 03.11.2026
+    Последнее изменение: 23.11.2026
     Доступ: общедоступный
 */
 
@@ -149,16 +149,74 @@ static bool read_password(struct store_request *request) {
     return length > 0;
 }
 
-// Выполнить запрос установки или обновления каталога
+// Прочитать данные операции после пароля администратора
+static bool read_data(struct store_request *request, bool required) {
+    if (!fgets(request->data, sizeof(request->data), stdin)) {
+        return !required;
+    }
+    size_t length = strlen(request->data);
+    if (length == 0 || request->data[length - 1] != '\n') {
+        return false;
+    }
+    request->data[--length] = 0;
+    request->data_length = (uint32_t)length;
+    return true;
+}
+
+// Выполнить запрос установки, настройки или обслуживания системы
 int main(int argc, char **argv) {
     uint32_t source = STORE_SOURCE_SETUP;
     const char *name = NULL;
+    bool data_stdin = false;
     if (argc == 2 && strcmp(argv[1], "--update") == 0) {
         source = STORE_SOURCE_UPDATE;
+        name = "";
+    } else if (argc == 2 && strcmp(argv[1], "--upgrade") == 0) {
+        source = STORE_SOURCE_UPGRADE;
         name = "";
     } else if (argc == 2 && strcmp(argv[1], "--debian-catalog") == 0) {
         source = STORE_SOURCE_DEBIAN_CATALOG;
         name = "";
+    } else if (argc == 3 && strcmp(argv[1], "--remove") == 0) {
+        source = STORE_SOURCE_SETUP_REMOVE;
+        name = argv[2];
+    } else if (argc == 3 && strcmp(argv[1], "--debian-remove") == 0) {
+        source = STORE_SOURCE_DEBIAN_REMOVE;
+        name = argv[2];
+    } else if (argc == 3 && strcmp(argv[1], "--setting") == 0) {
+        source = STORE_SOURCE_SETTINGS;
+        name = argv[2];
+    } else if (argc == 3 && strcmp(argv[1], "--power-profile") == 0) {
+        source = STORE_SOURCE_POWER;
+        name = argv[2];
+    } else if (argc == 4 && strcmp(argv[1], "--useradd") == 0) {
+        source = STORE_SOURCE_USERADD;
+        name = argv[2];
+    } else if (argc == 4 && strcmp(argv[1], "--usermod-shell") == 0) {
+        source = STORE_SOURCE_USERMOD;
+        name = argv[2];
+    } else if (argc == 3 && strcmp(argv[1], "--passwd") == 0) {
+        source = STORE_SOURCE_PASSWD;
+        name = argv[2];
+        data_stdin = true;
+    } else if (argc >= 3 && strcmp(argv[1], "--setup") == 0) {
+        source = STORE_SOURCE_ACCOUNT_SETUP;
+        static char setup_name[STORE_MAX_NAME];
+        size_t used = 0;
+        for (int index = 2; index < argc; ++index) {
+            size_t length = strlen(argv[index]);
+            if (used + length + 1 >= sizeof(setup_name)) {
+                return 2;
+            }
+            if (index > 2) {
+                setup_name[used++] = ' ';
+            }
+            memcpy(setup_name + used, argv[index], length);
+            used += length;
+        }
+        setup_name[used] = 0;
+        name = setup_name;
+        data_stdin = true;
     } else if (argc == 2) {
         name = argv[1];
     } else if (argc == 3 && strcmp(argv[1], "--debian") == 0) {
@@ -166,9 +224,10 @@ int main(int argc, char **argv) {
         name = argv[2];
     }
 
-    bool catalog = source == STORE_SOURCE_DEBIAN_CATALOG || source == STORE_SOURCE_UPDATE;
-    if (name == NULL || (!catalog && !valid_name(name))) {
-        fputs("usage: synapse-store-control [--debian] PACKAGE | --update | --debian-catalog\n", stderr);
+    bool catalog = source == STORE_SOURCE_DEBIAN_CATALOG || source == STORE_SOURCE_UPDATE ||
+                   source == STORE_SOURCE_UPGRADE;
+    if (name == NULL || (source <= STORE_SOURCE_UPGRADE && !catalog && !valid_name(name))) {
+        fputs("usage: synapse-store-control [--debian] PACKAGE | --remove PACKAGE | --upgrade | --update | --debian-catalog\n", stderr);
         return 2;
     }
 
@@ -184,15 +243,30 @@ int main(int argc, char **argv) {
     request.source = source;
     request.name_length = (uint32_t)strlen(name);
     memcpy(request.name, name, request.name_length + 1);
-    if (!read_password(&request)) {
+    if (source == STORE_SOURCE_USERADD || source == STORE_SOURCE_USERMOD) {
+        if (source == STORE_SOURCE_USERADD) {
+            if (argc != 4) {
+                close(socket_fd);
+                return 2;
+            }
+            snprintf(request.data, sizeof(request.data), "%s", argv[3]);
+            request.data_length = (uint32_t)strlen(request.data);
+        } else {
+            snprintf(request.data, sizeof(request.data), "%s", argv[3]);
+            request.data_length = (uint32_t)strlen(request.data);
+        }
+    }
+    if (!read_password(&request) || (data_stdin && !read_data(&request, source == STORE_SOURCE_PASSWD))) {
         clear_secret(request.password, sizeof(request.password));
+        clear_secret(request.data, sizeof(request.data));
         close(socket_fd);
-        fputs("Не удалось прочитать пароль администратора\n", stderr);
+        fputs("Не удалось прочитать пароль администратора или данные операции\n", stderr);
         return 1;
     }
 
     bool sent = send_all(socket_fd, &request, sizeof(request));
     clear_secret(request.password, sizeof(request.password));
+    clear_secret(request.data, sizeof(request.data));
     if (!sent) {
         close(socket_fd);
         fputs("Не удалось передать запрос службе\n", stderr);

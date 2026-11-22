@@ -5,7 +5,7 @@
 // Работа с GPT и копирование файлов на выбранный целевой раздел
 // Подсистема: установка и начальная настройка системы
 // Первое изменение: до текущей уборки, исходная дата не установлена
-// Последнее изменение: 21.11.2026
+// Последнее изменение: 22.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -579,7 +579,7 @@ static int mkdir_ok(const char *path) {
     return !mkdir(path, 0755) || errno == EEXIST ? 0 : -1;
 }
 
-static int install_boot(struct disk *d, unsigned root_index, const char *iso_root) {
+static int install_boot(struct disk *d, unsigned root_index, const char *iso_root, bool configure_grub) {
     int esp_index = -1;
     for (unsigned i = 0; i < d->primary.entry_count; ++i) {
         if (esp_type(entry_at(d, i)->type)) {
@@ -630,6 +630,11 @@ static int install_boot(struct disk *d, unsigned root_index, const char *iso_roo
     fprintf(marker, "root=%sp%u\nedition=desktop\n", d->name, root_index);
     if (fclose(marker)) {
         return -1;
+    }
+    if (!configure_grub) {
+        puts(tt("EFI files were installed without changing the existing GRUB configuration.",
+                "EFI-файлы установлены без изменения существующей конфигурации GRUB."));
+        return 0;
     }
     DIR *efi = opendir("/tmp/hi-efi/EFI");
     if (!efi) {
@@ -750,7 +755,7 @@ static int confirm_word(const char *expected) {
 static int edit_partition(struct disk *d, bool remove) {
     show_partitions(d);
     int number = read_number(
-        tt("Partition number (0 cancels): ", "Номер раздела (0 — отмена): "));
+        tt("Partition number (0 cancels): ", "Номер раздела (0 : отмена): "));
     if (number <= 0 || (unsigned)number > d->primary.entry_count) {
         return 0;
     }
@@ -791,15 +796,53 @@ static int install_system(struct disk *d, const char *payload) {
         errno = ENOSPC;
         return -1;
     }
-    uint64_t needed = (image_bytes + SECTOR - 1) / SECTOR;
-    if (end - start + 1 < needed) {
+
+    const uint64_t image_sectors = (image_bytes + SECTOR - 1) / SECTOR;
+    const uint64_t minimum_mib = (image_bytes + 1048575) / 1048576;
+    const uint64_t available_mib = (end - start + 1) / 2048;
+    if (end - start + 1 < image_sectors || available_mib < minimum_mib) {
         errno = ENOSPC;
         return -1;
     }
-    printf("%s: %llu MiB\n%s: %s\n%s: %llu MiB\n", tt("System image", "Образ системы"),
-           (unsigned long long)((image_bytes + 1048575) / 1048576),
+
+    int requested = read_number(tt("Root partition size in MiB (0 = minimum): ",
+                                   "Размер корневого раздела в МиБ (0 = минимум): "));
+    if (requested < 0 || (requested && (uint64_t)requested < minimum_mib) ||
+        (requested && (uint64_t)requested > available_mib)) {
+        errno = ENOSPC;
+        return -1;
+    }
+    const uint64_t partition_mib = requested ? (uint64_t)requested : minimum_mib;
+    const uint64_t needed = partition_mib * 2048;
+
+    char name[80] = "SYNAPSE_ROOT";
+    fputs(tt("Partition name, ASCII (empty = SYNAPSE_ROOT): ",
+             "Имя раздела ASCII (пусто = SYNAPSE_ROOT): "), stdout);
+    fflush(stdout);
+    if (!fgets(name, sizeof(name), stdin)) {
+        return -1;
+    }
+    name[strcspn(name, "\r\n")] = 0;
+    if (!name[0]) {
+        snprintf(name, sizeof(name), "SYNAPSE_ROOT");
+    }
+
+    puts(tt("1. Install EFI files and update an existing GRUB entry\n"
+            "2. Install EFI files without changing GRUB\n"
+            "0. Cancel",
+            "1. Установить EFI-файлы и обновить существующую запись GRUB\n"
+            "2. Установить EFI-файлы без изменения GRUB\n"
+            "0. Отмена"));
+    int boot = read_number("> ");
+    if (boot != 1 && boot != 2) {
+        return 0;
+    }
+
+    printf("%s: %llu MiB\n%s: %s\n%s: %llu MiB\n%s: %s\n",
+           tt("System image", "Образ системы"), (unsigned long long)minimum_mib,
            tt("Target disk", "Целевой диск"), d->path,
-           tt("New partition", "Новый раздел"), (unsigned long long)(needed / 2048));
+           tt("New partition", "Новый раздел"), (unsigned long long)partition_mib,
+           tt("Partition name", "Имя раздела"), name);
     fputs(tt("Type INSTALL to continue: ", "Введите INSTALL для продолжения: "),
           stdout);
     fflush(stdout);
@@ -820,11 +863,11 @@ static int install_system(struct disk *d, const char *payload) {
     random_guid(e->unique);
     e->first_lba = start;
     e->last_lba = start + needed - 1;
-    set_name(e, "SYNAPSE_ROOT");
+    set_name(e, name);
     char iso_root[256];
     snprintf(iso_root, sizeof(iso_root), "%.*s",
              (int)(strstr(payload, "/boot/") - payload), payload);
-    if (install_boot(d, device_index(d, (unsigned)slot), iso_root)) {
+    if (install_boot(d, device_index(d, (unsigned)slot), iso_root, boot == 1)) {
         return -1;
     }
     if (commit_gpt(d)) {
@@ -871,14 +914,14 @@ int hi_installer(int russian) {
                    "резервной таблицами."));
         return 1;
     }
-    puts("\033[2J\033[HHI — SynapseOS installer\n");
+    puts("\033[2J\033[HHI : SynapseOS installer\n");
     for (int i = 0; i < count; ++i) {
         printf("  %d. %s  %llu MiB\n", i + 1, disks[i].path,
                (unsigned long long)(disks[i].bytes / 1048576));
     }
 
     int selected =
-        read_number(tt("Disk number (0 cancels): ", "Номер диска (0 — отмена): ")) - 1;
+        read_number(tt("Disk number (0 cancels): ", "Номер диска (0 : отмена): ")) - 1;
     if (selected < 0 || selected >= count) {
         for (int i = 0; i < count; i++) {
             disk_close(&disks[i]);

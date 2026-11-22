@@ -3,7 +3,7 @@
 // Архитектура: x86_64, ABI: Linux ELF64 musl
 // Подсистема: учётные записи
 // Первое изменение: дата исходной адаптации не установлена
-// Последнее изменение: 14.11.2026
+// Последнее изменение: 22.11.2026
 // Доступ: общедоступный
 /* See LICENSE file for copyright and license details. */
 #include <sys/ioctl.h>
@@ -19,6 +19,7 @@
 #include <pwd.h>
 #include <signal.h>
 #include <shadow.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -763,7 +764,7 @@ gensalt(char *s)
 static void
 usage(void)
 {
-	eprintf("usage: %s [username [password]]\n", argv0);
+	eprintf("usage: %s [--stdin] [username [password]]\n", argv0);
 }
 
 // Сменить пароль после проверки аккаунта и полного подтверждения ввода
@@ -784,13 +785,22 @@ int main(int argc, char *argv[]) {
     FILE *file = NULL;
     int lock_fd = -1, status = 1;
     const char *target_user = NULL, *direct_password = NULL;
+    char stdin_password[256];
+    bool password_stdin = false;
+
+    explicit_bzero(stdin_password, sizeof(stdin_password));
+    if (argc == 3 && !strcmp(argv[1], "--stdin")) {
+        password_stdin = true;
+        argv[1] = argv[2];
+        argc = 1;
+    }
 
     ARGBEGIN {
     default:
         usage();
         goto cleanup;
     } ARGEND;
-    if (argc > 2) {
+    if (argc > 2 || (password_stdin && argc != 0)) {
         usage();
         goto cleanup;
     }
@@ -799,6 +809,14 @@ int main(int argc, char *argv[]) {
     }
     if (argc == 2) {
         direct_password = argv[1];
+    }
+    if (password_stdin) {
+        if (fgets(stdin_password, sizeof(stdin_password), stdin) == NULL) {
+            weprintf("read password from stdin:\n");
+            goto cleanup;
+        }
+        stdin_password[strcspn(stdin_password, "\r\n")] = 0;
+        direct_password = stdin_password;
     }
 
     pw_init();
@@ -917,5 +935,6 @@ cleanup:
         close(lock_fd);
     }
     explicit_bzero(salt, sizeof(salt));
+    explicit_bzero(stdin_password, sizeof(stdin_password));
     return status;
 }

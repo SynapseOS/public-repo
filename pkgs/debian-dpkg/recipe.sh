@@ -31,16 +31,21 @@ mkdir -p "$work/build"
 		PKG_CONFIG=false "$source/configure" \
 		--build=x86_64-linux-gnu --host=x86_64-linux-musl \
 		--prefix=/usr --bindir=/bin --libdir=/usr/lib --datadir=/usr/share/debian-apt \
+		--with-admindir=/var/lib/dpkg \
 		--disable-nls --disable-dselect --disable-start-stop-daemon \
 		--disable-update-alternatives --disable-devel-docs \
 		--with-libz --with-liblzma --without-libbz2 \
 		--without-libzstd --without-libselinux
 
 	make -C lib -j"$JOBS"
-	make -C src -j"$JOBS" dpkg dpkg-split dpkg-query
+	make -C src -j"$JOBS" dpkg dpkg-split dpkg-query dpkg-divert \
+		dpkg-statoverride dpkg-trigger
 )
 
 copy "$work/build/src/dpkg" usr/libexec/debian-apt/dpkg-native
+copy "$work/build/src/dpkg-divert" usr/libexec/debian-apt/dpkg-divert
+copy "$work/build/src/dpkg-statoverride" usr/libexec/debian-apt/dpkg-statoverride
+copy "$work/build/src/dpkg-trigger" usr/libexec/debian-apt/dpkg-trigger
 copy "$work/build/src/dpkg-split" bin/dpkg-split
 copy "$work/build/src/dpkg-query" bin/dpkg-query
 

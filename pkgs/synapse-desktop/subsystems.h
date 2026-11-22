@@ -1,9 +1,10 @@
 // subsystems.h: Настройки установленных подсистем SynapseOS Desktop
 // Автор: Елчинян Арен Артурович, 2026. AMD64, ABI Qt6 и POSIX
-// Подсистема: графическая оболочка. Первое и последнее изменение: 21.11.2026. Общедоступно
+// Подсистема: графическая оболочка. Первое изменение: 21.11.2026. Последнее изменение: 23.11.2026. Общедоступно
 #pragma once
 #include "../labwc/posix-profile.h"
 #include <QRegularExpression>
+#include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QScrollArea>
@@ -14,6 +15,10 @@
 
 // Записывать только существующий файл, настройки Android разделяются с работающими окнами
 static bool writeSubsystemFile(const QString &path, const QByteArray &bytes, bool profile = false) {
+	if (geteuid() != 0 && path.startsWith(QStringLiteral("/proc/"))) {
+		QString output;
+		return runPrivileged(nullptr, QStringLiteral("/bin/tee"), {path}, bytes, output);
+	}
 	QFile file(path);
 	if (!file.open(QIODevice::ReadWrite | QIODevice::ExistingOnly | QIODevice::Unbuffered)) {
 		return false;
@@ -46,27 +51,59 @@ static void posixControls(QWidget *page, QFormLayout *form) {
 	files->setValue(profile.files);
 	files->setEnabled(limits);
 	form->addRow(QStringLiteral("Открытых файлов на процесс"), files);
+
+	auto *memory = new QComboBox(page);
+	memory->addItem(QStringLiteral("Без отдельного ограничения"), 0);
+	memory->addItem(QStringLiteral("Экономный режим, 512 МиБ"), 512);
+	memory->addItem(QStringLiteral("Стандартный режим, 2 ГиБ"), 2048);
+	memory->addItem(QStringLiteral("Большие задачи, 4 ГиБ"), 4096);
+	const int memoryIndex = memory->findData(static_cast<int>(profile.memory_mib));
+	memory->setCurrentIndex(memoryIndex >= 0 ? memoryIndex : 0);
+	memory->setToolTip(QStringLiteral("Мягкий RLIMIT_AS для каждого процесса нового графического сеанса"));
+	form->addRow(QStringLiteral("Память на процесс"), memory);
+
+	auto *nice = new QSpinBox(page);
+	nice->setRange(-20, 19);
+	nice->setValue(profile.nice);
+	form->addRow(QStringLiteral("Приоритет процессов (nice)"), nice);
+
+	auto *stack = new QSpinBox(page);
+	stack->setRange(0, 4096);
+	stack->setSpecialValueText(QStringLiteral("Без отдельного ограничения"));
+	stack->setSuffix(QStringLiteral(" МиБ"));
+	stack->setValue(static_cast<int>(profile.stack_mib));
+	form->addRow(QStringLiteral("Размер стека на процесс"), stack);
+
 	auto *apply = new QPushButton(QStringLiteral("Сохранить для следующего входа"), page);
 	form->addRow(apply);
+	auto *status = new QLabel(page);
+	status->setWordWrap(true);
+	form->addRow(status);
 	QObject::connect(apply, &QPushButton::clicked, page, [=]() {
 		const QString text = mask->text().trimmed();
 		bool valid = false;
 		const int mode = text.isEmpty() ? -1 : text.toInt(&valid, 8);
 		if ((!text.isEmpty() && (!valid || text.contains(QRegularExpression("[^0-7]")))) ||
 		    (files->value() && files->value() < 128)) {
-			QMessageBox::warning(page, "POSIX", QStringLiteral("Укажите маску от 000 до 777 и лимит от 128 или выберите наследование."));
+			QMessageBox::warning(page, "POSIX", QStringLiteral("Укажите маску от 000 до 777 и лимит от 128 или выберите наследование"));
 			return;
 		}
 		char path[128];
 		posix_profile_path(path);
 		QSaveFile file(QString::fromLatin1(path));
 		const QByteArray data = "mask=" + QByteArray::number(mode) + "\nfiles=" +
-		                        QByteArray::number(files->value()) + "\n";
+		                        QByteArray::number(files->value()) + "\nmemory=" +
+		                        QByteArray::number(memory->currentData().toInt()) + "\npopulate=" +
+		                        QByteArray::number(profile.populate) + "\nnice=" +
+		                        QByteArray::number(nice->value()) + "\nstack=" +
+		                        QByteArray::number(stack->value()) + "\n";
 		if (!file.open(QIODevice::WriteOnly) ||
 		    !file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner) ||
 		    file.write(data) != data.size() || !file.commit()) {
-			QMessageBox::warning(page, "POSIX", QStringLiteral("Не удалось сохранить профиль сеанса."));
+			status->setText(QStringLiteral("Не удалось сохранить профиль сеанса"));
+			return;
 		}
+		status->setText(QStringLiteral("Параметры будут применены при следующем входе"));
 	});
 
 	const char *keys[] = {"rmem_default", "rmem_max", "wmem_default", "wmem_max"};
@@ -87,7 +124,7 @@ static void posixControls(QWidget *page, QFormLayout *form) {
 		value->setRange(1, INT_MAX);
 		value->setValue(current);
 		value->setSuffix(QStringLiteral(" Б"));
-		value->setEnabled(geteuid() == 0 && QFileInfo(path).isWritable());
+		value->setEnabled(QFileInfo::exists(path));
 		form->addRow(QString::fromUtf8(labels[i]), value);
 		QObject::connect(value, &QSpinBox::editingFinished, page, [=]() {
 			const QByteArray requested = QByteArray::number(value->value()) + "\n";
@@ -213,6 +250,223 @@ static void androidPackages(QWidget *parent) {
 	QObject::connect(clone, &QPushButton::clicked, dialog, [=]() { choose(true); });
 	refresh();
 	dialog->show();
+}
+
+// Записать личный файл Android с атомарной заменой и владельцем 0600
+static bool writeAndroidPrivateFile(const QString &path, const QByteArray &data) {
+	const QString parent = QFileInfo(path).absolutePath();
+	if (!QDir().mkpath(parent)) {
+		return false;
+	}
+	chmod(QFile::encodeName(parent).constData(), 0700);
+	QSaveFile file(path);
+	if (!file.open(QIODevice::WriteOnly) ||
+	    !file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
+		return false;
+	}
+	return file.write(data) == data.size() && file.commit();
+}
+
+// Выбрать уровень совместимости, который читает установщик Android
+static void androidApiControls(QWidget *page, QFormLayout *form) {
+	const QString path = QStringLiteral("/synapse/subsys/android/api-profile");
+	auto *profile = new QComboBox(page);
+	profile->addItem(QStringLiteral("Android 8.0 · API 26"), 26);
+	profile->addItem(QStringLiteral("Совместимость · API 24"), 24);
+	QFile current(path);
+	const QByteArray value = current.open(QIODevice::ReadOnly) ? current.read(16).trimmed() : QByteArray("26");
+	profile->setCurrentIndex(value == "24" ? 1 : 0);
+	profile->setEnabled(QFileInfo(path).exists() && QFileInfo(path).isWritable());
+	form->addRow(QStringLiteral("Платформа приложений"), profile);
+	QObject::connect(profile, &QComboBox::currentIndexChanged, page, [=]() {
+		if (!writeSubsystemFile(path, profile->currentData().toString().toUtf8() + "\n", true)) {
+			QMessageBox::warning(page, "Android", QStringLiteral("Не удалось сохранить профиль API."));
+		}
+	});
+}
+
+// Настроить общий журнал и число завершённых сеансов Android
+static void androidLogControls(QWidget *page, QFormLayout *form) {
+	const QString directory = QStringLiteral("/synapse/subsys/android/users/%1/log-settings").arg(getuid());
+	auto readNumber = [=](const QString &name, int fallback) {
+		QFile file(directory + "/" + name);
+		return file.open(QIODevice::ReadOnly) ? file.read(16).trimmed().toInt() : fallback;
+	};
+	auto *mode = new QComboBox(page);
+	mode->addItem(QStringLiteral("Выключен"), 0);
+	mode->addItem(QStringLiteral("Полный"), 1);
+	mode->setCurrentIndex(readNumber(QStringLiteral("global"), 0) == 1 ? 1 : 0);
+	form->addRow(QStringLiteral("Общий журнал"), mode);
+	auto *keep = new QSpinBox(page);
+	keep->setRange(1, 20);
+	keep->setValue(readNumber(QStringLiteral("keep"), 5));
+	form->addRow(QStringLiteral("Завершённых сеансов на профиль"), keep);
+	auto *apply = new QPushButton(QStringLiteral("Сохранить параметры журнала"), page);
+	form->addRow(apply);
+	auto *status = new QLabel(page);
+	status->setWordWrap(true);
+	form->addRow(status);
+	QObject::connect(apply, &QPushButton::clicked, page, [=]() {
+		QFile lock(directory + "/.lock");
+		const bool locked = lock.open(QIODevice::ReadWrite) && flock(lock.handle(), LOCK_EX) == 0;
+		const bool saved = locked &&
+			writeAndroidPrivateFile(directory + "/global", mode->currentData().toString().toUtf8() + "\n") &&
+			writeAndroidPrivateFile(directory + "/keep", QByteArray::number(keep->value()) + "\n");
+		if (locked) {
+			flock(lock.handle(), LOCK_UN);
+		}
+		status->setText(saved ? QStringLiteral("Настройки журнала сохранены") :
+		               QStringLiteral("Не удалось сохранить настройки журнала"));
+	});
+	auto *open = new QPushButton(QStringLiteral("Открыть журналы приложений и клонов"), page);
+	form->addRow(open);
+	QObject::connect(open, &QPushButton::clicked, page, [=]() {
+		QProcess::startDetached(QStringLiteral("/bin/synapse-files"),
+		    {QStringLiteral("/synapse/subsys/android/users/%1/logs").arg(getuid())});
+	});
+	auto *folder = new QPushButton(QStringLiteral("Открыть каталог журналов"), page);
+	form->addRow(folder);
+	QObject::connect(folder, &QPushButton::clicked, page, [=]() {
+		QProcess::startDetached(QStringLiteral("/bin/synapse-files"),
+		                        {QStringLiteral("/synapse/subsys/android/users/%1/logs").arg(getuid())});
+	});
+}
+
+// Настроить журнал отдельного приложения или клона без отдельного окна Android
+static void androidPackageLogControls(QWidget *page, QFormLayout *form) {
+	auto *installed = new QComboBox(page);
+	form->addRow(QStringLiteral("Приложение или клон"), installed);
+	auto *packageMode = new QComboBox(page);
+	auto *cloneMode = new QComboBox(page);
+	for (auto *mode : {packageMode, cloneMode}) {
+		mode->addItem(QStringLiteral("Наследовать"), -1);
+		mode->addItem(QStringLiteral("Выключен"), 0);
+		mode->addItem(QStringLiteral("Полный"), 1);
+	}
+	form->addRow(QStringLiteral("Журнал всех профилей"), packageMode);
+	form->addRow(QStringLiteral("Журнал выбранного клона"), cloneMode);
+	QProcess listing;
+	listing.start(QStringLiteral("/bin/android-run"), {QStringLiteral("--list")});
+	if (listing.waitForFinished(5000) && listing.exitCode() == 0) {
+		const QList<QByteArray> rows = listing.readAllStandardOutput().split('\n');
+		for (const QByteArray &row : rows) {
+			const QList<QByteArray> fields = row.split('\t');
+			if (fields.size() < 4) {
+				continue;
+			}
+			const QString package = QString::fromUtf8(fields[0]);
+			const QString profile = QString::fromUtf8(fields[1]);
+			installed->addItem(package + QStringLiteral(" · ") + profile);
+			const int index = installed->count() - 1;
+			installed->setItemData(index, package, Qt::UserRole);
+			installed->setItemData(index, profile, Qt::UserRole + 1);
+		}
+	}
+	installed->setEnabled(installed->count() > 0);
+	packageMode->setEnabled(installed->count() > 0);
+	cloneMode->setEnabled(installed->count() > 0);
+	const QString root = QStringLiteral("/synapse/subsys/android/users/%1/log-settings").arg(getuid());
+	auto readMode = [=](const QString &path) {
+		QFile file(path);
+		return file.open(QIODevice::ReadOnly) ? file.read(4).trimmed().toInt() : -1;
+	};
+	auto refresh = [=]() {
+		const QString package = installed->currentData(Qt::UserRole).toString();
+		const QString profile = installed->currentData(Qt::UserRole + 1).toString();
+		const QString directory = root + QStringLiteral("/packages/") + package;
+		packageMode->setCurrentIndex(qMax(0, packageMode->findData(readMode(directory + QStringLiteral("/mode")))));
+		cloneMode->setCurrentIndex(qMax(0, cloneMode->findData(readMode(directory + QStringLiteral("/clone.") + profile))));
+		cloneMode->setEnabled(installed->count() > 0 && profile != QStringLiteral("main"));
+	};
+	QObject::connect(installed, &QComboBox::currentIndexChanged, page, refresh);
+	refresh();
+	auto *apply = new QPushButton(QStringLiteral("Сохранить журнал приложения"), page);
+	form->addRow(apply);
+	auto *status = new QLabel(page);
+	status->setWordWrap(true);
+	form->addRow(status);
+	QObject::connect(apply, &QPushButton::clicked, page, [=]() {
+		const QString package = installed->currentData(Qt::UserRole).toString();
+		const QString profile = installed->currentData(Qt::UserRole + 1).toString();
+		if (package.isEmpty() || profile.isEmpty()) {
+			return;
+		}
+		const QString packages = root + QStringLiteral("/packages");
+		const QString directory = packages + QStringLiteral("/") + package;
+		QFile lock(root + QStringLiteral("/.lock"));
+		const bool locked = lock.open(QIODevice::ReadWrite) && flock(lock.handle(), LOCK_EX) == 0;
+		bool saved = locked && QDir().mkpath(directory);
+		if (saved) {
+			chmod(QFile::encodeName(packages).constData(), 0700);
+			chmod(QFile::encodeName(directory).constData(), 0700);
+		}
+		auto store = [=](const QString &name, int value) {
+			const QString path = directory + QStringLiteral("/") + name;
+			return value < 0 ? (QFile::remove(path) || !QFileInfo::exists(path)) :
+			    writeAndroidPrivateFile(path, QByteArray::number(value) + "\n");
+		};
+		saved = saved && store(QStringLiteral("mode"), packageMode->currentData().toInt()) &&
+		    (profile == QStringLiteral("main") || store(QStringLiteral("clone.") + profile, cloneMode->currentData().toInt()));
+		if (locked) {
+			flock(lock.handle(), LOCK_UN);
+		}
+		status->setText(saved ? QStringLiteral("Настройки журнала приложения сохранены") :
+		    QStringLiteral("Не удалось сохранить настройки журнала приложения"));
+	});
+}
+
+// Настроить ручной источник координат Android для текущего пользователя
+static void androidGpsControls(QWidget *page, QFormLayout *form) {
+	const QString path = QStringLiteral("/synapse/subsys/android/users/%1/location/manual").arg(getuid());
+	bool enabled = false;
+	double savedLatitude = 55.755833, savedLongitude = 37.617278;
+	QFile current(path);
+	if (current.open(QIODevice::ReadOnly)) {
+		const QList<QByteArray> parts = current.readAll().simplified().split(' ');
+		if (parts.size() >= 6 && parts[0] == "GPS1") {
+			enabled = parts[1] == "1";
+			savedLatitude = parts[4].toDouble();
+			savedLongitude = parts[5].toDouble();
+		}
+	}
+	auto *manual = new QCheckBox(QStringLiteral("Использовать ручной GPS"), page);
+	manual->setChecked(enabled);
+	form->addRow(manual);
+	auto *latitude = new QDoubleSpinBox(page);
+	latitude->setRange(-90.0, 90.0);
+	latitude->setDecimals(6);
+	latitude->setValue(savedLatitude);
+	form->addRow(QStringLiteral("Широта"), latitude);
+	auto *longitude = new QDoubleSpinBox(page);
+	longitude->setRange(-180.0, 180.0);
+	longitude->setDecimals(6);
+	longitude->setValue(savedLongitude);
+	form->addRow(QStringLiteral("Долгота"), longitude);
+	auto *apply = new QPushButton(QStringLiteral("Применить местоположение"), page);
+	form->addRow(apply);
+	auto *status = new QLabel(page);
+	status->setWordWrap(true);
+	form->addRow(status);
+	QObject::connect(apply, &QPushButton::clicked, page, [=]() {
+		timespec wall = {}, monotonic = {};
+		if (clock_gettime(CLOCK_REALTIME, &wall) != 0 || clock_gettime(CLOCK_MONOTONIC, &monotonic) != 0) {
+			status->setText(QStringLiteral("Не удалось прочитать системные часы"));
+			return;
+		}
+		QFile lock(QFileInfo(path).absolutePath() + "/.lock");
+		const bool locked = lock.open(QIODevice::ReadWrite) && flock(lock.handle(), LOCK_EX) == 0;
+		const long long milliseconds = static_cast<long long>(wall.tv_sec) * 1000 + wall.tv_nsec / 1000000;
+		const long long nanoseconds = static_cast<long long>(monotonic.tv_sec) * 1000000000 + monotonic.tv_nsec;
+		const QByteArray data = "GPS1 " + QByteArray::number(manual->isChecked() ? 1 : 0) + " " +
+			QByteArray::number(milliseconds) + " " + QByteArray::number(nanoseconds) + " " +
+			QByteArray::number(latitude->value(), 'g', 17) + " " + QByteArray::number(longitude->value(), 'g', 17) + "\n";
+		const bool saved = locked && writeAndroidPrivateFile(path, data);
+		if (locked) {
+			flock(lock.handle(), LOCK_UN);
+		}
+		status->setText(saved ? (manual->isChecked() ? QStringLiteral("Ручные координаты применены") :
+			QStringLiteral("Ручной GPS выключен")) : QStringLiteral("Не удалось сохранить местоположение"));
+	});
 }
 
 // Ориентация и размеры действующих окон и параметры новых процессов
@@ -411,77 +665,144 @@ static void subsystemToggle(QWidget *page, QFormLayout *form, const QString &nam
 	});
 }
 
-// Прочитать описания из пакетов и проверить присутствие каждой реализации перед показом
-static void discoverSubsystems(QTabWidget *pages, QString selected = {}) {
-	if (selected.isEmpty() && pages->currentWidget()) {
-		selected = pages->currentWidget()->objectName();
-	}
-	while (pages->count()) {
-		delete pages->widget(0);
-	}
+// Добавить самостоятельные страницы подсистем в общий список настроек
+static void discoverSubsystems(QTabWidget *pages, const QString &selected = {}) {
 	auto add = [pages](const QString &id, const QString &title) {
 		auto *page = new QWidget(pages);
 		auto *form = new QFormLayout(page);
+		form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 		auto *scroll = new QScrollArea(pages);
 		scroll->setObjectName(id);
 		scroll->setWidgetResizable(true);
 		scroll->setFrameShape(QFrame::NoFrame);
 		scroll->setWidget(page);
+		scroll->setProperty("settingsBuilt", true);
 		pages->addTab(scroll, title);
 		return form;
 	};
-	if (QFileInfo::exists(QStringLiteral("/proc/%1/status").arg(getpid()))) {
-		auto *form = add("posix", "POSIX");
-		form->addRow(new QLabel(QStringLiteral("Обязательная подсистема. Параметры сеанса наследуют запущенные в нём программы.")));
-		posixControls(form->parentWidget(), form);
+
+	auto *posix = add(QStringLiteral("posix"), QStringLiteral("POSIX"));
+	auto *posixNote = new QLabel(QStringLiteral(
+	    "Обязательная подсистема Linux ABI. Эти параметры наследуют процессы нового графического сеанса"), posix->parentWidget());
+	posixNote->setWordWrap(true);
+	posix->addRow(posixNote);
+	posixControls(posix->parentWidget(), posix);
+
+	const QDir registry(QStringLiteral("/usr/share/synapse/subsystems"));
+	QSettings spec(registry.filePath(QStringLiteral("android.ini")), QSettings::IniFormat);
+	spec.beginGroup(QStringLiteral("Subsystem"));
+	auto *android = add(QStringLiteral("android"), QStringLiteral("Android"));
+	auto *androidPage = android->parentWidget();
+	const bool androidInstalled = QFileInfo(QStringLiteral("/bin/android-run")).isExecutable() &&
+	    QFileInfo(QStringLiteral("/usr/share/android-rt/activity.template")).isFile();
+	auto *androidState = new QLabel(androidInstalled ?
+	    QStringLiteral("Android Runtime установлен. Изменения окон применяются к новым процессам") :
+	    QStringLiteral("Android Runtime не установлен. Установите пакет android-rt через магазин программ"), androidPage);
+	androidState->setWordWrap(true);
+	android->addRow(androidState);
+	subsystemToggle(androidPage, android, QStringLiteral("android"));
+	androidApiControls(androidPage, android);
+	androidControls(androidPage, android, spec.value(QStringLiteral("DisplayProfile"), 5).toInt());
+	androidGpsControls(androidPage, android);
+	androidLogControls(androidPage, android);
+	androidPackageLogControls(androidPage, android);
+	auto *packages = new QPushButton(QStringLiteral("Приложения, установка APK и клоны…"), androidPage);
+	packages->setEnabled(androidInstalled);
+	android->addRow(packages);
+	QObject::connect(packages, &QPushButton::clicked, androidPage, [=]() { androidPackages(androidPage); });
+
+	const QString access = QStringLiteral(
+	    "Доступ к подсистеме закрыт, обратитесь к aren@synapseos.ru и/или t.me/nera00 "
+	    "для доступа к альфа-версии подсистемы");
+	for (const auto &locked : {QPair<QString, QString>{QStringLiteral("winapi"), QStringLiteral("WinAPI")},
+	                          QPair<QString, QString>{QStringLiteral("dos"), QStringLiteral("DOS")}}) {
+		auto *form = add(locked.first, locked.second);
+		auto *label = new QLabel(access, form->parentWidget());
+		label->setWordWrap(true);
+		label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+		form->addRow(label);
+		auto *disabled = new QCheckBox(QStringLiteral("Включить подсистему"), form->parentWidget());
+		disabled->setEnabled(false);
+		form->addRow(disabled);
+		auto choice = [=](const QString &name, const QStringList &values) {
+			auto *value = new QComboBox(form->parentWidget());
+			value->addItems(values);
+			value->setEnabled(false);
+			form->addRow(name, value);
+		};
+		auto text = [=](const QString &name, const QString &value) {
+			auto *field = new QLineEdit(value, form->parentWidget());
+			field->setEnabled(false);
+			form->addRow(name, field);
+		};
+		auto toggle = [=](const QString &name) {
+			auto *value = new QCheckBox(name, form->parentWidget());
+			value->setEnabled(false);
+			form->addRow(value);
+		};
+		if (locked.first == QStringLiteral("winapi")) {
+			choice(QStringLiteral("Совместимость"), {QStringLiteral("Windows 10 22H2")});
+			choice(QStringLiteral("Архитектура приложений"), {QStringLiteral("x86_64 и x86"), QStringLiteral("Только x86_64"), QStringLiteral("Только x86")});
+			text(QStringLiteral("Каталог системы"), QStringLiteral("/synapse/subsys/winapi/system"));
+			text(QStringLiteral("Диск C:"), QStringLiteral("/synapse/subsys/winapi/c"));
+			choice(QStringLiteral("Поиск DLL"), {QStringLiteral("Сначала системные"), QStringLiteral("Сначала из каталога программы")});
+			choice(QStringLiteral("Direct3D 11"), {QStringLiteral("Аппаратный"), QStringLiteral("Программный")});
+			choice(QStringLiteral("Аудио"), {QStringLiteral("Системный выход SynapseOS"), QStringLiteral("Выключен")});
+			choice(QStringLiteral("Исключения SEH"), {QStringLiteral("Полная обработка"), QStringLiteral("Только совместимость")});
+			choice(QStringLiteral("Планировщик потоков"), {QStringLiteral("Windows 10"), QStringLiteral("Совместимый")});
+			toggle(QStringLiteral("Поддержка Unicode UTF-16"));
+			toggle(QStringLiteral("Изолировать программы в отдельных каталогах"));
+			toggle(QStringLiteral("Журнал вызовов WinAPI"));
+			toggle(QStringLiteral("Показывать диагностику запуска"));
+		} else {
+			choice(QStringLiteral("Машина"), {QStringLiteral("PC/AT"), QStringLiteral("80486"), QStringLiteral("Pentium"), QStringLiteral("Pentium II")});
+			choice(QStringLiteral("Процессор"), {QStringLiteral("Автоматически"), QStringLiteral("80486DX"), QStringLiteral("Pentium MMX")});
+			choice(QStringLiteral("Частота эмуляции"), {QStringLiteral("Автоматически"), QStringLiteral("Максимальная"), QStringLiteral("Фиксированная")});
+			choice(QStringLiteral("Оперативная память"), {QStringLiteral("16 МиБ"), QStringLiteral("32 МиБ"), QStringLiteral("64 МиБ"), QStringLiteral("128 МиБ"), QStringLiteral("256 МиБ")});
+			choice(QStringLiteral("Видеокарта"), {QStringLiteral("VGA"), QStringLiteral("SVGA"), QStringLiteral("VESA 2.0")});
+			choice(QStringLiteral("Режим видео"), {QStringLiteral("Текстовый"), QStringLiteral("13h"), QStringLiteral("VESA"), QStringLiteral("По программе")});
+			choice(QStringLiteral("Звуковая карта"), {QStringLiteral("Sound Blaster 16"), QStringLiteral("AdLib"), QStringLiteral("Gravis Ultrasound"), QStringLiteral("PC Speaker")});
+			choice(QStringLiteral("Мышь"), {QStringLiteral("PS/2"), QStringLiteral("COM1"), QStringLiteral("Нет")});
+			choice(QStringLiteral("Раскладка клавиатуры"), {QStringLiteral("Русская"), QStringLiteral("Английская США")});
+			text(QStringLiteral("Диск C:"), QStringLiteral("/synapse/subsys/dos/c"));
+			text(QStringLiteral("Каталог общих файлов"), QDir::homePath() + QStringLiteral("/Documents/DOS"));
+			toggle(QStringLiteral("Эмуляция сопроцессора FPU"));
+			toggle(QStringLiteral("Эмуляция EMS"));
+			toggle(QStringLiteral("Эмуляция XMS"));
+			choice(QStringLiteral("Сетевой адаптер"), {QStringLiteral("Нет"), QStringLiteral("NE2000"), QStringLiteral("PCnet")});
+			choice(QStringLiteral("Пакетный драйвер"), {QStringLiteral("Выключен"), QStringLiteral("NDIS2"), QStringLiteral("Packet interface")});
+			toggle(QStringLiteral("Полноэкранный режим"));
+			toggle(QStringLiteral("Сохранять состояние при выходе"));
+		}
 	}
-	const QDir registry("/usr/share/synapse/subsystems");
-	QStringList ids;
-	for (const QFileInfo &info : registry.entryInfoList({"*.ini"}, QDir::Files | QDir::NoSymLinks, QDir::Name)) {
-		ids.append(info.completeBaseName());
-	}
-	if (!ids.contains("android")) {
-		ids.append("android");
-	}
-	for (const QString &id : ids) {
-		if (id == "posix" || !QRegularExpression("^[a-z0-9_-]+$").match(id).hasMatch()) {
+
+	for (const QFileInfo &info : registry.entryInfoList({QStringLiteral("*.ini")}, QDir::Files | QDir::NoSymLinks, QDir::Name)) {
+		const QString id = info.completeBaseName();
+		if (id == QStringLiteral("android") || id == QStringLiteral("posix") ||
+		    id == QStringLiteral("winapi") || id == QStringLiteral("dos") ||
+		    !QRegularExpression(QStringLiteral("^[a-z0-9_-]+$")).match(id).hasMatch()) {
 			continue;
 		}
-		QSettings spec(registry.filePath(id + ".ini"), QSettings::IniFormat);
-		spec.beginGroup("Subsystem");
-		const bool android = id == "android";
-		const QString executable = spec.value("Executable", android ? "/bin/android-run" : "").toString();
-		const QString required = spec.value("RequiredFile", android ? "/usr/share/android-rt/activity.template" : "").toString();
-		if (!QDir::isAbsolutePath(executable) || !QFileInfo(executable).isFile() || !QFileInfo(executable).isExecutable() ||
-		    (!required.isEmpty() && (!QDir::isAbsolutePath(required) || !QFileInfo(required).isFile()))) {
+		QSettings extra(info.absoluteFilePath(), QSettings::IniFormat);
+		extra.beginGroup(QStringLiteral("Subsystem"));
+		const QString editor = extra.value(QStringLiteral("SettingsExecutable")).toString();
+		if (!QDir::isAbsolutePath(editor) || !QFileInfo(editor).isExecutable()) {
 			continue;
 		}
-		auto *form = add(id, spec.value("Name", android ? QStringLiteral("Android") : id).toString());
-		auto *page = form->parentWidget();
-		subsystemToggle(page, form, id);
-		if (android) {
-			androidControls(page, form, spec.value("DisplayProfile").toInt());
-			if (spec.value("InstallProfiles").toInt() >= 1) {
-				auto *packages = new QPushButton(QStringLiteral("Приложения Android…"), page);
-				form->addRow(packages);
-				QObject::connect(packages, &QPushButton::clicked, page, [=]() { androidPackages(page); });
+		auto *form = add(id, extra.value(QStringLiteral("Name"), id).toString());
+		auto *open = new QPushButton(QStringLiteral("Открыть настройки подсистемы"), form->parentWidget());
+		form->addRow(open);
+		QObject::connect(open, &QPushButton::clicked, form->parentWidget(), [=]() {
+			QProcess::startDetached(editor, {});
+		});
+	}
+
+	if (!selected.isEmpty()) {
+		for (int index = 0; index < pages->count(); ++index) {
+			if (pages->widget(index)->objectName() == selected) {
+				pages->setCurrentIndex(index);
+				break;
 			}
-		}
-		const QString editor = spec.value("SettingsExecutable").toString();
-		if (QDir::isAbsolutePath(editor) && QFileInfo(editor).isFile() && QFileInfo(editor).isExecutable()) {
-			auto *open = new QPushButton(spec.value("SettingsLabel", QStringLiteral("Открыть настройки подсистемы")).toString(), page);
-			form->addRow(open);
-			QObject::connect(open, &QPushButton::clicked, page, [=]() {
-				if (!QProcess::startDetached(editor, {})) {
-					QMessageBox::warning(page, id, QStringLiteral("Не удалось открыть настройки."));
-				}
-			});
-		}
-	}
-	for (int i = 0; i < pages->count(); i++) {
-		if (pages->widget(i)->objectName() == selected) {
-			pages->setCurrentIndex(i);
-			break;
 		}
 	}
 }

@@ -57,8 +57,8 @@ ln -s "$host_tools/root/usr/include/linux" "$headers_dir/linux"
 			--disable-werror --disable-build-nscd --disable-nscd --without-selinux
 )
 
-make -C "$build_dir" -j"$JOBS"
-make -C "$build_dir" install "install_root=$install_dir"
+env -u ARCH -u TARGET_ARCH make -C "$build_dir" -j"$JOBS"
+env -u ARCH -u TARGET_ARCH make -C "$build_dir" install "install_root=$install_dir"
 
 for library in ld-linux-x86-64.so.2 libc.so.6 libm.so.6 libresolv.so.2 \
 	libnss_files.so.2 libnss_dns.so.2; do

@@ -5,7 +5,7 @@
 // Получение каталога, проверка подписи и учёт источников пакетов
 // Подсистема: пакетный менеджер setup
 // Первое изменение в истории Git: 11.10.2026
-// Последнее изменение: 03.11.2026
+// Последнее изменение: 23.11.2026
 // Доступ: общедоступный
 
 #include "setup.h"
@@ -1004,7 +1004,7 @@ static void public_directory(const char *relative) {
         fail("open public catalog directory: %s", strerror(errno));
     }
     int bad = fstat(fd, &st) != 0 || st.st_uid != geteuid();
-    if (!bad) {
+    if (!bad && (st.st_mode & 07777) != 0755) {
         bad = fchmod(fd, 0755) != 0;
     }
     close(fd);
@@ -1032,7 +1032,8 @@ void invalidate_public_catalog(void) {
         }
         fd = next;
         struct stat st;
-        if (fstat(fd, &st) != 0 || st.st_uid != geteuid() || fchmod(fd, 0755) != 0) {
+        if (fstat(fd, &st) != 0 || st.st_uid != geteuid() ||
+            ((st.st_mode & 07777) != 0755 && fchmod(fd, 0755) != 0)) {
             close(fd);
             fail("unsafe public catalog directory");
         }

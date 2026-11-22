@@ -1,6 +1,6 @@
 {
   "name": "labwc",
-  "version": "0.9.8-r45",
+  "version": "0.9.8-r48",
   "source": "https://github.com/labwc/labwc/archive/refs/tags/0.9.8.tar.gz",
   "sha256": "f97bdbcb4b2b907b0eda243a62d8e06db822e889de14126156505245ffb7e6cb",
   "source_directory": "labwc-0.9.8",

@@ -4,7 +4,7 @@
 // Описание: Показывать меню, работающие окна и часы на нижней панели
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 21.11.2026
+// Последнее изменение: 23.11.2026
 // Доступ: общедоступный
 
 #define _DEFAULT_SOURCE
@@ -81,6 +81,9 @@ static struct {
     pid_t keyboard_pid;
     int last_minute;
     int theme;
+    int corner_radius;
+    int panel_height;
+    time_t wallpaper_mtime;
     cairo_surface_t *menu_icon;
     struct stat menu_icon_stat;
     bool menu_icon_valid;
@@ -119,8 +122,22 @@ static int read_theme(void) {
     char line[256];
     int theme = 0;
     while (fgets(line, sizeof(line), config) != NULL) {
-        if (strstr(line, "<name>Arc-Clone</name>") != NULL) {
+        if (strstr(line, "<name>synapse-classic</name>") != NULL) {
+            theme = 4;
+            break;
+        }
+
+        if (strstr(line, "<name>Arc-Clone</name>") != NULL ||
+            strstr(line, "<name>Synapse-Light</name>") != NULL) {
             theme = 1;
+            break;
+        }
+
+        if (strstr(line, "<name>Synapse-Midnight</name>") != NULL ||
+            strstr(line, "<name>Synapse-Graphite</name>") != NULL ||
+            strstr(line, "<name>Synapse-Ocean</name>") != NULL ||
+            strstr(line, "<name>Synapse-Dracula</name>") != NULL) {
+            theme = 3;
             break;
         }
 
@@ -154,7 +171,7 @@ struct panel_palette {
     struct panel_color text;
 };
 
-static const struct panel_palette palettes[] = {
+static struct panel_palette palettes[] = {
     {{0.19, 0.20, 0.23}, {0.37, 0.39, 0.43}, {0.26, 0.28, 0.31},
      {0.39, 0.25, 0.24}, {0.84, 0.36, 0.23}, {0.96, 0.96, 0.96}},
     {{0.91, 0.92, 0.94}, {0.67, 0.72, 0.77}, {0.85, 0.88, 0.92},
@@ -163,7 +180,71 @@ static const struct panel_palette palettes[] = {
      {0.32, 0.46, 0.53}, {0.46, 0.67, 0.74}, {0.93, 0.96, 0.97}},
     {{0.10, 0.12, 0.15}, {0.25, 0.32, 0.38}, {0.14, 0.16, 0.20},
      {0.24, 0.30, 0.37}, {0.32, 0.56, 0.82}, {1.00, 1.00, 1.00}},
+    {{0.96, 0.95, 0.93}, {0.60, 0.66, 0.68}, {0.89, 0.91, 0.91},
+     {0.14, 0.34, 0.47}, {0.00, 0.44, 0.56}, {0.09, 0.20, 0.24}},
 };
+
+// Прочитать переносимые параметры оформления нижней панели
+static void read_appearance(void) {
+    panel.corner_radius = panel.theme == 4 ? 0 : 6;
+    panel.panel_height = 44;
+    const char *home = getenv("HOME");
+    if (home == NULL || home[0] == 0) {
+        return;
+    }
+
+    char path[512];
+    if (snprintf(path, sizeof(path), "%s/.config/SynapseOS/Desktop.conf", home) >= (int)sizeof(path)) {
+        return;
+    }
+    FILE *input = fopen(path, "r");
+    if (input == NULL) {
+        return;
+    }
+
+    bool appearance = false;
+    char line[256];
+    while (fgets(line, sizeof(line), input) != NULL) {
+        line[strcspn(line, "\r\n")] = 0;
+        if (line[0] == '[') {
+            appearance = strcmp(line, "[appearance]") == 0;
+            continue;
+        }
+        if (!appearance) {
+            continue;
+        }
+        char *separator = strchr(line, '=');
+        if (separator == NULL) {
+            continue;
+        }
+        *separator++ = 0;
+        if (!strcmp(line, "corner-radius")) {
+            int value = atoi(separator);
+            panel.corner_radius = value >= 0 && value <= 24 ? value : panel.corner_radius;
+            continue;
+        }
+        if (!strcmp(line, "panel-height")) {
+            int value = atoi(separator);
+            panel.panel_height = value >= 32 && value <= 96 ? value : panel.panel_height;
+            continue;
+        }
+
+        struct panel_color *target = NULL;
+        if (!strcmp(line, "background")) target = &palettes[panel.theme].background;
+        if (!strcmp(line, "base")) target = &palettes[panel.theme].button;
+        if (!strcmp(line, "surface")) target = &palettes[panel.theme].button;
+        if (!strcmp(line, "foreground")) target = &palettes[panel.theme].text;
+        if (!strcmp(line, "accent")) target = &palettes[panel.theme].accent;
+        unsigned red, green, blue;
+        if (target != NULL && sscanf(separator, "#%2x%2x%2x", &red, &green, &blue) == 3 &&
+            strlen(separator) == 7) {
+            target->red = red / 255.0;
+            target->green = green / 255.0;
+            target->blue = blue / 255.0;
+        }
+    }
+    fclose(input);
+}
 
 // Передать Cairo цвет выбранной темы
 static void set_panel_color(cairo_t *context, struct panel_color color) {
@@ -401,6 +482,21 @@ static void background_draw(void) {
     const char *path = panel.theme == 1 ?
         "/usr/share/backgrounds/synapse/Desktop-light.png" :
         "/usr/share/backgrounds/synapse/Desktop-dark.png";
+    const char *home = getenv("HOME");
+    char config_path[512], custom[1024];
+    if (home != NULL && snprintf(config_path, sizeof(config_path),
+        "%s/.config/synapse/wallpaper", home) < (int)sizeof(config_path)) {
+        FILE *config = fopen(config_path, "r");
+        if (config != NULL && fgets(custom, sizeof(custom), config) != NULL) {
+            custom[strcspn(custom, "\r\n")] = 0;
+            if (custom[0] == '/' && access(custom, R_OK) == 0) {
+                path = custom;
+            }
+        }
+        if (config != NULL) {
+            fclose(config);
+        }
+    }
     cairo_surface_t *wallpaper = cairo_image_surface_create_from_png(path);
     if (cairo_surface_status(wallpaper) == CAIRO_STATUS_SUCCESS) {
         double source_width = cairo_image_surface_get_width(wallpaper);
@@ -434,12 +530,12 @@ static void background_draw(void) {
 static void draw_button(cairo_t *context, int x, int width, const char *label, bool active) {
     const struct panel_palette *colors = &palettes[panel.theme];
     set_panel_color(context, active ? colors->active_button : colors->button);
-    rounded_rectangle(context, x + 3, 5, width - 6, panel.height - 10, 6.0);
+    rounded_rectangle(context, x + 3, 5, width - 6, panel.height - 10, panel.corner_radius);
     cairo_fill(context);
 
     if (active) {
         set_panel_color(context, colors->accent);
-        rounded_rectangle(context, x + 12, panel.height - 5, width - 24, 3, 1.5);
+        rounded_rectangle(context, x + 12, panel.height - 5, width - 24, 3, panel.corner_radius / 4.0);
         cairo_fill(context);
     }
 
@@ -1041,6 +1137,7 @@ static const struct wl_registry_listener registry_listener = {
 int main(void) {
     panel.keyboard_available = access("/usr/libexec/labwc/deck-keyboard", X_OK) == 0;
     panel.theme = read_theme();
+    read_appearance();
     panel.last_index = panel.selected = -1;
     const char *home = getenv("HOME");
     if (home && home[0] == '/' && snprintf(panel.desktop_dir, sizeof(panel.desktop_dir),
@@ -1092,8 +1189,8 @@ int main(void) {
         ZWLR_LAYER_SHELL_V1_LAYER_TOP, "synapse-panel");
     zwlr_layer_surface_v1_set_anchor(panel.layer, ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
         ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
-    zwlr_layer_surface_v1_set_size(panel.layer, 0, 44);
-    zwlr_layer_surface_v1_set_exclusive_zone(panel.layer, 44);
+    zwlr_layer_surface_v1_set_size(panel.layer, 0, panel.panel_height);
+    zwlr_layer_surface_v1_set_exclusive_zone(panel.layer, panel.panel_height);
     zwlr_layer_surface_v1_add_listener(panel.layer, &layer_listener, NULL);
     wl_surface_commit(panel.surface);
     if (wl_display_roundtrip(panel.display) < 0) {
@@ -1147,10 +1244,22 @@ int main(void) {
         if (theme != panel.theme) {
             panel.theme = theme;
             clear_menu_icon();
-            panel.dirty = true;
             desktop_changed = true;
         }
-        if (desktop_changed) background_draw();
+        read_appearance();
+        panel.dirty = true;
+        const char *home = getenv("HOME");
+        char wallpaper_path[512];
+        struct stat wallpaper;
+        if (home != NULL && snprintf(wallpaper_path, sizeof(wallpaper_path),
+            "%s/.config/synapse/wallpaper", home) < (int)sizeof(wallpaper_path) &&
+            stat(wallpaper_path, &wallpaper) == 0 && wallpaper.st_mtime != panel.wallpaper_mtime) {
+            panel.wallpaper_mtime = wallpaper.st_mtime;
+            desktop_changed = true;
+        }
+        if (desktop_changed) {
+            background_draw();
+        }
     }
 
     clear_menu_icon();

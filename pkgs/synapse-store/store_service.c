@@ -6,7 +6,7 @@
     Описание: Проверяет клиента и запускает только установку подписанного пакета через setup
     Подсистема: графический магазин программ
     Первое изменение: 01.11.2026
-    Последнее изменение: 03.11.2026
+    Последнее изменение: 23.11.2026
     Доступ: общедоступный
 */
 
@@ -122,12 +122,16 @@ static void write_result(int descriptor, int32_t code) {
 // Проверить имя пакета до передачи его в привилегированную команду
 static bool valid_name(const struct store_request *request) {
     size_t length = request->name_length;
-    if (request->source == STORE_SOURCE_UPDATE || request->source == STORE_SOURCE_DEBIAN_CATALOG) {
+    if (request->source == STORE_SOURCE_UPDATE || request->source == STORE_SOURCE_DEBIAN_CATALOG ||
+        request->source == STORE_SOURCE_UPGRADE) {
         return length == 0 && request->name[0] == 0;
     }
 
     if (length == 0 || length >= STORE_MAX_NAME || request->name[length] != 0) {
         return false;
+    }
+    if (request->source >= STORE_SOURCE_SETTINGS && request->source <= STORE_SOURCE_PASSWD) {
+        return true;
     }
 
     for (size_t index = 0; index < length; index++) {
@@ -145,15 +149,98 @@ static bool valid_name(const struct store_request *request) {
     return true;
 }
 
-// Ограничить установку Debian проверенными пакетами
+static bool valid_data(const struct store_request *request, bool required) {
+    size_t length = request->data_length;
+    if (length >= STORE_MAX_DATA || request->data[length] != 0 || (required && length == 0)) {
+        return false;
+    }
+    for (size_t index = 0; index < length; index++) {
+        unsigned char character = (unsigned char)request->data[index];
+        if (character < 32 || character == 127) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool valid_account_name(const struct store_request *request) {
+    size_t length = request->name_length;
+    if (length == 0 || length > 32 || request->name[0] == '-') {
+        return false;
+    }
+    for (size_t index = 0; index < length; index++) {
+        unsigned char character = (unsigned char)request->name[index];
+        bool letter = (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z');
+        bool digit = character >= '0' && character <= '9';
+        if (!letter && !digit && character != '_' && character != '-') {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool valid_account_data(const struct store_request *request) {
+    return !strcmp(request->data, "/bin/sh") || !strcmp(request->data, "/bin/bash") ||
+           !strcmp(request->data, "/bin/zsh");
+}
+
+static bool valid_setting(const struct store_request *request) {
+    const char *separator = strchr(request->name, '=');
+    if (separator == NULL || separator == request->name || separator[1] == 0) {
+        return false;
+    }
+    for (const char *part = request->name; part < separator; part++) {
+        unsigned char character = (unsigned char)*part;
+        bool letter = (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z');
+        bool digit = character >= '0' && character <= '9';
+        if (!letter && !digit && character != '.' && character != '_' && character != '-') {
+            return false;
+        }
+    }
+    for (const char *part = separator + 1; *part; part++) {
+        unsigned char character = (unsigned char)*part;
+        if (character < 32 || character == 127) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool valid_setup(const struct store_request *request) {
+    static const char *const commands[] = {"auth", "auth status", "auth logout", "plus enable",
+                                           "plus disable", "plus status", "update"};
+    for (size_t index = 0; index < sizeof(commands) / sizeof(commands[0]); index++) {
+        if (!strcmp(request->name, commands[index])) {
+            return valid_data(request, false);
+        }
+    }
+    return false;
+}
+
+// Разрешить только известные операции с пакетами и системными настройками
 static bool valid_source(const struct store_request *request) {
     if (request->source == STORE_SOURCE_SETUP || request->source == STORE_SOURCE_UPDATE ||
-        request->source == STORE_SOURCE_DEBIAN_CATALOG) {
-        return true;
+        request->source == STORE_SOURCE_DEBIAN_CATALOG || request->source == STORE_SOURCE_UPGRADE ||
+        request->source == STORE_SOURCE_SETUP_REMOVE || request->source == STORE_SOURCE_DEBIAN_REMOVE) {
+        return valid_name(request);
     }
-
-    return request->source == STORE_SOURCE_DEBIAN &&
-           (strcmp(request->name, "m4") == 0 || strcmp(request->name, "busybox-static") == 0);
+    if (request->source == STORE_SOURCE_SETTINGS) {
+        return valid_setting(request);
+    }
+    if (request->source == STORE_SOURCE_POWER) {
+        return !strcmp(request->name, "balanced") || !strcmp(request->name, "powersave") ||
+               !strcmp(request->name, "performance") || !strcmp(request->name, "firmware");
+    }
+    if (request->source == STORE_SOURCE_ACCOUNT_SETUP) {
+        return valid_setup(request);
+    }
+    if (request->source == STORE_SOURCE_USERADD || request->source == STORE_SOURCE_USERMOD) {
+        return valid_account_name(request) && valid_account_data(request);
+    }
+    if (request->source == STORE_SOURCE_PASSWD) {
+        return valid_account_name(request) && valid_data(request, true);
+    }
+    return request->source == STORE_SOURCE_DEBIAN && valid_name(request);
 }
 
 // Сверить пароль root, если клиент не root
@@ -280,10 +367,17 @@ static bool authenticate(uid_t uid, const struct store_request *request) {
     return false;
 }
 
-// Запустить одну разрешённую команду менеджера и вернуть её вывод клиенту
-static void install_package(int client, int listener, uint32_t source, const char *name) {
-    int channel[2];
+// Запустить одну разрешённую операцию и вернуть её вывод клиенту
+static void install_package(int client, int listener, uint32_t source, const char *name, const char *data) {
+    int channel[2], secret[2] = {-1, -1};
     if (pipe(channel) != 0) {
+        write_result(client, 1);
+        return;
+    }
+    if (data[0] && (source == STORE_SOURCE_ACCOUNT_SETUP || source == STORE_SOURCE_PASSWD) &&
+        pipe(secret) != 0) {
+        close(channel[0]);
+        close(channel[1]);
         write_result(client, 1);
         return;
     }
@@ -292,6 +386,10 @@ static void install_package(int client, int listener, uint32_t source, const cha
     if (child < 0) {
         close(channel[0]);
         close(channel[1]);
+        if (secret[0] >= 0) {
+            close(secret[0]);
+            close(secret[1]);
+        }
         write_result(client, 1);
         return;
     }
@@ -300,6 +398,13 @@ static void install_package(int client, int listener, uint32_t source, const cha
         close(channel[0]);
         close(listener);
         close(client);
+        if (secret[0] >= 0) {
+            if (dup2(secret[0], STDIN_FILENO) < 0) {
+                _exit(126);
+            }
+            close(secret[0]);
+            close(secret[1]);
+        }
         if (dup2(channel[1], STDOUT_FILENO) < 0 || dup2(channel[1], STDERR_FILENO) < 0) {
             _exit(126);
         }
@@ -309,9 +414,59 @@ static void install_package(int client, int listener, uint32_t source, const cha
             umask(0022);
         }
 
+        if (source == STORE_SOURCE_POWER) {
+            int fd = open("/proc/power-profile", O_WRONLY | O_CLOEXEC);
+            size_t length = strlen(name);
+            bool okay = fd >= 0 && write(fd, name, length) == (ssize_t)length;
+            if (fd >= 0) {
+                close(fd);
+            }
+            _exit(okay ? 0 : 1);
+        }
+        if (source == STORE_SOURCE_SETTINGS) {
+            char setting[STORE_MAX_NAME];
+            snprintf(setting, sizeof(setting), "%s", name);
+            char *separator = strchr(setting, '=');
+            if (separator != NULL) {
+                *separator = 0;
+                execl("/bin/settings", "settings", "--set", setting, separator + 1, (char *)NULL);
+            }
+            _exit(127);
+        }
+        if (source == STORE_SOURCE_USERADD) {
+            execl("/bin/useradd", "useradd", "-m", "-s", data, name, (char *)NULL);
+        }
+        if (source == STORE_SOURCE_USERMOD) {
+            execl("/bin/usermod", "usermod", "-s", data, name, (char *)NULL);
+        }
+        if (source == STORE_SOURCE_PASSWD) {
+            execl("/bin/passwd", "passwd", "--stdin", name, (char *)NULL);
+        }
+        if (source == STORE_SOURCE_ACCOUNT_SETUP) {
+            if (!strcmp(name, "auth")) {
+                execl("/bin/setup", "setup", "auth", (char *)NULL);
+            } else if (!strcmp(name, "auth status")) {
+                execl("/bin/setup", "setup", "auth", "status", (char *)NULL);
+            } else if (!strcmp(name, "auth logout")) {
+                execl("/bin/setup", "setup", "auth", "logout", (char *)NULL);
+            } else if (!strcmp(name, "update")) {
+                execl("/bin/setup", "setup", "update", (char *)NULL);
+            } else {
+                execl("/bin/setup", "setup", "plus", name + 5, (char *)NULL);
+            }
+        }
         if (source == STORE_SOURCE_UPDATE) {
             execl("/bin/setup", "setup", "update", (char *)NULL);
             dprintf(STDERR_FILENO, "Не удалось обновить каталог setup: %s\n", strerror(errno));
+        } else if (source == STORE_SOURCE_UPGRADE) {
+            execl("/bin/setup", "setup", "upgrade", "--yes", (char *)NULL);
+            dprintf(STDERR_FILENO, "Не удалось обновить пакеты: %s\n", strerror(errno));
+        } else if (source == STORE_SOURCE_SETUP_REMOVE) {
+            execl("/bin/setup", "setup", "remove", "--yes", name, (char *)NULL);
+            dprintf(STDERR_FILENO, "Не удалось удалить пакет: %s\n", strerror(errno));
+        } else if (source == STORE_SOURCE_DEBIAN_REMOVE) {
+            execl("/bin/debian-apt", "debian-apt", "remove", name, (char *)NULL);
+            dprintf(STDERR_FILENO, "Не удалось удалить Debian пакет: %s\n", strerror(errno));
         } else if (source == STORE_SOURCE_DEBIAN_CATALOG) {
             execl("/bin/debian-apt", "debian-apt", "catalog", (char *)NULL);
             dprintf(STDERR_FILENO, "Не удалось подготовить каталог Debian: %s\n", strerror(errno));
@@ -327,6 +482,22 @@ static void install_package(int client, int listener, uint32_t source, const cha
     }
 
     close(channel[1]);
+    if (secret[0] >= 0) {
+        close(secret[0]);
+        size_t length = strlen(data);
+        size_t done = 0;
+        while (done < length) {
+            ssize_t count = write(secret[1], data + done, length - done);
+            if (count < 0 && errno == EINTR) {
+                continue;
+            }
+            if (count <= 0) {
+                break;
+            }
+            done += (size_t)count;
+        }
+        close(secret[1]);
+    }
     bool connected = true;
     char output[STORE_MAX_OUTPUT];
     for (;;) {
@@ -372,6 +543,7 @@ static void handle_client(int client, int listener) {
     struct store_request request = {0};
     if (!read_request(client, &request)) {
         clear_secret(request.password, sizeof(request.password));
+        clear_secret(request.data, sizeof(request.data));
         return;
     }
 
@@ -387,7 +559,8 @@ static void handle_client(int client, int listener) {
         return;
     }
 
-    install_package(client, listener, request.source, request.name);
+    install_package(client, listener, request.source, request.name, request.data);
+    clear_secret(request.data, sizeof(request.data));
 }
 
 // Проверить запрет доступа к системному файлу после понижения прав

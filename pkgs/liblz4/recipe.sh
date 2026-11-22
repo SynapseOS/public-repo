@@ -6,7 +6,7 @@
 # Статус доступа: общедоступный
 
 prepare
-make -C "$source/lib" -j"$JOBS" CC="$CC" CFLAGS='-O2 -D__synapse__' liblz4.a
+env -u TARGET_ARCH make -C "$source/lib" -j"$JOBS" CC="$CC" CFLAGS='-O2 -D__synapse__' liblz4.a
 
 copy "$source/lib/liblz4.a" usr/lib/liblz4.a
 

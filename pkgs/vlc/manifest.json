@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "vlc",
-  "version": "3.0.24-r3",
-  "description": "Music player using VideoLAN libVLC, Qt 6 and OSS",
+  "version": "3.0.24-r4",
+  "description": "VLC media player using VideoLAN libVLC, FFmpeg, Qt 6 and OSS",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",

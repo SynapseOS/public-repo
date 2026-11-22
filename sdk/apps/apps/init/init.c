@@ -5,7 +5,7 @@
 // Настройка аккаунтов, терминалов, сети и запуск служб
 // Подсистема: init
 // Первое изменение в истории Git: 09.10.2026
-// Последнее изменение: 16.11.2026
+// Последнее изменение: 23.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -97,6 +97,7 @@ typedef struct {
     int ftp_passive_max;
     int desktop_enabled;
     int desktop_login_manager;
+    int display_fps;
     char desktop_path[256];
     int setup_check_updates;
     int qga_enabled;
@@ -218,6 +219,12 @@ static int synapse_config_handler(void *user, const char *section, const char *k
             strncpy(cfg->language, value, sizeof(cfg->language) - 1);
         } else if (strcmp(key, "Timezone") == 0) {
             strncpy(cfg->timezone, value, sizeof(cfg->timezone) - 1);
+        }
+    } else if (!strcmp(section, "Display") && !strcmp(key, "FPS")) {
+        char *end = NULL;
+        long fps = strtol(value, &end, 10);
+        if (end != value && *end == '\0' && fps >= 1 && fps <= 240) {
+            cfg->display_fps = (int)fps;
         }
     } else if (!strcmp(section, "Power") && !strcmp(key, "Profile")) {
         if (!strcmp(value, "balanced") || !strcmp(value, "firmware") ||
@@ -1755,6 +1762,9 @@ static int run_first_boot_setup(void) {
 
 static void apply_boot_session(syn_cfg_t *config) {
     // Выбор сессии в Limine действует на эту загрузку и не меняет settings.ini
+    if (config->display_fps > 0 && syscall(104100L, (unsigned long)config->display_fps) != 0) {
+        perror("[init] display FPS");
+    }
     if (config->power_profile[0]) {
         int fd = open("/proc/power-profile", O_WRONLY | O_CLOEXEC);
         size_t length = strlen(config->power_profile);

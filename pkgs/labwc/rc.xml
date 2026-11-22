@@ -5,7 +5,7 @@
     Описание: Единые кнопки окон и доступ к меню SynapseOS
     Подсистема: графическая оболочка
     Первое изменение: 28.10.2026
-    Последнее изменение: 30.10.2026
+    Последнее изменение: 23.11.2026
     Доступ: общедоступный
 -->
 <labwc_config>
@@ -53,6 +53,11 @@
         <windowRule title="Synapse Recorder HUD">
             <skipTaskbar>yes</skipTaskbar>
             <action name="MoveTo" x="20" y="20" />
+            <action name="ToggleAlwaysOnTop" />
+        </windowRule>
+        <windowRule title="Synapse Notification">
+            <skipTaskbar>yes</skipTaskbar>
+            <action name="MoveTo" x="860" y="20" />
             <action name="ToggleAlwaysOnTop" />
         </windowRule>
     </windowRules>

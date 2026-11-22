@@ -22,8 +22,8 @@ sed -e "s|@CC@|$CC|g" -e 's|@CFLAGS@|-O2|g' -e 's|@LIBS@|-pthread -lrt -lm|g' \
 		sh scripts/generate-makefiles.sh
 ) >"$work/configure.log" 2>&1
 
-make -C "$source/lib" -j"$JOBS" >"$work/build.log" 2>&1
-make -C "$source/conformance" -j"$JOBS" all >>"$work/build.log" 2>&1
+env -u TARGET_ARCH make -C "$source/lib" -j"$JOBS" >"$work/build.log" 2>&1
+env -u TARGET_ARCH make -C "$source/conformance" -j"$JOBS" all >>"$work/build.log" 2>&1
 suite="$payload/usr/libexec/open-posix-testsuite"
 mkdir -p "$suite"
 : >"$suite/tests.tsv"
@@ -34,7 +34,7 @@ while IFS= read -r -d '' file; do
 	mapfile -t targets < <(sed -n 's/^MAKE_TARGETS+=[[:space:]]*//p' "$file" | tr ' ' '\n' | sed '/^$/d')
 
 	if ((${#targets[@]})); then
-		make -C "$directory" -j"$JOBS" all >>"$work/build.log" 2>&1
+		env -u TARGET_ARCH make -C "$directory" -j"$JOBS" all >>"$work/build.log" 2>&1
 	fi
 
 	for target in "${targets[@]}"; do
