@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "name": "btctl",
+  "version": "0.1.0-r2",
+  "description": "Bluetooth adapter control over /dev/bthciN for SynapseOS",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": ["kernel >= 0.1.950-r1", "usb-bt"],
+  "conflicts": [],
+  "files": [
+    {"path": "bin/btctl", "type": "file", "mode": 493, "config": false},
+    {"path": "usr/libexec/bt-auto", "type": "file", "mode": 493, "config": false},
+    {"path": "etc/services/bluetooth", "type": "file", "mode": 448, "config": true},
+    {"path": "usr/share/help/btctl.md", "type": "file", "mode": 420, "config": false},
+    {"path": "usr/share/licenses/btctl/musl-COPYRIGHT", "type": "file", "mode": 420, "config": false}
+  ]
+}

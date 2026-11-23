@@ -1,0 +1,62 @@
+#!/bin/sh
+# bt-auto: применяет настройки Bluetooth из /etc/settings.ini к адаптеру
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: x86_64, ABI: служба SynapseOS
+# Описание: Следит за Bluetooth.* и вызывает btctl up или down при смене
+# Подсистема: Bluetooth
+# Первое изменение: 23.11.2026, последнее изменение: 23.11.2026
+# Доступ: общедоступный
+
+state=/var/run/bt.state
+
+while :; do
+    if [ ! -e /dev/bthci0 ] || [ ! -x /bin/btctl ]; then
+        rm -f "$state"
+        sleep 5
+        continue
+    fi
+
+    enabled=$(/bin/settings --get Bluetooth.Enabled 2>/dev/null)
+    role=$(/bin/settings --get Bluetooth.Role 2>/dev/null)
+    name=$(/bin/settings --get Bluetooth.Name 2>/dev/null)
+    discoverable=$(/bin/settings --get Bluetooth.Discoverable 2>/dev/null)
+
+    if [ "$enabled" = "1" ]; then
+        want="up:$role:$name:$discoverable"
+    else
+        want=down
+    fi
+
+    have=$(cat "$state" 2>/dev/null)
+
+    if [ "$want" = "$have" ]; then
+        sleep 5
+        continue
+    fi
+
+    if [ "$want" = down ]; then
+        if /bin/btctl down; then
+            echo "$want" >"$state"
+        else
+            rm -f "$state"
+            sleep 5
+        fi
+        continue
+    fi
+
+    set -- /bin/btctl up --name "${name:-SynapseOS}"
+    case "$role" in
+    speaker) set -- "$@" --speaker ;;
+    headset) set -- "$@" --headset ;;
+    esac
+    if [ "$discoverable" != "1" ]; then
+        set -- "$@" --connect-only
+    fi
+
+    if "$@"; then
+        echo "$want" >"$state"
+    else
+        rm -f "$state"
+        sleep 5
+    fi
+done
