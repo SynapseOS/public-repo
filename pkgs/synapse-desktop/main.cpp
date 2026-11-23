@@ -81,6 +81,7 @@
 
 #define SYS_SYN_GA_VGPU_SET_MAX_FPS 104100L
 #define SYS_SYN_GA_VGPU_GET_MAX_FPS 104101L
+#include <lumine/bthci.h>
 #include <lumine/wifi.h>
 #include <synapse/gpu.h>
 #include <QVBoxLayout>
@@ -1588,6 +1589,7 @@ public:
 		addOnDemand(tabs, QStringLiteral("Сеть"), &SettingsWindow::buildNetworkPage);
 		addOnDemand(tabs, QStringLiteral("Локальная сеть"), &SettingsWindow::buildLanPage);
 		addWifiPage(tabs);
+		addOnDemand(tabs, QStringLiteral("Bluetooth"), &SettingsWindow::buildBluetoothPage);
 		addOnDemand(tabs, QStringLiteral("Электропитание"), &SettingsWindow::buildPowerPage);
 		addOnDemand(tabs, QStringLiteral("Звук"), &SettingsWindow::buildSoundPage);
 		addOnDemand(tabs, QStringLiteral("Отчёт"), &SettingsWindow::buildReportPage);
@@ -1650,7 +1652,7 @@ private:
 	// Назначить разделу одну из постоянных групп боковой панели
 	static QString sectionGroup(const QString &title) {
 		if (title == QStringLiteral("Сеть") || title == QStringLiteral("Wi-Fi") ||
-		    title == QStringLiteral("Локальная сеть")) {
+		    title == QStringLiteral("Локальная сеть") || title == QStringLiteral("Bluetooth")) {
 			return QStringLiteral("Сеть и связь");
 		}
 		if (title == QStringLiteral("Электропитание") || title == QStringLiteral("Звук")) {
@@ -3133,6 +3135,204 @@ private:
 			QMessageBox::information(this, QStringLiteral("Входящие"),
 			                         out.isEmpty() ? QStringLiteral("Пусто") : out);
 		});
+	}
+
+	// Управление адаптером Bluetooth через /dev/bthciN и утилиту btctl
+	void buildBluetoothPage(QWidget *page) {
+		auto *layout = new QVBoxLayout(page);
+		auto *form = new QFormLayout();
+
+		auto *adapter = new QComboBox(page);
+		form->addRow(QStringLiteral("Адаптер"), adapter);
+
+		auto *role = new QComboBox(page);
+		role->addItem(QStringLiteral("Обычный компьютер"), QStringLiteral("host"));
+		role->addItem(QStringLiteral("Bluetooth-колонка"), QStringLiteral("speaker"));
+		role->addItem(QStringLiteral("Гарнитура с микрофоном"), QStringLiteral("headset"));
+		{
+			const int current = role->findData(readSetting(QStringLiteral("Bluetooth.Role")));
+			role->setCurrentIndex(current < 0 ? 0 : current);
+		}
+
+		auto *name = new QLineEdit(readSetting(QStringLiteral("Bluetooth.Name")), page);
+		name->setPlaceholderText(QStringLiteral("SynapseOS"));
+		name->setMinimumWidth(260);
+		form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+		form->addRow(QStringLiteral("Режим работы"), role);
+		form->addRow(QStringLiteral("Имя адаптера"), name);
+		layout->addLayout(form);
+
+		auto *enabled = new QCheckBox(QStringLiteral("Bluetooth включён"), page);
+		enabled->setChecked(readSetting(QStringLiteral("Bluetooth.Enabled")) == QStringLiteral("1"));
+		layout->addWidget(enabled);
+		auto *discoverable = new QCheckBox(QStringLiteral("Виден другим устройствам"), page);
+		discoverable->setChecked(readSetting(QStringLiteral("Bluetooth.Discoverable")) !=
+		                         QStringLiteral("0"));
+		layout->addWidget(discoverable);
+
+		auto *statusLabel = new QLabel(QStringLiteral("Статус: проверка..."), page);
+		statusLabel->setWordWrap(true);
+		layout->addWidget(statusLabel);
+
+		auto *devices = new QListWidget(page);
+		devices->setMinimumHeight(170);
+		layout->addWidget(devices);
+
+		auto *buttons = new QHBoxLayout();
+		auto *scanBtn = new QPushButton(QStringLiteral("Найти устройства"), page);
+		auto *scanLeBtn = new QPushButton(QStringLiteral("Найти устройства LE"), page);
+		buttons->addWidget(scanBtn);
+		buttons->addWidget(scanLeBtn);
+		buttons->addStretch();
+		layout->addLayout(buttons);
+
+		auto *note = new QLabel(QStringLiteral(
+		    "В режиме колонки и гарнитуры компьютер принимает звук с телефона. "
+		    "Приём звука начнёт работать с появлением аудиопрофилей A2DP и HFP "
+		    "в стеке Bluetooth."), page);
+		note->setWordWrap(true);
+		layout->addWidget(note);
+		layout->addStretch();
+
+		auto adapterInfo = [](const QByteArray &path, struct syn_bthci_info *info) -> bool {
+			int fd = ::open(path.constData(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
+			if (fd < 0) {
+				return false;
+			}
+			info->version = SYN_BTHCI_ABI_VERSION;
+			const int rc = ::ioctl(fd, SYN_BTHCI_IOCTL_INFO, info);
+			::close(fd);
+			return rc == 0 && info->version == SYN_BTHCI_ABI_VERSION;
+		};
+
+		auto *scanProcess = new QProcess(page);
+
+		auto refreshStatus = [=]() {
+			struct syn_bthci_info info{};
+			const QByteArray path = adapter->currentData().toByteArray();
+			if (path.isEmpty() || !adapterInfo(path, &info)) {
+				statusLabel->setText(QStringLiteral("Bluetooth адаптер не найден"));
+				return;
+			}
+			statusLabel->setText(QStringLiteral("USB %1:%2, интерфейс %3")
+			    .arg(info.vendor, 4, 16, QLatin1Char('0'))
+			    .arg(info.product, 4, 16, QLatin1Char('0'))
+			    .arg(info.interface));
+		};
+
+		auto refreshAdapters = [=]() {
+			const QByteArray selected = adapter->currentData().toByteArray();
+			QList<QByteArray> paths;
+			QStringList labels;
+			for (unsigned i = 0; i < 8; ++i) {
+				const QByteArray path = QByteArray("/dev/bthci") + QByteArray::number(i);
+				struct syn_bthci_info info{};
+				if (adapterInfo(path, &info)) {
+					paths.append(path);
+					labels.append(QStringLiteral("%1 (USB %2:%3)")
+					    .arg(QString::fromUtf8(path))
+					    .arg(info.vendor, 4, 16, QLatin1Char('0'))
+					    .arg(info.product, 4, 16, QLatin1Char('0')));
+				}
+			}
+			QList<QByteArray> listed;
+			for (int i = 0; i < adapter->count(); ++i) {
+				listed.append(adapter->itemData(i).toByteArray());
+			}
+			if (paths != listed) {
+				const QSignalBlocker blocker(adapter);
+				adapter->clear();
+				for (int i = 0; i < paths.size(); ++i) {
+					adapter->addItem(labels.at(i), paths.at(i));
+				}
+				if (paths.contains(selected)) {
+					adapter->setCurrentIndex(adapter->findData(selected));
+				}
+			}
+			const bool present = !paths.isEmpty();
+			const bool scanning = scanProcess->state() != QProcess::NotRunning;
+			scanBtn->setEnabled(present && !scanning);
+			scanLeBtn->setEnabled(present && !scanning);
+			if (!present) {
+				devices->clear();
+				statusLabel->setText(QStringLiteral("Bluetooth адаптер не найден"));
+			}
+		};
+
+		auto startScan = [=](const QStringList &args) {
+			if (scanProcess->state() != QProcess::NotRunning) {
+				return;
+			}
+			devices->clear();
+			scanBtn->setEnabled(false);
+			scanLeBtn->setEnabled(false);
+			statusLabel->setText(QStringLiteral("Поиск устройств..."));
+			QStringList full{QStringLiteral("--dev"),
+			                 QString::fromUtf8(adapter->currentData().toByteArray())};
+			full += args;
+			scanProcess->start(QStringLiteral("/bin/btctl"), full);
+		};
+
+		connect(scanProcess, &QProcess::finished, page,
+		        [=](int code, QProcess::ExitStatus exitStatus) {
+			const QString out = QString::fromUtf8(scanProcess->readAllStandardOutput());
+			for (const QString &line : out.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+				const QString trimmed = line.trimmed();
+				if (trimmed.size() < 17 || trimmed[2] != QLatin1Char(':') ||
+				    trimmed[5] != QLatin1Char(':')) {
+					continue;
+				}
+				auto *item = new QListWidgetItem(trimmed, devices);
+				item->setData(Qt::UserRole, trimmed.left(17));
+			}
+			scanBtn->setEnabled(adapter->count() > 0);
+			scanLeBtn->setEnabled(adapter->count() > 0);
+			if (exitStatus != QProcess::NormalExit || code != 0) {
+				const QString error =
+				    QString::fromUtf8(scanProcess->readAllStandardError()).trimmed();
+				statusLabel->setText(QStringLiteral("Поиск не выполнен: %1").arg(error));
+			} else {
+				statusLabel->setText(QStringLiteral("Найдено устройств: %1").arg(devices->count()));
+			}
+		});
+
+		connect(scanBtn, &QPushButton::clicked, page, [=]() {
+			startScan({QStringLiteral("inquiry"), QStringLiteral("--time"), QStringLiteral("10")});
+		});
+		connect(scanLeBtn, &QPushButton::clicked, page, [=]() {
+			startScan({QStringLiteral("scan"), QStringLiteral("--time"), QStringLiteral("10")});
+		});
+
+		connect(adapter, &QComboBox::currentIndexChanged, page, [=]() {
+			devices->clear();
+			refreshStatus();
+		});
+
+		connect(enabled, &QCheckBox::toggled, this, [this](bool on) {
+			writeSetting(this, QStringLiteral("Bluetooth.Enabled"),
+			             on ? QStringLiteral("1") : QStringLiteral("0"));
+		});
+		connect(discoverable, &QCheckBox::toggled, this, [this](bool on) {
+			writeSetting(this, QStringLiteral("Bluetooth.Discoverable"),
+			             on ? QStringLiteral("1") : QStringLiteral("0"));
+		});
+		connect(role, &QComboBox::currentIndexChanged, this, [this, role]() {
+			writeSetting(this, QStringLiteral("Bluetooth.Role"), role->currentData().toString());
+		});
+		connect(name, &QLineEdit::editingFinished, this, [this, name]() {
+			writeSetting(this, QStringLiteral("Bluetooth.Name"), name->text().trimmed());
+		});
+
+		auto *deviceTimer = new QTimer(page);
+		deviceTimer->setInterval(3000);
+		connect(deviceTimer, &QTimer::timeout, page, [=]() {
+			if (page->isVisible()) {
+				refreshAdapters();
+			}
+		});
+		deviceTimer->start();
+		refreshAdapters();
+		refreshStatus();
 	}
 
 	// Показать вкладку управления беспроводными сетями напрямую через /dev/wifi
