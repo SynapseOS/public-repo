@@ -11,6 +11,7 @@
 #define _GNU_SOURCE
 #include "../common/settings/settings.h"
 #include <synapse/gpu.h>
+#include <lumine/bthci.h>
 #include <lumine/wifi.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -21,6 +22,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 static struct termios saved;
@@ -100,14 +102,15 @@ static bool dirty(struct settings *s) {
     return false;
 }
 static const char *const category_names_en[] = {
-    "General", "Display", "Network", "Services", "Privacy", "Wi-Fi"
+    "General", "Display", "Network", "Services", "Privacy", "Wi-Fi", "Bluetooth"
 };
 
 static const char *const category_names_ru[] = {
-    "Общие", "Экран", "Сеть", "Службы", "Приватность", "Wi-Fi"
+    "Общие", "Экран", "Сеть", "Службы", "Приватность", "Wi-Fi", "Bluetooth"
 };
 
-#define CATEGORY_COUNT 6
+#define CATEGORY_COUNT 7
+#define BT_ACTIONS 3
 
 static struct syn_wifi_scan wifi_networks = {.version = SYN_WIFI_ABI_VERSION};
 
@@ -347,6 +350,121 @@ static void wifi_action(bool ru, int selection, int row, char status[256]) {
     close(fd);
 }
 
+// Запросить сведения первого доступного адаптера /dev/bthciN
+static bool bt_info(struct syn_bthci_info *info) {
+    for (unsigned i = 0; i < 4U; ++i) {
+        char path[32];
+        snprintf(path, sizeof(path), "/dev/bthci%u", i);
+        int fd = open(path, O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+        if (fd < 0) {
+            continue;
+        }
+
+        info->version = SYN_BTHCI_ABI_VERSION;
+        bool found = ioctl(fd, SYN_BTHCI_IOCTL_INFO, info) == 0;
+        close(fd);
+
+        if (found) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Подпись действия Bluetooth по номеру строки
+static const char *bt_action_name(bool ru, int which) {
+    if (which == 0) {
+        return ru ? "Найти устройства рядом" : "Scan nearby devices";
+    }
+    if (which == 1) {
+        return ru ? "Найти устройства Bluetooth LE" : "Scan BLE devices";
+    }
+    return ru ? "Применить настройки к адаптеру" : "Apply settings to adapter";
+}
+
+// Показать вывод btctl построчно на отдельном экране и дождаться клавиши
+static int bt_run_screen(bool ru, char *const argv[]) {
+    restore();
+    printf("\033[H\033[2J\033[1;36m%s\033[0m\n\n", ru ? "Bluetooth" : "Bluetooth");
+
+    pid_t child = fork();
+    if (child == 0) {
+        execv(argv[0], argv);
+        _exit(127);
+    }
+
+    int status = -1;
+
+    if (child > 0) {
+        int code;
+        while (waitpid(child, &code, 0) < 0 && errno == EINTR) {
+        }
+        status = child < 0 || !WIFEXITED(code) ? -1 : WEXITSTATUS(code);
+    }
+
+    printf("\n%s", ru ? "Клавиша: назад" : "Any key: back");
+    fflush(stdout);
+
+    struct termios raw = saved;
+    raw.c_lflag &= ~(ICANON | ECHO);
+    raw.c_iflag &= ~(ICRNL | IXON);
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
+    tcsetattr(0, TCSAFLUSH, &raw);
+    input();
+    fputs("\033[?1049h\033[?25l", stdout);
+
+    return status;
+}
+
+// Выполнить действие Bluetooth выбранной строки
+static void bt_action(struct settings *s, bool ru, int which, char status[256]) {
+    if (which == 0) {
+        char *args[] = {"btctl", "inquiry", "--time", "10", NULL};
+        bt_run_screen(ru, args);
+        status[0] = 0;
+        return;
+    }
+
+    if (which == 1) {
+        char *args[] = {"btctl", "scan", "--time", "10", NULL};
+        bt_run_screen(ru, args);
+        status[0] = 0;
+        return;
+    }
+
+    const char *enabled = settings_get(s, "Bluetooth", "Enabled");
+
+    if (!strcmp(enabled, "1")) {
+        const char *role = settings_get(s, "Bluetooth", "Role");
+        const char *name = settings_get(s, "Bluetooth", "Name");
+        const char *visible = settings_get(s, "Bluetooth", "Discoverable");
+        char *args[] = {"btctl", "up", "--name", (char *)(name[0] ? name : "SynapseOS"),
+                        NULL, NULL, NULL};
+        int slot = 4;
+
+        if (!strcmp(role, "speaker")) {
+            args[slot++] = "--speaker";
+        } else if (!strcmp(role, "headset")) {
+            args[slot++] = "--headset";
+        }
+
+        if (strcmp(visible, "1")) {
+            args[slot++] = "--connect-only";
+        }
+
+        int rc = bt_run_screen(ru, args);
+        snprintf(status, 256, "%s", rc ? (ru ? "btctl up не выполнен" : "btctl up failed")
+                                       : (ru ? "Адаптер включён" : "Adapter is on"));
+    } else {
+        char *args[] = {"btctl", "down", NULL};
+        int rc = bt_run_screen(ru, args);
+        snprintf(status, 256, "%s", rc ? (ru ? "btctl down не выполнен" : "btctl down failed")
+                                       : (ru ? "Адаптер выключен" : "Adapter is off"));
+    }
+}
+
 // Найти категорию настройки по её разделу
 static int setting_category(int index) {
     const char *section = setting_specs[index].section;
@@ -366,6 +484,10 @@ static int setting_category(int index) {
 
     if (!strcmp(section, "stats")) {
         return 4;
+    }
+
+    if (!strcmp(section, "Bluetooth")) {
+        return 6;
     }
 
     return 0;
@@ -413,12 +535,34 @@ static void draw(struct settings *s, int category, int selection, int top, int r
     }
     fputs("\n\n", stdout);
 
+    if (category == 6) {
+        struct syn_bthci_info info;
+        if (bt_info(&info)) {
+            printf("%s: usb %04x:%04x /dev/bthci%u\n\n",
+                   settings_tr(s->ru, "Adapter"), info.vendor, info.product, info.index);
+        } else {
+            printf("%s\n\n", settings_tr(s->ru, "Adapter: not found"));
+        }
+    }
+
+    const int settings_in_category = category_size(category);
+
     for (int r = 0; r < rows; ++r) {
         int position = top + r;
         int i = category_setting(category, position);
+
         if (i < 0) {
-            break;
+            int action = position - settings_in_category;
+            if (category != 6 || (unsigned)action >= BT_ACTIONS) {
+                break;
+            }
+            if (position == selection) {
+                fputs("\033[7m", stdout);
+            }
+            printf("  %s\033[0m\033[K\n", bt_action_name(s->ru, action));
+            continue;
         }
+
         if (position == selection) {
             fputs("\033[7m", stdout);
         }
@@ -573,7 +717,9 @@ int main(int argc, char **argv) {
                 selected--;
             }
         } else if (c == 1002 || c == '\t') {
-            int count = category == 5 ? (int)wifi_count() + 3 : category_size(category);
+            int count = category == 5 ? (int)wifi_count() + 3 :
+                        category == 6 ? category_size(6) + BT_ACTIONS :
+                        category_size(category);
             if (selected < count - 1) {
                 selected++;
             } else {
@@ -587,6 +733,8 @@ int main(int argc, char **argv) {
                     selected = 0;
                     top = 0;
                 }
+            } else if (category == 6 && selected >= category_size(6)) {
+                bt_action(&s, s.ru, selected - category_size(6), status);
             } else {
                 int index = category_setting(category, selected);
                 if (index >= 0) {
