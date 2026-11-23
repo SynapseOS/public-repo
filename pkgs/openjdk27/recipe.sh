@@ -1,7 +1,7 @@
-# recipe.sh: упаковка консольного JDK из Corretto для musl
+# recipe.sh: упаковка JDK из Corretto для musl
 # Автор: Елчинян Арен Артурович, 2026, x86_64, ABI Linux и musl
 # Подсистема: сборка пакетов
-# Первое изменение: 20.11.2026, последнее изменение: 20.11.2026
+# Первое изменение: 20.11.2026, последнее изменение: 23.11.2026
 # Статус доступа: общедоступный
 
 java_home=usr/lib/jvm/java-27-openjdk
@@ -12,16 +12,27 @@ fetch "$(jq -er .source "$spec")" "$(jq -er .sha256 "$spec")" "$archive"
 fetch "$(jq -er .zlib.url "$spec")" "$(jq -er .zlib.sha256 "$spec")" "$zlib"
 mkdir -p "$jdk" "$work/zlib"
 
-# Исключаем инструменты X11, ALSA, профилировщик на glibc
+# Исключаем профилировщик на glibc
 bsdtar --strip-components=1 -xf "$archive" -C "$jdk" \
-    --exclude '*/bin/asprof' --exclude '*/bin/jconsole' --exclude '*/bin/jpackage' \
-    --exclude '*/lib/libasyncProfiler.so' --exclude '*/lib/libawt_xawt.so' --exclude '*/lib/libjawt.so' \
-    --exclude '*/lib/libjsound.so' --exclude '*/lib/libsplashscreen.so' \
+    --exclude '*/bin/asprof' --exclude '*/bin/jpackage' \
+    --exclude '*/lib/libasyncProfiler.so' \
     --exclude '*/lib/src.zip' --exclude '*/lib/server/classes*.jsa' --exclude '*/man'
 bsdtar --options=read_concatenated_archives -xf "$zlib" -C "$work/zlib" --include 'usr/lib/libz.so*'
 
+# Библиотеки X11, звука и шрифтов уже закреплены в пакете графической Java 21
+graphics_spec="$ROOT/pkgs/openjdk/port.json"
+mkdir -p "$work/graphics"
+while IFS= read -r asset; do
+    url=$(jq -er ".desktop_assets[$asset].url" "$graphics_spec")
+    sha=$(jq -er ".desktop_assets[$asset].sha256" "$graphics_spec")
+    graphics_archive="$work/downloads/${url##*/}"
+    fetch "$url" "$sha" "$graphics_archive"
+    bsdtar --options=read_concatenated_archives -xf "$graphics_archive" \
+        -C "$work/graphics" --include 'usr/lib/*'
+done < <(jq -r '.desktop_assets | keys[] | select(. != 0)' "$graphics_spec")
+
 # Проверяем зависимости всех инструментов и библиотек JDK и добавляем нужные из закреплённого APK
-runtime_deps "$java_home/lib" "$work/zlib/usr/lib"
+runtime_deps "$java_home/lib" "$work/zlib/usr/lib" "$work/graphics/usr/lib"
 
 # Включаем zlib в java.base, чтобы образы jlink запускались с системной musl
 # JMOD состоит из четырёх байт заголовка и архива ZIP
