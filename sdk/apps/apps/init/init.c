@@ -1801,12 +1801,12 @@ static void apply_boot_session(syn_cfg_t *config) {
 
 enum usb_module {
     USB_ASIX, USB_LAN78, USB_RTL8152, USB_WIFI, USB_TURING, USB_SERIAL, USB_RNDIS,
-    USB_NCM, USB_IPHETH, USB_UVC, USB_UAS, USB_MODULE_COUNT
+    USB_NCM, USB_IPHETH, USB_UVC, USB_UAS, USB_BT, USB_MODULE_COUNT
 };
 
 static const char *const usb_module_names[USB_MODULE_COUNT] = {
     "usb-asix", "usb-lan78xx", "usb-rtl8152", "wifi-usb", "turing-screen", "usb-serial", "usb-rndis",
-    "usb-ncm", "usb-ipheth", "usb-uvc", "usb-uas"
+    "usb-ncm", "usb-ipheth", "usb-uvc", "usb-uas", "usb-bt"
 };
 
 static unsigned usb_present, usb_loaded;
@@ -1834,6 +1834,7 @@ static unsigned usb_match(unsigned vendor, unsigned product, unsigned cls, unsig
     if (vendor == 0x05ac && cls == 0xff && sub == 0xfd && proto == 1) wanted |= 1u << USB_IPHETH;
     if (cls == 14 && sub == 2) wanted |= 1u << USB_UVC;
     if (cls == 8 && sub == 6 && proto == 0x62) wanted |= 1u << USB_UAS;
+    if (cls == 0xe0 && sub == 1 && proto == 1) wanted |= 1u << USB_BT;
     return wanted;
 }
 
