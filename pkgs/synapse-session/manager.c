@@ -4,7 +4,7 @@
 // Описание: Проверить пароль и передать графический ввод сеансу пользователя
 // Подсистема: графический сеанс
 // Первое изменение: 30.10.2026
-// Последнее изменение: 03.11.2026
+// Последнее изменение: 23.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -25,7 +25,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/prctl.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
+#include <sys/un.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -117,33 +119,46 @@ static bool read_request(int fd, pid_t child, struct login_request *request,
         memchr(request->password, 0, sizeof(request->password)) != NULL;
 }
 
-// Показать окно входа в отдельном окружении без терминала и панели root
+// Показать окно входа и принять запрос через закрытый локальный сокет
 static bool show_greeter(struct login_request *request, const char *error_text) {
-    int channel[2];
-    if (pipe(channel) != 0) {
+    const char *runtime = "/var/run/synapse-greeter";
+    const char *socket_path = "/var/run/synapse-greeter/login.sock";
+    struct stat attributes;
+    if ((mkdir(runtime, 0700) != 0 && errno != EEXIST) ||
+        lstat(runtime, &attributes) != 0 || !S_ISDIR(attributes.st_mode) ||
+        attributes.st_uid != 0 || (attributes.st_mode & 0777) != 0700) {
+        return false;
+    }
+
+    int listener = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (listener < 0) {
+        return false;
+    }
+
+    struct sockaddr_un address = {.sun_family = AF_UNIX};
+    if (snprintf(address.sun_path, sizeof(address.sun_path), "%s", socket_path) >= (int)sizeof(address.sun_path)) {
+        close(listener);
+        return false;
+    }
+
+    unlink(socket_path);
+    if (bind(listener, (struct sockaddr *)&address, sizeof(address)) != 0 ||
+        chmod(socket_path, 0600) != 0 || listen(listener, 1) != 0) {
+        close(listener);
+        unlink(socket_path);
         return false;
     }
 
     pid_t child = fork();
     if (child < 0) {
-        close(channel[0]);
-        close(channel[1]);
+        close(listener);
+        unlink(socket_path);
         return false;
     }
 
     if (child == 0) {
-        close(channel[0]);
-        char number[24];
-        const char *runtime = "/var/run/synapse-greeter";
-        struct stat attributes;
-        if ((mkdir(runtime, 0700) != 0 && errno != EEXIST) ||
-            stat(runtime, &attributes) != 0 || !S_ISDIR(attributes.st_mode) ||
-            attributes.st_uid != 0 || (attributes.st_mode & 0777) != 0700) {
-            _exit(126);
-        }
-
-        if (snprintf(number, sizeof(number), "%d", channel[1]) < 0 ||
-            setenv("SYNAPSE_GREETER_FD", number, 1) != 0 ||
+        close(listener);
+        if (setenv("SYNAPSE_GREETER_SOCKET", socket_path, 1) != 0 ||
             setenv("SYNAPSE_LOGIN_ERROR", error_text, 1) != 0 ||
             setenv("XDG_RUNTIME_DIR", runtime, 1) != 0 ||
             setenv("WLR_BACKENDS", "headless", 1) != 0 ||
@@ -162,19 +177,35 @@ static bool show_greeter(struct login_request *request, const char *error_text) 
         _exit(127);
     }
 
-    close(channel[1]);
+    struct pollfd waiting = {.fd = listener, .events = POLLIN};
+    int ready;
+    do {
+        ready = poll(&waiting, 1, 10000);
+    } while (ready < 0 && errno == EINTR);
+
+    int channel = ready > 0 ? accept4(listener, NULL, NULL, SOCK_CLOEXEC) : -1;
+    close(listener);
+    unlink(socket_path);
     bool child_reaped = false;
-    bool received = read_request(channel[0], child, request, &child_reaped);
+    bool received = channel >= 0 && read_request(channel, child, request, &child_reaped);
+    if (channel >= 0) {
+        close(channel);
+    }
     fprintf(stderr, "synapse-session-manager: login request read %s (%zu bytes expected)\n",
             received ? "ok" : "failed", sizeof(*request));
-    close(channel[0]);
     if (!child_reaped) {
-        // Закрыть экран входа после полного чтения, даже если Qt ещё ждёт события
         kill(child, SIGTERM);
-    }
-
-    if (!child_reaped) {
-        wait_for_child(child);
+        for (unsigned attempt = 0; attempt < 20; attempt++) {
+            if (waitpid(child, NULL, WNOHANG) == child) {
+                child_reaped = true;
+                break;
+            }
+            usleep(100000);
+        }
+        if (!child_reaped) {
+            kill(child, SIGKILL);
+            wait_for_child(child);
+        }
     }
 
     return received;
@@ -397,6 +428,15 @@ int main(void) {
     if (geteuid() != 0) {
         fputs("synapse-session-manager: root required\n", stderr);
         return 1;
+    }
+
+    int log = open("/var/log/synapse-session.log", O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0640);
+    if (log >= 0) {
+        if (dup2(log, STDERR_FILENO) < 0) {
+            close(log);
+            return 1;
+        }
+        close(log);
     }
 
     if (prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) != 0) {

@@ -1,21 +1,23 @@
-// greeter.cpp: Окно выбора пользователя SynapseOS
-// Автор: Елчинян Арен Артурович, 2026
-// Архитектура: x86_64, ABI: musl и Wayland
-// Описание: Передать введённые данные менеджеру по закрытому каналу
+// greeter.cpp: Графический вход, смена пользователя и управление питанием SynapseOS
+// Автор: Елчинян Арен Артурович, 2026. AMD64, ABI Qt6 и POSIX
 // Подсистема: графический сеанс
 // Первое изменение: 30.10.2026
-// Последнее изменение: 30.10.2026
+// Последнее изменение: 23.11.2026
 // Доступ: общедоступный
 
 #include <QApplication>
 #include <QByteArray>
 #include <QCloseEvent>
+#include <QDateTime>
 #include <QFile>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
+#include <QProcess>
 #include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -23,6 +25,8 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 struct LoginRequest {
@@ -30,9 +34,8 @@ struct LoginRequest {
     char password[256];
 };
 
-class LoginScreen : public QWidget {
+class LoginScreen final : public QWidget {
 protected:
-    // Оставаться на экране входа при Alt+F4 и запросе закрытия окна
     void closeEvent(QCloseEvent *event) override {
         event->ignore();
     }
@@ -57,104 +60,167 @@ static bool writeRequest(int fd, const LoginRequest &request) {
         if (count < 0 && errno == EINTR) {
             continue;
         }
-
         if (count <= 0) {
             return false;
         }
-
         sent += static_cast<size_t>(count);
     }
-
     return true;
 }
 
-// Показать экран входа без доступа к панели и терминалу root
+// Подключить окно входа к менеджеру через выделенный локальный сокет
+static int connectManager() {
+    const char *path = std::getenv("SYNAPSE_GREETER_SOCKET");
+    if (path == nullptr || std::strlen(path) >= sizeof(sockaddr_un::sun_path)) {
+        std::fputs("synapse-greeter: invalid login socket path\n", stderr);
+        return -1;
+    }
+
+    int channel = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (channel < 0) {
+        std::perror("synapse-greeter: socket");
+        return -1;
+    }
+
+    sockaddr_un address{};
+    address.sun_family = AF_UNIX;
+    std::memcpy(address.sun_path, path, std::strlen(path) + 1);
+    if (connect(channel, reinterpret_cast<sockaddr *>(&address), sizeof(address)) != 0) {
+        std::perror("synapse-greeter: connect");
+        close(channel);
+        return -1;
+    }
+    return channel;
+}
+
 int main(int argc, char **argv) {
-    const char *number = std::getenv("SYNAPSE_GREETER_FD");
-    if (number == nullptr) {
+    int channel = connectManager();
+    if (channel < 0) {
         return 1;
     }
 
-    char *end = nullptr;
-    long value = std::strtol(number, &end, 10);
-    if (end == number || *end != 0 || value < 3 || value > 1024) {
-        return 1;
-    }
-
-    int channel = static_cast<int>(value);
     QApplication application(argc, argv);
+    application.setStyle(QStringLiteral("Fusion"));
     LoginScreen window;
-    window.setObjectName("loginScreen");
-    window.setWindowTitle(QString::fromUtf8("Вход в SynapseOS"));
+    window.setObjectName(QStringLiteral("loginScreen"));
+    window.setWindowTitle(QStringLiteral("Вход в SynapseOS"));
     window.setWindowFlags(Qt::FramelessWindowHint);
-    const char *wallpaper = "/usr/share/backgrounds/synapse/Desktop-dark.png";
-    if (QFile::exists(QString::fromUtf8(wallpaper))) {
-        window.setStyleSheet("#loginScreen { border-image: url(/usr/share/backgrounds/synapse/"
-                             "Desktop-dark.png) 0 0 0 0 stretch stretch; } "
-                             "QWidget { color: #eff5fa; font-size: 15px; }");
-    } else {
-        window.setStyleSheet("#loginScreen { background: #1b2530; } "
-                             "QWidget { color: #eff5fa; font-size: 15px; }");
-    }
+    window.setStyleSheet(QStringLiteral(
+        "#loginScreen { border-image: url(/usr/share/backgrounds/synapse/Desktop-dark.png) 0 0 0 0 stretch stretch; }"
+        "QWidget { color: #edf4fa; font-size: 15px; }"
+        "#brand { background: transparent; }"
+        "#loginCard { background-color: rgba(20, 30, 42, 240); border: 1px solid #40566a; }"
+        "QLineEdit { background: #142230; color: #f5f9fc; border: 1px solid #526b80;"
+        " padding: 11px 12px; selection-background-color: #3daee9; }"
+        "QLineEdit:focus { border: 1px solid #3daee9; }"
+        "QPushButton { background: #3daee9; color: #07131c; border: 0; padding: 12px; font-weight: bold; }"
+        "QPushButton:hover { background: #6bc5f2; }"
+        "QPushButton:focus { border: 1px solid #b8e4fa; }"
+        "#powerButton { background: transparent; color: #c1d2df; border: 1px solid #40566a; padding: 9px; }"
+        "#powerButton:hover { background: #24384a; color: #ffffff; }"));
 
-    auto *screen = new QVBoxLayout(&window);
-    screen->setContentsMargins(24, 24, 24, 24);
-    screen->addStretch();
+    auto *root = new QVBoxLayout(&window);
+    root->setContentsMargins(48, 32, 48, 32);
+    root->setSpacing(24);
 
-    auto *row = new QHBoxLayout();
-    row->addStretch();
+    auto *header = new QHBoxLayout();
+    auto *brand = new QLabel(QStringLiteral("SynapseOS"), &window);
+    brand->setObjectName(QStringLiteral("brand"));
+    brand->setStyleSheet(QStringLiteral("font-size: 27px; font-weight: bold; color: #ffffff;"));
+    header->addWidget(brand);
+    header->addStretch();
+    auto *clock = new QLabel(&window);
+    clock->setObjectName(QStringLiteral("brand"));
+    clock->setStyleSheet(QStringLiteral("font-size: 16px; color: #d0dfeb;"));
+    auto updateClock = [clock]() {
+        clock->setText(QDateTime::currentDateTime().toString(QStringLiteral("dd MMMM yyyy, HH:mm")));
+    };
+    updateClock();
+    auto *timer = new QTimer(&window);
+    QObject::connect(timer, &QTimer::timeout, &window, updateClock);
+    timer->start(30000);
+    header->addWidget(clock);
+    root->addLayout(header);
+
+    auto *center = new QHBoxLayout();
+    center->addStretch();
     auto *card = new QWidget(&window);
-    card->setObjectName("loginCard");
-    card->setFixedWidth(440);
-    card->setStyleSheet("#loginCard { background: #283746; border: 1px solid #4b6478; "
-                        "border-radius: 14px; } "
-                        "QLineEdit { background: #f8fbfd; color: #172633; border: 1px solid #7296ae; "
-                        "border-radius: 6px; padding: 8px; } "
-                        "QPushButton { background: #56a9e8; color: #102434; border: 0; "
-                        "border-radius: 6px; padding: 10px; font-weight: bold; } "
-                        "QPushButton:hover { background: #80c3f2; }");
+    card->setObjectName(QStringLiteral("loginCard"));
+    card->setFixedSize(520, 430);
     auto *layout = new QVBoxLayout(card);
-    layout->setContentsMargins(32, 28, 32, 28);
-    layout->setSpacing(16);
-    auto *title = new QLabel(QString::fromUtf8("SynapseOS"));
+    layout->setContentsMargins(42, 30, 42, 30);
+    layout->setSpacing(14);
+
+    auto *title = new QLabel(QStringLiteral("Вход в систему"), card);
     title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet("font-size: 32px; font-weight: bold; padding: 8px");
+    title->setStyleSheet(QStringLiteral("font-size: 28px; font-weight: bold; padding-bottom: 6px;"));
     layout->addWidget(title);
 
-    auto *subtitle = new QLabel(QString::fromUtf8("Вход в систему"));
-    subtitle->setAlignment(Qt::AlignCenter);
-    subtitle->setStyleSheet("color: #abc1d1");
-    layout->addWidget(subtitle);
-
-    auto *error = new QLabel(QString::fromUtf8(std::getenv("SYNAPSE_LOGIN_ERROR") != nullptr ?
-        std::getenv("SYNAPSE_LOGIN_ERROR") : ""));
-    error->setAlignment(Qt::AlignCenter);
-    error->setStyleSheet("color: #ffadad");
-    layout->addWidget(error);
+    auto *description = new QLabel(QStringLiteral("Используйте любую локальную учётную запись"), card);
+    description->setAlignment(Qt::AlignCenter);
+    description->setStyleSheet(QStringLiteral("color: #b6c8d6; padding-bottom: 8px;"));
+    layout->addWidget(description);
 
     auto *form = new QFormLayout();
-    auto *user = new QLineEdit();
-    auto *password = new QLineEdit();
-    user->setPlaceholderText(QString::fromUtf8("Имя пользователя"));
-    password->setPlaceholderText(QString::fromUtf8("Пароль"));
+    form->setSpacing(12);
+    auto *user = new QLineEdit(card);
+    auto *password = new QLineEdit(card);
+    user->setPlaceholderText(QStringLiteral("Имя пользователя"));
+    password->setPlaceholderText(QStringLiteral("Пароль"));
+    user->setMinimumHeight(46);
+    password->setMinimumHeight(46);
     password->setEchoMode(QLineEdit::Password);
-    form->addRow(QString::fromUtf8("Пользователь"), user);
-    form->addRow(QString::fromUtf8("Пароль"), password);
+    form->addRow(QStringLiteral("Пользователь"), user);
+    form->addRow(QStringLiteral("Пароль"), password);
     layout->addLayout(form);
 
-    auto *submit = new QPushButton(QString::fromUtf8("Войти"));
+    auto *error = new QLabel(card);
+    error->setAlignment(Qt::AlignCenter);
+    error->setWordWrap(true);
+    error->setMinimumHeight(24);
+    error->setStyleSheet(QStringLiteral("color: #ffadad;"));
+    layout->addWidget(error);
+
+    auto *submit = new QPushButton(QStringLiteral("Войти"), card);
+    submit->setMinimumHeight(48);
     layout->addWidget(submit);
+    center->addWidget(card);
+    center->addStretch();
+    root->addLayout(center, 1);
 
-    row->addWidget(card);
-    row->addStretch();
-    screen->addLayout(row);
-    screen->addStretch();
+    auto *footer = new QHBoxLayout();
+    footer->addStretch();
+    auto *shutdown = new QPushButton(QStringLiteral("Выключить"), &window);
+    auto *reboot = new QPushButton(QStringLiteral("Перезагрузить"), &window);
+    shutdown->setObjectName(QStringLiteral("powerButton"));
+    reboot->setObjectName(QStringLiteral("powerButton"));
+    shutdown->setMinimumWidth(150);
+    reboot->setMinimumWidth(170);
+    footer->addWidget(shutdown);
+    footer->addWidget(reboot);
+    root->addLayout(footer);
 
+    auto power = [&window, error](bool restart) {
+        const QString question = restart ? QStringLiteral("Перезагрузить компьютер?") :
+            QStringLiteral("Выключить компьютер?");
+        if (QMessageBox::question(&window, QStringLiteral("Питание"), question) != QMessageBox::Yes) {
+            return;
+        }
+        sync();
+        const bool started = restart ? QProcess::startDetached(QStringLiteral("/bin/reboot"), {}) :
+            QProcess::startDetached(QStringLiteral("/bin/halt"), {QStringLiteral("-p")});
+        if (!started) {
+            error->setText(QStringLiteral("Не удалось выполнить команду питания"));
+        }
+    };
+
+    QObject::connect(shutdown, &QPushButton::clicked, &window, [=, &window, &error]() { power(false); });
+    QObject::connect(reboot, &QPushButton::clicked, &window, [=, &window, &error]() { power(true); });
     QObject::connect(submit, &QPushButton::clicked, &window, [&]() {
         QByteArray name = user->text().toUtf8();
         QByteArray secret = password->text().toUtf8();
         if (name.isEmpty() || name.size() >= 64 || secret.isEmpty() || secret.size() >= 256) {
-            error->setText(QString::fromUtf8("Проверьте имя пользователя и пароль"));
+            error->setText(QStringLiteral("Введите имя пользователя и пароль"));
             secret.fill(0);
             return;
         }
@@ -162,23 +228,24 @@ int main(int argc, char **argv) {
         LoginRequest request{};
         std::memcpy(request.user, name.constData(), static_cast<size_t>(name.size()));
         std::memcpy(request.password, secret.constData(), static_cast<size_t>(secret.size()));
-        bool written = writeRequest(channel, request);
+        const bool written = writeRequest(channel, request);
         std::fprintf(stderr, "synapse-greeter: login request write %s (%zu bytes)\n",
                      written ? "ok" : "failed", sizeof(request));
         clearSecret(&request, sizeof(request));
         secret.fill(0);
         password->clear();
         if (written) {
+            error->setText(QStringLiteral("Запуск рабочего стола..."));
             application.quit();
         } else {
-            error->setText(QString::fromUtf8("Не удалось передать данные входа"));
+            error->setText(QStringLiteral("Не удалось передать данные входа"));
         }
     });
 
     QObject::connect(password, &QLineEdit::returnPressed, submit, &QPushButton::click);
     window.showFullScreen();
     user->setFocus();
-    int result = application.exec();
+    const int result = application.exec();
     close(channel);
     return result;
 }
