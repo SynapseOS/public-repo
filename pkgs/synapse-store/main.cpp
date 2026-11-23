@@ -21,6 +21,7 @@
 #include <QHeaderView>
 #include <QGroupBox>
 #include <QHash>
+#include <QIcon>
 #include <QInputDialog>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -244,6 +245,9 @@ static void applyDesktopTheme() {
     palette.setColor(QPalette::ButtonText, foreground);
     palette.setColor(QPalette::Highlight, accent);
     palette.setColor(QPalette::HighlightedText, QColor(QStringLiteral("#ffffff")));
+    palette.setColor(QPalette::Disabled, QPalette::WindowText, QColor(QStringLiteral("#63717d")));
+    palette.setColor(QPalette::Disabled, QPalette::Text, QColor(QStringLiteral("#63717d")));
+    palette.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(QStringLiteral("#63717d")));
     QApplication::setStyle(QStringLiteral("Fusion"));
     QApplication::setPalette(palette);
     QFont font = QApplication::font();
@@ -258,8 +262,16 @@ static void applyDesktopTheme() {
         "QPushButton, QToolButton { background-color: %3; color: %4; border: 1px solid %3;"
         " border-radius: %6px; padding: %7px 12px; }"
         "QPushButton:hover, QToolButton:hover { background-color: %5; color: white; }"
+        "QPushButton:disabled, QToolButton:disabled { color: #63717d; background-color: %1; border-color: %3; }"
         "QListWidget::item:selected, QTableWidget::item:selected { background-color: %5; color: white; }"
-        "QHeaderView::section { background-color: %3; color: %4; border: 0; padding: 7px; }")
+        "QHeaderView::section { background-color: %3; color: %4; border: 0; padding: 10px; }"
+        "QWidget#storeHeader { background-color: %2; border-bottom: 1px solid %3; }"
+        "QLabel#storeSubtitle { color: %4; }"
+        "QListWidget#storeNavigation { background-color: %2; border: 0; padding: 6px; }"
+        "QListWidget#storeNavigation::item { padding: 9px; border-radius: %6px; }"
+        "QListWidget#storeNavigation::item:hover { background-color: %3; }"
+        "QTableWidget::item { padding: 8px; border-bottom: 1px solid %3; }"
+        "QLabel#packageDetail { background-color: %2; border: 1px solid %3; border-radius: %6px; padding: 14px; }")
         .arg(background.name(), base.name(), surface.name(), foreground.name(), accent.name())
         .arg(radius).arg(padding));
 }
@@ -269,28 +281,48 @@ class StoreWindow final : public QMainWindow {
     // Создать окно и начать чтение доступных каталогов
     StoreWindow() {
         setWindowTitle(QStringLiteral("Программы SynapseOS"));
-        resize(980, 640);
+        resize(1180, 760);
+        setMinimumSize(920, 600);
 
         auto *central = new QWidget(this);
         auto *layout = new QVBoxLayout(central);
-        auto *header = new QLabel(QStringLiteral("Программы"), central);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(0);
+
+        auto *headerPanel = new QWidget(central);
+        headerPanel->setObjectName(QStringLiteral("storeHeader"));
+        auto *headerLayout = new QHBoxLayout(headerPanel);
+        headerLayout->setContentsMargins(24, 16, 24, 16);
+        auto *headings = new QVBoxLayout();
+        auto *header = new QLabel(QStringLiteral("Программы"), headerPanel);
         QFont titleFont = header->font();
-        titleFont.setPointSize(titleFont.pointSize() + 7);
+        titleFont.setPointSize(titleFont.pointSize() + 9);
         titleFont.setBold(true);
         header->setFont(titleFont);
-        layout->addWidget(header);
-
-        layout->setContentsMargins(20, 16, 20, 16);
-        layout->setSpacing(10);
+        headings->addWidget(header);
+        auto *subtitle = new QLabel(QStringLiteral("Установка и обслуживание приложений в одном окне"), headerPanel);
+        subtitle->setObjectName(QStringLiteral("storeSubtitle"));
+        headings->addWidget(subtitle);
+        headerLayout->addLayout(headings, 1);
+        layout->addWidget(headerPanel);
 
         tabs_ = new QListWidget(central);
-        tabs_->setFixedWidth(190);
-        tabs_->setUniformItemSizes(true);
+        tabs_->setObjectName(QStringLiteral("storeNavigation"));
+        tabs_->setFixedWidth(210);
+        tabs_->setUniformItemSizes(false);
+        tabs_->setSpacing(3);
+        tabs_->setContentsMargins(8, 12, 8, 12);
         tabs_->addItems({QStringLiteral("Обзор"), QStringLiteral("SynapseOS"), QStringLiteral("Flathub"),
                          QStringLiteral("Debian"), QStringLiteral("Установленные"), QStringLiteral("Обновления"),
                          QStringLiteral("Настройки")});
-        tabs_->setIconSize(QSize(22, 22));
-        tabs_->setSpacing(4);
+        const char *icons[] = {"applications-other", "package-x-generic", "folder-download", "package-deb",
+                               "system-software-install", "update-manager", "configure"};
+        for (int index = 0; index < tabs_->count(); ++index) {
+            auto *item = tabs_->item(index);
+            item->setIcon(QIcon::fromTheme(QString::fromLatin1(icons[index])));
+            item->setSizeHint(QSize(190, 46));
+        }
+        tabs_->setIconSize(QSize(24, 24));
         tabs_->setCurrentRow(0);
 
         pages_ = new QStackedWidget(central);
@@ -298,8 +330,12 @@ class StoreWindow final : public QMainWindow {
         auto *catalogLayout = new QVBoxLayout(catalogPage);
         pages_->addWidget(catalogPage);
 
+        catalogLayout->setContentsMargins(18, 16, 18, 12);
+        catalogLayout->setSpacing(10);
         auto *controls = new QHBoxLayout();
+        controls->setSpacing(8);
         search_ = new QLineEdit(catalogPage);
+        search_->setMinimumHeight(42);
         search_->setPlaceholderText(QStringLiteral("Поиск по названию и описанию"));
         controls->addWidget(search_, 1);
 
@@ -314,9 +350,11 @@ class StoreWindow final : public QMainWindow {
         category_->addItem(QStringLiteral("Другое"), static_cast<int>(Category::Other));
         controls->addWidget(category_);
 
-        refresh_ = new QPushButton(QStringLiteral("Обновить список"), catalogPage);
+        refresh_ = new QPushButton(QStringLiteral("Обновить"), catalogPage);
+        refresh_->setMinimumHeight(40);
         controls->addWidget(refresh_);
-        prepareAll_ = new QPushButton(QStringLiteral("Подготовить всё"), catalogPage);
+        prepareAll_ = new QPushButton(QStringLiteral("Подготовить источники"), catalogPage);
+        prepareAll_->setMinimumHeight(40);
         prepareAll_->setToolTip(QStringLiteral("Обновить индекс, установить APT и Flatpak, подключить источники"));
         controls->addWidget(prepareAll_);
         catalogLayout->addLayout(controls);
@@ -341,14 +379,11 @@ class StoreWindow final : public QMainWindow {
         catalogLayout->addWidget(table_, 1);
 
         detail_ = new QLabel(catalogPage);
+        detail_->setObjectName(QStringLiteral("packageDetail"));
         detail_->setWordWrap(true);
         detail_->setTextFormat(Qt::PlainText);
-        detail_->setMinimumHeight(92);
+        detail_->setMinimumHeight(104);
         detail_->setTextInteractionFlags(Qt::TextSelectableByMouse);
-        detail_->setStyleSheet(QStringLiteral("QLabel { padding: 12px; border: 1px solid palette(mid);"
-                                               " border-radius: %1px; background: palette(base); }")
-            .arg(QSettings(QStringLiteral("SynapseOS"), QStringLiteral("Desktop"))
-                .value(QStringLiteral("appearance/corner-radius"), 0).toInt()));
         catalogLayout->addWidget(detail_);
         auto *actions = new QHBoxLayout();
         status_ = new QLabel(catalogPage);

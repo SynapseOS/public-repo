@@ -112,6 +112,9 @@ static void applyDesktopTheme() {
 	palette.setColor(QPalette::ButtonText, foreground);
 	palette.setColor(QPalette::Highlight, accent);
 	palette.setColor(QPalette::HighlightedText, QColor(QStringLiteral("#ffffff")));
+	palette.setColor(QPalette::Disabled, QPalette::WindowText, QColor(QStringLiteral("#71808b")));
+	palette.setColor(QPalette::Disabled, QPalette::Text, QColor(QStringLiteral("#71808b")));
+	palette.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(QStringLiteral("#71808b")));
 	QApplication::setStyle(QStringLiteral("Fusion"));
 	QApplication::setPalette(palette);
 	QFont font = QApplication::font();

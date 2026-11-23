@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "synapse-desktop",
-  "version": "0.1.0-r33",
+  "version": "0.1.0-r34",
   "description": "SynapseOS application menu and graphical control center",
   "kind": "application",
   "arch": "x86_64",

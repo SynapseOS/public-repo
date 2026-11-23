@@ -402,6 +402,10 @@ static void applyDesktopPalette(const QString &theme) {
 	palette.setColor(QPalette::ButtonText, QColor(foreground));
 	palette.setColor(QPalette::Highlight, QColor(accent));
 	palette.setColor(QPalette::HighlightedText, QColor(QStringLiteral("#ffffff")));
+	const QColor disabled(spec.light ? QStringLiteral("#596872") : QStringLiteral("#9aa8b4"));
+	palette.setColor(QPalette::Disabled, QPalette::WindowText, disabled);
+	palette.setColor(QPalette::Disabled, QPalette::Text, disabled);
+	palette.setColor(QPalette::Disabled, QPalette::ButtonText, disabled);
 	palette.setColor(QPalette::PlaceholderText, QColor(spec.light ? QStringLiteral("#63717d") :
 	                                                  QStringLiteral("#aab4be")));
 	QApplication::setPalette(palette);
@@ -2693,6 +2697,17 @@ private:
 				}
 			});
 		}
+		connect(theme, &QComboBox::currentTextChanged, page, [=](const QString &name) {
+			const auto selected = desktopThemeSpec(name);
+			const QStringList values = {QString::fromLatin1(selected.background), QString::fromLatin1(selected.base),
+			    QString::fromLatin1(selected.surface), QString::fromLatin1(selected.foreground),
+			    QString::fromLatin1(selected.accent)};
+			for (int index = 0; index < colors.size(); ++index) {
+				colors[index]->setProperty("color", values[index]);
+				colors[index]->setText(values[index]);
+			}
+			radius->setValue(name == QStringLiteral("synapse-classic") ? 0 : 7);
+		});
 
 		auto *wallpaper = new QComboBox(page);
 		wallpaper->addItem(QStringLiteral("Тёмный фон SynapseOS"),

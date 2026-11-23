@@ -15,6 +15,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QPixmap>
 #include <QProcess>
 #include <QPushButton>
 #include <QTimer>
@@ -109,7 +110,7 @@ int main(int argc, char **argv) {
         "#loginScreen { border-image: url(/usr/share/backgrounds/synapse/Desktop-dark.png) 0 0 0 0 stretch stretch; }"
         "QWidget { color: #edf4fa; font-size: 15px; }"
         "#brand { background: transparent; }"
-        "#loginCard { background-color: rgba(20, 30, 42, 240); border: 1px solid #40566a; }"
+        "#loginCard { background-color: rgba(16, 27, 39, 245); border-left: 1px solid #40566a; }"
         "QLineEdit { background: #142230; color: #f5f9fc; border: 1px solid #526b80;"
         " padding: 11px 12px; selection-background-color: #3daee9; }"
         "QLineEdit:focus { border: 1px solid #3daee9; }"
@@ -143,49 +144,66 @@ int main(int argc, char **argv) {
     root->addLayout(header);
 
     auto *center = new QHBoxLayout();
+    center->setSpacing(42);
     center->addStretch();
+    auto *welcome = new QWidget(&window);
+    welcome->setObjectName(QStringLiteral("brand"));
+    welcome->setMinimumWidth(390);
+    auto *welcomeLayout = new QVBoxLayout(welcome);
+    welcomeLayout->setContentsMargins(20, 36, 0, 24);
+    auto *logo = new QLabel(welcome);
+    logo->setPixmap(QPixmap(QStringLiteral("/usr/share/weston/synapse-logo.png")).scaled(92, 92,
+        Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    welcomeLayout->addWidget(logo);
+    auto *welcomeTitle = new QLabel(QStringLiteral("Ваш рабочий стол.\nВаши возможности."), welcome);
+    welcomeTitle->setStyleSheet(QStringLiteral("font-size: 34px; font-weight: bold; line-height: 120%;"));
+    welcomeLayout->addWidget(welcomeTitle);
+    auto *welcomeText = new QLabel(QStringLiteral(
+        "Приложения, файлы и настройки находятся\nв вашем личном сеансе SynapseOS."), welcome);
+    welcomeText->setStyleSheet(QStringLiteral("font-size: 17px; color: #c4d5e2;"));
+    welcomeLayout->addWidget(welcomeText);
+    welcomeLayout->addStretch();
+    center->addWidget(welcome, 1);
+
     auto *card = new QWidget(&window);
     card->setObjectName(QStringLiteral("loginCard"));
-    card->setFixedSize(520, 430);
+    card->setFixedSize(510, 490);
     auto *layout = new QVBoxLayout(card);
-    layout->setContentsMargins(42, 30, 42, 30);
-    layout->setSpacing(14);
+    layout->setContentsMargins(42, 38, 42, 30);
+    layout->setSpacing(13);
 
-    auto *title = new QLabel(QStringLiteral("Вход в систему"), card);
-    title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet(QStringLiteral("font-size: 28px; font-weight: bold; padding-bottom: 6px;"));
+    auto *title = new QLabel(QStringLiteral("С возвращением"), card);
+    title->setStyleSheet(QStringLiteral("font-size: 30px; font-weight: bold; padding-bottom: 4px;"));
     layout->addWidget(title);
 
-    auto *description = new QLabel(QStringLiteral("Используйте любую локальную учётную запись"), card);
-    description->setAlignment(Qt::AlignCenter);
+    auto *description = new QLabel(QStringLiteral("Войдите в свой рабочий стол"), card);
     description->setStyleSheet(QStringLiteral("color: #b6c8d6; padding-bottom: 8px;"));
     layout->addWidget(description);
 
     auto *form = new QFormLayout();
-    form->setSpacing(12);
+    form->setSpacing(14);
     auto *user = new QLineEdit(card);
     auto *password = new QLineEdit(card);
     user->setPlaceholderText(QStringLiteral("Имя пользователя"));
     password->setPlaceholderText(QStringLiteral("Пароль"));
-    user->setMinimumHeight(46);
-    password->setMinimumHeight(46);
+    user->setMinimumHeight(48);
+    password->setMinimumHeight(48);
     password->setEchoMode(QLineEdit::Password);
     form->addRow(QStringLiteral("Пользователь"), user);
     form->addRow(QStringLiteral("Пароль"), password);
     layout->addLayout(form);
 
     auto *error = new QLabel(card);
-    error->setAlignment(Qt::AlignCenter);
     error->setWordWrap(true);
-    error->setMinimumHeight(24);
+    error->setMinimumHeight(28);
     error->setStyleSheet(QStringLiteral("color: #ffadad;"));
     layout->addWidget(error);
 
-    auto *submit = new QPushButton(QStringLiteral("Войти"), card);
-    submit->setMinimumHeight(48);
+    auto *submit = new QPushButton(QStringLiteral("Войти в SynapseOS"), card);
+    submit->setMinimumHeight(50);
     layout->addWidget(submit);
+    layout->addStretch();
     center->addWidget(card);
-    center->addStretch();
     root->addLayout(center, 1);
 
     auto *footer = new QHBoxLayout();

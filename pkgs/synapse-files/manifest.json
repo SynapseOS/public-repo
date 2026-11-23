@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "synapse-files",
-  "version": "0.1.0-r9",
+  "version": "0.1.0-r10",
   "description": "Graphical file manager for SynapseOS Desktop",
   "kind": "application",
   "arch": "x86_64",
