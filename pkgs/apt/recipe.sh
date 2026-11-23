@@ -271,6 +271,7 @@ copy "$work/build/methods/http" usr/libexec/debian-apt/methods/https
 copy "$work/debian-apt" bin/debian-apt
 copy "$work/debian-apt" usr/libexec/debian-apt/dpkg-blocked
 copy "$work/synapse-glibc-runtime.deb" usr/share/debian-apt/synapse-glibc-runtime.deb
+mkdir -p "$payload/usr/libexec/debian-runtime"
 
 copy "$port/apt.conf" etc/debian-apt/apt.conf
 copy "$port/sources.list" etc/debian-apt/sources.list

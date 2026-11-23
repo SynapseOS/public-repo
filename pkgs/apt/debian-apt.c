@@ -2,7 +2,7 @@
 // Автор: Елчинян Арен Артурович, 2026
 // Архитектура: x86_64, ABI: synapse-x86_64-v1
 // Подсистема: менеджер Debian-пакетов
-// Первое изменение: 01.11.2026, последнее изменение: 22.11.2026
+// Первое изменение: 01.11.2026, последнее изменение: 23.11.2026
 // Статус доступа: общедоступный
 
 #define _GNU_SOURCE
@@ -1546,14 +1546,28 @@ static int publish_runtime(const char *generation) {
             return -1;
         }
 
-        if (join_path(contents, sizeof contents, private_root, ".") < 0 ||
-            copy_entry(contents, staging) != 0 ||
-            rewrite_absolute_links(staging, staging, 0U) < 0 ||
-            sanitize_runtime_tree(staging, 0U) < 0 ||
-            check_tree(staging, 0U) < 0 ||
-            sync_tree(staging, 0U) < 0 ||
-            rename(staging, directory) < 0 ||
-            sync_directory(RUNTIME_DIRECTORY) < 0) {
+        int stage = 1;
+        if (join_path(contents, sizeof contents, private_root, ".") < 0) {
+            stage = 0;
+        } else if (copy_entry(contents, staging) != 0) {
+            stage = 2;
+        } else if (rewrite_absolute_links(staging, staging, 0U) < 0) {
+            stage = 3;
+        } else if (sanitize_runtime_tree(staging, 0U) < 0) {
+            stage = 4;
+        } else if (check_tree(staging, 0U) < 0) {
+            stage = 5;
+        } else if (sync_tree(staging, 0U) < 0) {
+            stage = 6;
+        } else if (rename(staging, directory) < 0) {
+            stage = 7;
+        } else if (sync_directory(RUNTIME_DIRECTORY) < 0) {
+            stage = 8;
+        } else {
+            stage = 0;
+        }
+        if (stage != 0) {
+            fprintf(stderr, "Debian runtime publish stage %d failed: %s\n", stage, strerror(errno));
             (void)remove_tree(staging, 0U);
             return -1;
         }
