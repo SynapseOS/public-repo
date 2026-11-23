@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "labwc",
-  "version": "0.9.8-r48",
+  "version": "0.9.8-r49",
   "description": "Wayland window manager for SynapseOS desktop sessions",
   "kind": "application",
   "arch": "x86_64",

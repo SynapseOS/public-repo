@@ -5,10 +5,10 @@
 # Описание: Подготовить рабочее пространство после запуска композитора
 # Подсистема: графическая оболочка
 # Первое изменение: 28.10.2026
-# Последнее изменение: 22.11.2026
+# Последнее изменение: 23.11.2026
 # Доступ: общедоступный
 
-export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
-dbus-daemon --session --fork --address="$DBUS_SESSION_BUS_ADDRESS"
+env DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus" \
+    dbus-daemon --session --fork --address="unix:path=${XDG_RUNTIME_DIR}/bus"
 /usr/libexec/labwc/synapse-panel &
 synapse-desktop --menu-service &
