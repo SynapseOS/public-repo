@@ -12,7 +12,7 @@ Python нужен upstream-проектам Meson, Mako и CPython, их шта�
 
 Нужен Linux x86_64, GNU Make, GCC/G++ 14, binutils, curl, jq, libarchive-tools, patch,
 pkg-config, autoconf, automake, libtool, bison, flex, gperf, CMake, Ninja, Meson,
-Mako, Perl, NASM, zip/unzip, JDK 21 и заголовки host libpng
+Mako, Perl, NASM, zip/unzip, JDK 21 и заголовки host libpng и GLib
 Для подписи и её тестов нужны OpenSSL с заголовками libcrypto и OpenSSH client
 Рецепты рассчитаны на Meson 1.7.2. CI устанавливает эту версию отдельно
 Для сборки пакета CPython требуется host CPython 3.13, при его отсутствии рецепт
@@ -24,7 +24,7 @@ Mako, Perl, NASM, zip/unzip, JDK 21 и заголовки host libpng
 sudo apt-get install build-essential musl-tools curl jq libarchive-tools patch pkg-config \
   autoconf automake libtool bison flex gperf gettext cmake ninja-build meson python3-mako \
   python3-yaml python3-packaging python3-pyparsing perl nasm unzip zip libwayland-dev libpng-dev \
-  libgmp-dev libmpfr-dev libmpc-dev openjdk-21-jdk-headless libssl-dev openssl openssh-client
+  libgmp-dev libmpfr-dev libmpc-dev openjdk-21-jdk-headless libssl-dev libglib2.0-dev openssl openssh-client
 ```
 
 ## Сборка
