@@ -1,7 +1,7 @@
 # recipe.sh: Собрать сканер и разнести данные NSE по пакетам с ограничением числа файлов
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 23.11.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -26,7 +26,7 @@ export CXXFLAGS="$CFLAGS" LDFLAGS="-static -L$BUILD_ROOT/zlib/payload/usr/lib"
 			--with-libz="$BUILD_ROOT/zlib/payload/usr"
 )
 
-make -C "$source" -j"$JOBS"
+make -C "$source" -j"$JOBS" TARGET_ARCH=
 copy "$source/nmap" bin/nmap
 strip --strip-debug "$payload/bin/nmap"
 
