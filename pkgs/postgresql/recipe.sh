@@ -1,6 +1,6 @@
 # recipe.sh: Сборка PostgreSQL 16 с musl
 # Автор: Елчинян Арен Артурович, 2026, x86_64, Linux amd64 ABI
-# Подсистема: серверные пакеты, первое и последнее изменение: 13.11.2026, изменено 14.11.2026
+# Подсистема: серверные пакеты, первое изменение: 13.11.2026, последнее изменение: 23.11.2026
 # Статус доступа: общедоступный
 
 prepare
@@ -9,11 +9,11 @@ prefix=/usr/lib/postgresql/16
     cd "$source"
     ./configure --prefix="$prefix" --without-icu --without-readline --without-zlib CC="${POSTGRES_MUSL_CC:-musl-gcc}"
 )
-make -C "$source/src/backend" -j"$JOBS" generated-headers
-make -C "$source" -j"$JOBS"
+env -u TARGET_ARCH make -C "$source/src/backend" -j"$JOBS" generated-headers
+env -u TARGET_ARCH make -C "$source" -j"$JOBS"
 staged="$work/install"
 rm -rf -- "$staged"
-make -C "$source" DESTDIR="$staged" install
+env -u TARGET_ARCH make -C "$source" DESTDIR="$staged" install
 for binary in postgres initdb pg_ctl pg_isready psql; do
     copy "$staged$prefix/bin/$binary" "$prefix/bin/$binary"
 done
