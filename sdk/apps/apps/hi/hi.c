@@ -428,6 +428,37 @@ static int network_page(struct settings *s, bool allow_back) {
            settings_set(s, setting(s, "DNS", "1"), dns);
 }
 
+// Выбрать режим адаптера Bluetooth, если модуль нашёл устройство
+static int bluetooth_page(struct settings *s, bool allow_back) {
+    if (access("/dev/bthci0", F_OK) != 0 && access("/dev/bthci1", F_OK) != 0) {
+        return 0;
+    }
+
+    const char *en[] = {"Leave Bluetooth off",
+                        "Enable as a regular computer",
+                        "Work as a Bluetooth speaker",
+                        "Work as a headset with a microphone"};
+    const char *rr[] = {"Оставить Bluetooth выключенным",
+                        "Включить как обычный компьютер",
+                        "Работать как Bluetooth-колонка",
+                        "Работать как гарнитура с микрофоном"};
+    int current = 0;
+
+    if (!strcmp(settings_get(s, "Bluetooth", "Enabled"), "1")) {
+        const char *role = settings_get(s, "Bluetooth", "Role");
+        current = !strcmp(role, "speaker") ? 2 : !strcmp(role, "headset") ? 3 : 1;
+    }
+
+    int choice = choose("Bluetooth", "Bluetooth", en, rr, 4, current, allow_back);
+    if (choice < 0) {
+        return -1;
+    }
+
+    static const char *const roles[] = {"host", "host", "speaker", "headset"};
+    return settings_set(s, setting(s, "Bluetooth", "Enabled"), choice ? "1" : "0") ||
+           settings_set(s, setting(s, "Bluetooth", "Role"), roles[choice]);
+}
+
 static int timezone_page(struct settings *s, bool allow_back) {
     const char *names[sizeof(zones) / sizeof(zones[0])];
     int selected = 0;
@@ -823,7 +854,7 @@ static int enroll_administrator(void) {
 static int first_run(struct settings *s) {
     int page = 0;
     const bool desktop = !strcmp(settings_get(s, "Desktop", "Enabled"), "1");
-    while (page < (desktop ? 9 : 8)) {
+    while (page < (desktop ? 10 : 9)) {
         int result = 0;
         if (page == 0) {
             const char *en[] = {"Русский", "English"};
@@ -839,14 +870,16 @@ static int first_run(struct settings *s) {
         } else if (page == 2) {
             result = network_page(s, true);
         } else if (page == 3) {
-            result = timezone_page(s, true);
+            result = bluetooth_page(s, true);
         } else if (page == 4) {
-            result = clock_page(s, true);
+            result = timezone_page(s, true);
         } else if (page == 5) {
-            result = font_page(s, true);
+            result = clock_page(s, true);
         } else if (page == 6) {
+            result = font_page(s, true);
+        } else if (page == 7) {
             result = data_sharing_page(s);
-        } else if (page == 7 && desktop) {
+        } else if (page == 8 && desktop) {
             const char *en[] = {"Require a password", "Open the desktop directly (administrator session)"};
             const char *rr[] = {"Запрашивать пароль", "Открывать рабочий стол сразу (сеанс администратора)"};
             int current = strcmp(settings_get(s, "Desktop", "LoginManager"), "0") != 0;
@@ -857,12 +890,15 @@ static int first_run(struct settings *s) {
             const char *en[] = {"Finish setup and open shell", "Back"};
             const char *rr[] = {"Завершить настройку и открыть оболочку", "Назад"};
             title("Ready to apply", "Готово к применению");
-            printf("%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n", tr("Language", "Язык"),
+            printf("%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n", tr("Language", "Язык"),
                    ru ? "Русский" : "English", tr("Network", "Сеть"),
                    s->values[setting(s, "Network", "Mode")],
                    tr("Time zone", "Часовой пояс"),
                    s->values[setting(s, "System", "Timezone")], tr("Font", "Шрифт"),
-                   s->values[setting(s, "Terminal", "Font")]);
+                   s->values[setting(s, "Terminal", "Font")], "Bluetooth",
+                   !strcmp(s->values[setting(s, "Bluetooth", "Enabled")], "1")
+                       ? s->values[setting(s, "Bluetooth", "Role")]
+                       : "off");
             int choice =
                 choose("Ready to apply", "Готово к применению", en, rr, 2, 0, true);
             if (choice != 0) {
@@ -1234,6 +1270,7 @@ static void main_menu(struct settings *s) {
     const char *en[] = {"Install SynapseOS to disk",
                         "Hardware and sensors",
                         "Network settings and test",
+                        "Bluetooth",
                         "Date and time",
                         "Choose font",
                         "Diagnostics and stress tests",
@@ -1246,6 +1283,7 @@ static void main_menu(struct settings *s) {
     const char *rr[] = {"Установить SynapseOS на диск",
                         "Оборудование и датчики",
                         "Настройка и проверка сети",
+                        "Bluetooth",
                         "Дата и время",
                         "Выбор шрифта",
                         "Диагностика и нагрузочные тесты",
@@ -1259,7 +1297,7 @@ static void main_menu(struct settings *s) {
     for (;;) {
         int choice =
             choose("System setup and diagnostics", "Настройка и диагностика системы",
-                   en + (live ? 0 : 1), rr + (live ? 0 : 1), live ? 12 : 11, 0, false);
+                   en + (live ? 0 : 1), rr + (live ? 0 : 1), live ? 13 : 12, 0, false);
         if (live && choice == 0) {
             terminal_restore();
             keyboard_show();
@@ -1272,7 +1310,7 @@ static void main_menu(struct settings *s) {
         if (live) {
             choice--;
         }
-        if (choice == 10) {
+        if (choice == 11) {
             return;
         }
         if (choice == 0) {
@@ -1285,25 +1323,29 @@ static void main_menu(struct settings *s) {
                 run_visible("Network status", "Состояние сети", "/bin/ip", args);
             }
         } else if (choice == 2) {
+            if (bluetooth_page(s, true) >= 0) {
+                settings_save(s);
+            }
+        } else if (choice == 3) {
             if (timezone_page(s, true) >= 0) {
                 clock_page(s, true);
                 settings_save(s);
             }
-        } else if (choice == 3) {
+        } else if (choice == 4) {
             if (font_page(s, true) >= 0) {
                 settings_save(s);
             }
-        } else if (choice == 4) {
-            diagnostics_menu();
         } else if (choice == 5) {
-            update_system();
+            diagnostics_menu();
         } else if (choice == 6) {
+            update_system();
+        } else if (choice == 7) {
             char path[512] = "";
             int status = report_create(NULL, path, sizeof(path));
             title("Full report", "Полный отчёт");
             printf("%s\n", status ? strerror(errno) : path);
             pause_screen();
-        } else if (choice == 8) {
+        } else if (choice == 9) {
             int result = data_sharing_page(s);
             if (result > 0) {
                 title("Cannot save consent choice", "Не удалось сохранить выбор согласия");
@@ -1316,7 +1358,7 @@ static void main_menu(struct settings *s) {
                         "Отправка запускается при следующей загрузке. Отзыв сразу блокирует новые отчёты."));
                 pause_screen();
             }
-        } else if (choice == 9) {
+        } else if (choice == 10) {
             advanced_menu(s);
         } else {
             char *args[] = {"settings", NULL};
