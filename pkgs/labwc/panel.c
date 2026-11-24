@@ -7,6 +7,7 @@
 // Последнее изменение: 23.11.2026
 // Доступ: общедоступный
 
+#define _GNU_SOURCE
 #define _DEFAULT_SOURCE
 #define _POSIX_C_SOURCE 200809L
 
@@ -39,6 +40,7 @@ struct panel_window {
     struct zwlr_foreign_toplevel_handle_v1 *handle;
     struct panel_window *next;
     char *title;
+    char *app_id;
     bool active;
     bool minimized, hidden_by_desktop, was_active;
 };
@@ -90,12 +92,18 @@ static struct {
 } panel;
 
 enum {
-    PANEL_MENU_WIDTH = 118,
-    PANEL_FILES_WIDTH = 94,
-    PANEL_TERMINAL_WIDTH = 118,
-    PANEL_TASK_WIDTH = 156,
+    PANEL_MENU_WIDTH = 52,
+    PANEL_PIN_WIDTH = 48,
+    PANEL_PIN_COUNT = 4,
+    PANEL_LAUNCHERS_WIDTH = PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * PANEL_PIN_COUNT,
+    PANEL_TASK_MIN_WIDTH = 120,
+    PANEL_TASK_MAX_WIDTH = 220,
     PANEL_MENU_ICON_SIZE = 24,
-    PANEL_DESKTOP_WIDTH = 128,
+    PANEL_DESKTOP_WIDTH = 36,
+    PANEL_CLOCK_WIDTH = 118,
+    PANEL_TRAY_WIDTH = 104,
+    PANEL_KEYBOARD_WIDTH = 40,
+    PANEL_RECORDING_WIDTH = 58,
 };
 
 // Прочитать активную тему для цветов нижней панели
@@ -429,7 +437,8 @@ static void desktop_icons(cairo_t *cr) {
         cairo_translate(cr, x, y);
         if (panel.selected == i) {
             cairo_set_source_rgba(cr, .21, .46, .80, .62);
-            rounded_rectangle(cr, 0, 0, IconWidth - 4, IconHeight - 4, 8); cairo_fill(cr);
+            rounded_rectangle(cr, 0, 0, IconWidth - 4, IconHeight - 4, panel.corner_radius);
+            cairo_fill(cr);
         }
         cairo_translate(cr, (IconWidth - 4) / 2.0, 4);
         enum IconKind kind = i < Shortcuts ? (enum IconKind)i :
@@ -479,7 +488,7 @@ static void background_draw(void) {
         CAIRO_FORMAT_ARGB32, panel.background_width, panel.background_height,
         panel.background_width * 4);
     cairo_t *context = cairo_create(image);
-    const char *path = panel.theme == 1 ?
+    const char *path = panel.theme == 1 || panel.theme == 4 ?
         "/usr/share/backgrounds/synapse/Desktop-light.png" :
         "/usr/share/backgrounds/synapse/Desktop-dark.png";
     const char *home = getenv("HOME");
@@ -526,26 +535,166 @@ static void background_draw(void) {
     panel.background_committed = true;
 }
 
+static char recording;
+
+// Вычислить ширину задач по свободному месту панели
+static int task_width(void) {
+    int count = 0;
+    for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
+        count++;
+    }
+    if (count == 0) {
+        return PANEL_TASK_MIN_WIDTH;
+    }
+
+    int available = panel.width - PANEL_LAUNCHERS_WIDTH - PANEL_DESKTOP_WIDTH -
+        PANEL_CLOCK_WIDTH - PANEL_TRAY_WIDTH - (recording ? PANEL_RECORDING_WIDTH : 0) -
+        (panel.keyboard_available ? PANEL_KEYBOARD_WIDTH : 0);
+    int width = available / count;
+    if (width < PANEL_TASK_MIN_WIDTH) {
+        return PANEL_TASK_MIN_WIDTH;
+    }
+    return width > PANEL_TASK_MAX_WIDTH ? PANEL_TASK_MAX_WIDTH : width;
+}
+
+// Нарисовать небольшой значок программы без обращения к теме значков
+static void draw_app_icon(cairo_t *context, int x, const char *app_id, bool active) {
+    const struct panel_palette *colors = &palettes[panel.theme];
+    double center = panel.height / 2.0;
+    if (active) {
+        cairo_set_source_rgb(context, 1.0, 1.0, 1.0);
+    } else {
+        set_panel_color(context, colors->text);
+    }
+    cairo_set_line_width(context, 1.7);
+    cairo_set_line_cap(context, CAIRO_LINE_CAP_ROUND);
+    cairo_set_line_join(context, CAIRO_LINE_JOIN_ROUND);
+
+    if (app_id != NULL && strcasestr(app_id, "terminal") != NULL) {
+        rounded_rectangle(context, x - 10, center - 8, 20, 16, 2);
+        cairo_stroke(context);
+        cairo_move_to(context, x - 6, center - 3);
+        cairo_line_to(context, x - 2, center);
+        cairo_line_to(context, x - 6, center + 3);
+        cairo_move_to(context, x + 1, center + 4);
+        cairo_line_to(context, x + 6, center + 4);
+        cairo_stroke(context);
+    } else if (app_id != NULL && (strcasestr(app_id, "settings") != NULL ||
+        strcasestr(app_id, "preferences") != NULL)) {
+        for (int row = -1; row <= 1; row++) {
+            double line = center + row * 6;
+            cairo_move_to(context, x - 9, line);
+            cairo_line_to(context, x + 9, line);
+            cairo_stroke(context);
+            cairo_arc(context, x + (row == 0 ? 4 : -4), line, 2.3, 0.0, 6.2831853);
+            cairo_fill(context);
+        }
+    } else if (app_id != NULL && strcasestr(app_id, "store") != NULL) {
+        rounded_rectangle(context, x - 9, center - 5, 18, 15, 2);
+        cairo_stroke(context);
+        cairo_arc(context, x, center - 5, 5, 3.1415926, 6.2831853);
+        cairo_stroke(context);
+        cairo_move_to(context, x - 4, center + 1);
+        cairo_line_to(context, x + 4, center + 1);
+        cairo_stroke(context);
+    } else if (app_id != NULL && strcasestr(app_id, "monitor") != NULL) {
+        cairo_move_to(context, x - 10, center + 6);
+        cairo_line_to(context, x - 5, center);
+        cairo_line_to(context, x, center + 3);
+        cairo_line_to(context, x + 5, center - 7);
+        cairo_line_to(context, x + 10, center - 2);
+        cairo_stroke(context);
+    } else if (app_id != NULL && strcasestr(app_id, "desktop") != NULL) {
+        rounded_rectangle(context, x - 10, center - 8, 20, 14, 1);
+        cairo_stroke(context);
+        cairo_move_to(context, x - 5, center + 9);
+        cairo_line_to(context, x + 5, center + 9);
+        cairo_move_to(context, x, center + 6);
+        cairo_line_to(context, x, center + 9);
+        cairo_stroke(context);
+    } else if (app_id != NULL && (strcasestr(app_id, "file") != NULL ||
+        strcasestr(app_id, "home") != NULL)) {
+        rounded_rectangle(context, x - 10, center - 6, 20, 13, 2);
+        cairo_stroke(context);
+        cairo_move_to(context, x - 9, center - 6);
+        cairo_line_to(context, x - 4, center - 6);
+        cairo_line_to(context, x - 1, center - 9);
+        cairo_line_to(context, x + 5, center - 9);
+        cairo_stroke(context);
+    } else {
+        for (int row = 0; row < 2; row++) {
+            for (int column = 0; column < 2; column++) {
+                rounded_rectangle(context, x - 9 + column * 10, center - 9 + row * 10, 7, 7, 1);
+                cairo_fill(context);
+            }
+        }
+    }
+}
+
 // Нарисовать одну кнопку на панели
-static void draw_button(cairo_t *context, int x, int width, const char *label, bool active) {
+static void draw_button(cairo_t *context, int x, int width, const char *label, bool active,
+    const char *app_id) {
     const struct panel_palette *colors = &palettes[panel.theme];
     set_panel_color(context, active ? colors->active_button : colors->button);
-    rounded_rectangle(context, x + 3, 5, width - 6, panel.height - 10, panel.corner_radius);
+    rounded_rectangle(context, x + 3, 4, width - 6, panel.height - 8, panel.corner_radius);
     cairo_fill(context);
 
     if (active) {
         set_panel_color(context, colors->accent);
-        rounded_rectangle(context, x + 12, panel.height - 5, width - 24, 3, panel.corner_radius / 4.0);
+        cairo_rectangle(context, x + 10, panel.height - 3, width - 20, 2);
         cairo_fill(context);
     }
 
+    if (app_id != NULL) {
+        draw_app_icon(context, label[0] == 0 ? x + width / 2 : x + 21, app_id, active);
+    }
     cairo_save(context);
-    cairo_rectangle(context, x + 8, 0, width - 16, panel.height);
+    int text_offset = app_id != NULL && label[0] != 0 ? 38 : 12;
+    cairo_rectangle(context, x + text_offset, 0, width - text_offset - 7, panel.height);
     cairo_clip(context);
-    set_panel_color(context, colors->text);
-    cairo_move_to(context, x + 13, panel.height / 2 + 5);
+    if (active) {
+        cairo_set_source_rgb(context, 1.0, 1.0, 1.0);
+    } else {
+        set_panel_color(context, colors->text);
+    }
+    cairo_move_to(context, x + text_offset, panel.height / 2 + 5);
     cairo_show_text(context, label);
     cairo_restore(context);
+}
+
+// Нарисовать состояние сети, звука и раскладки
+static void draw_system_tray(cairo_t *context, int x) {
+    const struct panel_palette *colors = &palettes[panel.theme];
+    double center = panel.height / 2.0;
+    set_panel_color(context, colors->text);
+    cairo_set_line_width(context, 1.7);
+    cairo_set_line_cap(context, CAIRO_LINE_CAP_ROUND);
+    cairo_new_path(context);
+
+    cairo_arc(context, x + 18, center + 3, 10, 3.70, 5.72);
+    cairo_stroke(context);
+    cairo_arc(context, x + 18, center + 3, 6, 3.70, 5.72);
+    cairo_stroke(context);
+    cairo_arc(context, x + 18, center + 7, 1.7, 0.0, 6.2831853);
+    cairo_fill(context);
+
+    cairo_move_to(context, x + 40, center - 3);
+    cairo_line_to(context, x + 44, center - 3);
+    cairo_line_to(context, x + 49, center - 8);
+    cairo_line_to(context, x + 49, center + 8);
+    cairo_line_to(context, x + 44, center + 3);
+    cairo_line_to(context, x + 40, center + 3);
+    cairo_close_path(context);
+    cairo_stroke(context);
+    cairo_arc(context, x + 49, center, 6, -0.85, 0.85);
+    cairo_stroke(context);
+
+    const char *lang = getenv("LANG");
+    const char *layout = lang != NULL && strncmp(lang, "ru", 2) == 0 ? "ru" : "en";
+    cairo_select_font_face(context, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(context, 13);
+    cairo_move_to(context, x + 72, center + 5);
+    cairo_show_text(context, layout);
 }
 
 // Освободить загруженный значок перед обновлением или выходом
@@ -630,13 +779,12 @@ static void draw_menu_icon(cairo_t *context) {
     }
 
     cairo_save(context);
-    cairo_set_source_surface(context, panel.menu_icon, 12,
+    cairo_set_source_surface(context, panel.menu_icon,
+        (PANEL_MENU_WIDTH - PANEL_MENU_ICON_SIZE) / 2.0,
         (panel.height - PANEL_MENU_ICON_SIZE) / 2.0);
     cairo_paint(context);
     cairo_restore(context);
 }
-
-static char recording;
 
 static char active_recording(void) {
     char name[80], result=0;
@@ -699,44 +847,82 @@ static void panel_draw(void) {
     cairo_select_font_face(context, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(context, 15);
 
-    draw_button(context, 0, PANEL_MENU_WIDTH, "     Меню", false);
+    draw_button(context, 0, PANEL_MENU_WIDTH, "", false, NULL);
     draw_menu_icon(context);
-    draw_button(context, PANEL_MENU_WIDTH, PANEL_FILES_WIDTH, "Файлы", false);
-    draw_button(context, PANEL_MENU_WIDTH + PANEL_FILES_WIDTH, PANEL_TERMINAL_WIDTH,
-        "Терминал", false);
+    draw_button(context, PANEL_MENU_WIDTH, PANEL_PIN_WIDTH, "", false, "files");
+    draw_button(context, PANEL_MENU_WIDTH + PANEL_PIN_WIDTH, PANEL_PIN_WIDTH, "", false, "store");
+    draw_button(context, PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * 2, PANEL_PIN_WIDTH,
+        "", false, "terminal");
+    draw_button(context, PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * 3, PANEL_PIN_WIDTH,
+        "", false, "settings");
 
     bool showing = false;
-    for (struct panel_window *w = panel.windows; w; w = w->next) showing |= w->hidden_by_desktop;
-    draw_button(context, panel.width - PANEL_DESKTOP_WIDTH, PANEL_DESKTOP_WIDTH, "Рабочий стол", showing);
-    int x = PANEL_MENU_WIDTH + PANEL_FILES_WIDTH + PANEL_TERMINAL_WIDTH;
     for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
-        if (x + PANEL_TASK_WIDTH > panel.width - PANEL_DESKTOP_WIDTH - 195 - (recording ? 70 : 0)) {
+        showing |= window->hidden_by_desktop;
+    }
+
+    int desktop_x = panel.width - PANEL_DESKTOP_WIDTH;
+    int clock_x = desktop_x - PANEL_CLOCK_WIDTH;
+    int tray_x = clock_x - PANEL_TRAY_WIDTH;
+    int keyboard_x = tray_x - PANEL_KEYBOARD_WIDTH;
+    int tasks_right = panel.keyboard_available ? keyboard_x : tray_x;
+    if (recording) {
+        tasks_right -= PANEL_RECORDING_WIDTH;
+    }
+
+    draw_button(context, desktop_x, PANEL_DESKTOP_WIDTH, "", showing, "desktop");
+    int width = task_width();
+    int x = PANEL_LAUNCHERS_WIDTH;
+    for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
+        if (x + width > tasks_right) {
             break;
         }
 
-        draw_button(context, x, PANEL_TASK_WIDTH, window->title != NULL ? window->title : "Окно",
-            window->active);
-        x += PANEL_TASK_WIDTH;
+        const char *title = window->title != NULL ? window->title :
+            (window->app_id != NULL ? window->app_id : "Окно");
+        draw_button(context, x, width, title, window->active, window->app_id);
+        x += width;
     }
 
     if (recording) {
-        cairo_set_source_rgb(context,1.0,recording=='R'?0.36:0.76,0.30);
-        int left=panel.width-PANEL_DESKTOP_WIDTH-252;
-        cairo_arc(context,left,panel.height/2,4,0,6.284); cairo_fill(context);
-        cairo_move_to(context,left+10,panel.height/2+5);
-        cairo_show_text(context,recording=='R'?"REC":"Пауза");
+        cairo_set_source_rgb(context, 1.0, recording == 'R' ? 0.36 : 0.76, 0.30);
+        cairo_arc(context, tasks_right + 12, panel.height / 2, 4, 0, 6.2831853);
+        cairo_fill(context);
+        cairo_move_to(context, tasks_right + 22, panel.height / 2 + 5);
+        cairo_show_text(context, "REC");
+    }
+
+    draw_system_tray(context, tray_x);
+    if (panel.keyboard_available) {
+        draw_button(context, keyboard_x, PANEL_KEYBOARD_WIDTH, "123", false, NULL);
     }
 
     time_t now = time(NULL);
     struct tm local;
-    if (panel.keyboard_available) {
-        draw_button(context, panel.width - PANEL_DESKTOP_WIDTH - 180, 180, "Клавиатура", false);
-    } else if (localtime_r(&now, &local) != NULL) {
-        char clock_text[32];
-        if (strftime(clock_text, sizeof(clock_text), "%d.%m.%Y %H:%M", &local) != 0) {
-            set_panel_color(context, colors->text);
-            cairo_move_to(context, panel.width - PANEL_DESKTOP_WIDTH - 180, panel.height / 2 + 5);
+    if (localtime_r(&now, &local) != NULL) {
+        set_panel_color(context, colors->border);
+        cairo_rectangle(context, clock_x, 9, 1, panel.height - 18);
+        cairo_fill(context);
+        set_panel_color(context, colors->text);
+        cairo_text_extents_t extents;
+        char clock_text[16];
+        if (strftime(clock_text, sizeof(clock_text), "%H:%M", &local) != 0) {
+            cairo_select_font_face(context, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+            cairo_set_font_size(context, 16);
+            cairo_text_extents(context, clock_text, &extents);
+            cairo_move_to(context, clock_x + (PANEL_CLOCK_WIDTH - extents.width) / 2.0,
+                panel.height / 2 - 1);
             cairo_show_text(context, clock_text);
+        }
+
+        char date_text[16];
+        if (strftime(date_text, sizeof(date_text), "%d.%m.%Y", &local) != 0) {
+            cairo_select_font_face(context, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+            cairo_set_font_size(context, 11);
+            cairo_text_extents(context, date_text, &extents);
+            cairo_move_to(context, clock_x + (PANEL_CLOCK_WIDTH - extents.width) / 2.0,
+                panel.height / 2 + 14);
+            cairo_show_text(context, date_text);
         }
     }
 
@@ -837,17 +1023,32 @@ static void pointer_button(void *data, struct wl_pointer *pointer, uint32_t seri
             zwlr_foreign_toplevel_handle_v1_activate(previous_focus->handle, panel.seat);
         }
         panel.dirty = true;
-    } else if (panel.keyboard_available && panel.pointer_x >= panel.width - PANEL_DESKTOP_WIDTH - 180) {
+    } else if (panel.keyboard_available &&
+        panel.pointer_x >= panel.width - PANEL_DESKTOP_WIDTH - PANEL_CLOCK_WIDTH -
+        PANEL_TRAY_WIDTH - PANEL_KEYBOARD_WIDTH &&
+        panel.pointer_x < panel.width - PANEL_DESKTOP_WIDTH - PANEL_CLOCK_WIDTH - PANEL_TRAY_WIDTH) {
         toggle_keyboard();
     } else if (panel.pointer_x < PANEL_MENU_WIDTH) {
         panel_launch("/bin/synapse-menuctl", NULL);
-    } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_FILES_WIDTH) {
+    } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_PIN_WIDTH) {
         panel_launch("/bin/synapse-files", NULL);
-    } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_FILES_WIDTH + PANEL_TERMINAL_WIDTH) {
+    } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * 2) {
+        panel_launch("/bin/synapse-store", NULL);
+    } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * 3) {
         panel_launch("/bin/weston-terminal", NULL);
-    } else if (panel.pointer_x < panel.width - PANEL_DESKTOP_WIDTH - 195 - (recording ? 70 : 0)) {
-        int index = (panel.pointer_x - PANEL_MENU_WIDTH - PANEL_FILES_WIDTH - PANEL_TERMINAL_WIDTH) /
-            PANEL_TASK_WIDTH;
+    } else if (panel.pointer_x < PANEL_LAUNCHERS_WIDTH) {
+        panel_launch("/bin/synapse-desktop", "--settings");
+    } else {
+        int right = panel.width - PANEL_DESKTOP_WIDTH - PANEL_CLOCK_WIDTH - PANEL_TRAY_WIDTH -
+            (panel.keyboard_available ? PANEL_KEYBOARD_WIDTH : 0) -
+            (recording ? PANEL_RECORDING_WIDTH : 0);
+        int width = task_width();
+        int left = PANEL_LAUNCHERS_WIDTH;
+        if (panel.pointer_x < left || panel.pointer_x >= right) {
+            return;
+        }
+
+        int index = (panel.pointer_x - left) / width;
         for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
             if (index-- == 0) {
                 if (window->active) {
@@ -968,12 +1169,16 @@ static void window_state(void *data, struct zwlr_foreign_toplevel_handle_v1 *han
     }
 }
 
-// Принять идентификатор приложения без изменения заголовка
+// Сохранить идентификатор для значка и короткого имени окна
 static void window_app_id(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle,
     const char *app_id) {
-    (void)data;
     (void)handle;
-    (void)app_id;
+    struct panel_window *window = data;
+    char *copy = strdup(app_id);
+    if (copy != NULL) {
+        free(window->app_id);
+        window->app_id = copy;
+    }
 }
 
 // Принять перемещение окна между экранами
@@ -1014,6 +1219,7 @@ static void window_closed(void *data, struct zwlr_foreign_toplevel_handle_v1 *ha
 
     zwlr_foreign_toplevel_handle_v1_destroy(handle);
     free(window->title);
+    free(window->app_id);
     free(window);
     panel.dirty = true;
 }

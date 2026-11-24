@@ -5,7 +5,7 @@
     Описание: Предоставить доступ к приложениям и настройкам
     Подсистема: графическая оболочка
     Первое изменение: 28.10.2026
-    Последнее изменение: 29.10.2026
+    Последнее изменение: 23.11.2026
     Доступ: общедоступный
 -->
 <openbox_menu>
@@ -24,7 +24,7 @@
                 <action name="Execute" command="recorder-desktop" />
             </item>
             <item label="Монитор системы">
-                <action name="Execute" command="weston-terminal --shell=/bin/htop" />
+                <action name="Execute" command="synapse-desktop --monitor" />
             </item>
         </menu>
         <item label="Настройки">
