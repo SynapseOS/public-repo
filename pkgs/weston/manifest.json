@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "weston",
-  "version": "13.0.3-r21",
+  "version": "13.0.3-r23",
   "description": "Weston compositor with SynapseOS framebuffer and input backend",
   "kind": "application",
   "arch": "x86_64",

@@ -1,7 +1,7 @@
 # recipe.sh: Собрать Weston и Wayland с POSIX-адаптациями SynapseOS
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 01.11.2026
+# Первое изменение: 18.10.2026, последнее изменение: 24.11.2026
 # Статус доступа: общедоступный
 
 mkdir -p "$work/sdk"
@@ -106,6 +106,14 @@ if ! grep -q 'window_add_widget(terminal->window, terminal)' "$source/clients/te
 	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/terminal-server-decorations.patch"
 fi
 
+if ! grep -Fq '{0.992, 0.992, 0.973, 1}' "$source/clients/terminal.c"; then
+	{
+		printf '%s\n' '--- a/clients/terminal.c' '+++ b/clients/terminal.c'
+		sed -n '/^@@ -911,16 /,/^@@ -2955/{ /^@@ -2955/!p; }' \
+			"$port/patches/terminal-server-decorations.patch"
+	} | patch --batch --fuzz=0 -d "$source" -p1
+fi
+
 if ! grep -q 'report_left_press' "$source/clients/terminal.c"; then
 	patch --batch --fuzz=0 -d "$source" -p1 -i "$port/patches/terminal-pointer.patch"
 fi
@@ -144,16 +152,20 @@ c_args = ['-D_GNU_SOURCE', '-isystem', '$(gcc -print-file-name=include)',
 c_link_args = ['-Wl,-rpath-link,$work/sdk/usr/lib']
 CROSS
 sed "s/'-D_GNU_SOURCE', //" "$work/cross.ini" >"$work/wayland-cross.ini"
-alias="$work/sdk"
+alias_path="/tmp/synapse-public-weston-$(printf '%s' "$ROOT" | sha256sum | cut -c1-16)"
+if [[ ! -e $alias_path ]]; then
+	ln -s "$work/sdk" "$alias_path"
+fi
+[[ $(realpath "$alias_path") == $(realpath "$work/sdk") ]]
 mkdir -p "$work/sdk/usr/bin"
 ln -sfn "$SDK/apps/musl/lib/libc.so" "$work/sdk/usr/lib/libc.musl-x86_64.so.1"
 ln -sfn "$(command -v wayland-scanner)" "$work/sdk/usr/bin/wayland-scanner"
-export PKG_CONFIG_SYSROOT_DIR="$alias"
-export PKG_CONFIG_LIBDIR="$alias/usr/lib/pkgconfig:$alias/usr/share/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$alias_path"
+export PKG_CONFIG_LIBDIR="$alias_path/usr/lib/pkgconfig:$alias_path/usr/share/pkgconfig"
 
 meson_wipe=()
 if [[ -f $work/wayland-build/build.ninja ]] &&
-	grep -q '/tmp/synapse-public-weston-' "$work/wayland-build/build.ninja"; then
+	! grep -Fq "$work/sdk" "$work/wayland-build/build.ninja"; then
 	meson_wipe=(--wipe)
 fi
 
@@ -167,7 +179,7 @@ ninja -C "$work/wayland-build" -j"$JOBS"
 
 meson_wipe=()
 if [[ -f $work/build/build.ninja ]] &&
-	grep -q '/tmp/synapse-public-weston-' "$work/build/build.ninja"; then
+	! grep -Fq "$work/sdk" "$work/build/build.ninja"; then
 	meson_wipe=(--wipe)
 fi
 
@@ -200,7 +212,7 @@ fi
 
 meson_wipe=()
 if [[ -f $work/libdecor-build/build.ninja ]] &&
-	grep -q '/tmp/synapse-public-weston-' "$work/libdecor-build/build.ninja"; then
+	! grep -Fq "$work/sdk" "$work/libdecor-build/build.ninja"; then
 	meson_wipe=(--wipe)
 fi
 
@@ -266,6 +278,28 @@ for directory in usr/share/fonts usr/share/fontconfig usr/share/X11/locale etc/f
 		cp -rL "$work/sdk/$directory" "$payload/$(dirname "$directory")/"
 	fi
 done
+
+# Выбирать моноширинный шрифт для программ без собственного шрифта
+python3 - "$payload/etc/fonts/fonts.conf" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+config = path.read_text()
+ending = "</fontconfig>"
+if config.count(ending) != 1:
+    raise SystemExit("fontconfig closing tag not found")
+aliases = """<match target="pattern">
+  <test name="family" compare="eq"><string>sans-serif</string></test>
+  <edit name="family" mode="prepend" binding="strong"><string>DejaVu Sans Mono</string></edit>
+</match>
+<match target="pattern">
+  <test name="family" compare="eq"><string>system-ui</string></test>
+  <edit name="family" mode="prepend" binding="strong"><string>DejaVu Sans Mono</string></edit>
+</match>
+"""
+path.write_text(config.replace(ending, aliases + ending))
+PY
 
 mkdir -p "$payload/usr/share/icons/breeze_cursors"
 cp -rL "$work/sdk/usr/share/icons/breeze_cursors/cursors" "$payload/usr/share/icons/breeze_cursors/"
