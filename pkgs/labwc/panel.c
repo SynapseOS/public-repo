@@ -4,7 +4,7 @@
 // Описание: Показывать меню, работающие окна и часы на нижней панели
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 23.11.2026
+// Последнее изменение: 24.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -41,6 +41,7 @@ struct panel_window {
     struct panel_window *next;
     char *title;
     char *app_id;
+    cairo_surface_t *icon;
     bool active;
     bool minimized, hidden_by_desktop, was_active;
 };
@@ -83,7 +84,6 @@ static struct {
     pid_t keyboard_pid;
     int last_minute;
     int theme;
-    int corner_radius;
     int panel_height;
     time_t wallpaper_mtime;
     cairo_surface_t *menu_icon;
@@ -96,8 +96,7 @@ enum {
     PANEL_PIN_WIDTH = 48,
     PANEL_PIN_COUNT = 4,
     PANEL_LAUNCHERS_WIDTH = PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * PANEL_PIN_COUNT,
-    PANEL_TASK_MIN_WIDTH = 120,
-    PANEL_TASK_MAX_WIDTH = 220,
+    PANEL_TASK_WIDTH = 48,
     PANEL_MENU_ICON_SIZE = 24,
     PANEL_DESKTOP_WIDTH = 36,
     PANEL_CLOCK_WIDTH = 118,
@@ -188,13 +187,12 @@ static struct panel_palette palettes[] = {
      {0.32, 0.46, 0.53}, {0.46, 0.67, 0.74}, {0.93, 0.96, 0.97}},
     {{0.10, 0.12, 0.15}, {0.25, 0.32, 0.38}, {0.14, 0.16, 0.20},
      {0.24, 0.30, 0.37}, {0.32, 0.56, 0.82}, {1.00, 1.00, 1.00}},
-    {{0.96, 0.95, 0.93}, {0.60, 0.66, 0.68}, {0.89, 0.91, 0.91},
-     {0.14, 0.34, 0.47}, {0.00, 0.44, 0.56}, {0.09, 0.20, 0.24}},
+    {{0.094, 0.361, 0.569}, {0.094, 0.361, 0.569}, {0.094, 0.361, 0.569},
+     {0.180, 0.439, 0.627}, {0.561, 0.765, 0.910}, {1.0, 1.0, 1.0}},
 };
 
 // Прочитать переносимые параметры оформления нижней панели
 static void read_appearance(void) {
-    panel.corner_radius = panel.theme == 4 ? 0 : 6;
     panel.panel_height = 44;
     const char *home = getenv("HOME");
     if (home == NULL || home[0] == 0) {
@@ -226,11 +224,6 @@ static void read_appearance(void) {
             continue;
         }
         *separator++ = 0;
-        if (!strcmp(line, "corner-radius")) {
-            int value = atoi(separator);
-            panel.corner_radius = value >= 0 && value <= 24 ? value : panel.corner_radius;
-            continue;
-        }
         if (!strcmp(line, "panel-height")) {
             int value = atoi(separator);
             panel.panel_height = value >= 32 && value <= 96 ? value : panel.panel_height;
@@ -257,23 +250,6 @@ static void read_appearance(void) {
 // Передать Cairo цвет выбранной темы
 static void set_panel_color(cairo_t *context, struct panel_color color) {
     cairo_set_source_rgb(context, color.red, color.green, color.blue);
-}
-
-// Построить скруглённую область кнопки
-static void rounded_rectangle(cairo_t *context, double x, double y, double width,
-    double height, double radius) {
-    const double quarter_turn = 1.5707963267948966;
-
-    cairo_new_sub_path(context);
-    cairo_arc(context, x + width - radius, y + radius, radius,
-        -quarter_turn, 0.0);
-    cairo_arc(context, x + width - radius, y + height - radius, radius,
-        0.0, quarter_turn);
-    cairo_arc(context, x + radius, y + height - radius, radius,
-        quarter_turn, 2.0 * quarter_turn);
-    cairo_arc(context, x + radius, y + radius, radius,
-        2.0 * quarter_turn, 3.0 * quarter_turn);
-    cairo_close_path(context);
 }
 
 // Освободить буфер после завершения чтения композитором
@@ -391,14 +367,20 @@ static void desktop_cell(int index, int *x, int *y) {
 static void desktop_glyph(cairo_t *cr, enum IconKind kind) {
     if (kind == Folder) {
         cairo_set_source_rgb(cr, .20, .49, .74);
-        rounded_rectangle(cr, -22, 5, 21, 16, 3); cairo_fill(cr);
-        rounded_rectangle(cr, -22, 11, 44, 28, 4); cairo_fill(cr);
+        cairo_rectangle(cr, -22, 5, 21, 16);
+        cairo_fill(cr);
+        cairo_rectangle(cr, -22, 11, 44, 28);
+        cairo_fill(cr);
         cairo_set_source_rgb(cr, .43, .73, .96);
-        rounded_rectangle(cr, -22, 16, 44, 23, 4); cairo_fill(cr);
+        cairo_rectangle(cr, -22, 16, 44, 23);
+        cairo_fill(cr);
     } else if (kind == Applications) {
-        for (int row = 0; row < 2; row++) for (int col = 0; col < 2; col++) {
-            cairo_set_source_rgb(cr, .42 + .10 * col, .68 + .10 * row, .90);
-            rounded_rectangle(cr, -19 + 21 * col, 4 + 20 * row, 17, 16, 4); cairo_fill(cr);
+        for (int row = 0; row < 2; row++) {
+            for (int col = 0; col < 2; col++) {
+                cairo_set_source_rgb(cr, .42 + .10 * col, .68 + .10 * row, .90);
+                cairo_rectangle(cr, -19 + 21 * col, 4 + 20 * row, 17, 16);
+                cairo_fill(cr);
+            }
         }
     } else if (kind == Preferences) {
         cairo_set_source_rgb(cr, .75, .84, .91);
@@ -410,7 +392,8 @@ static void desktop_glyph(cairo_t *cr, enum IconKind kind) {
         }
     } else {
         cairo_set_source_rgb(cr, .91, .93, .97);
-        rounded_rectangle(cr, -15, 3, 30, 38, 3); cairo_fill(cr);
+        cairo_rectangle(cr, -15, 3, 30, 38);
+        cairo_fill(cr);
         cairo_set_source_rgb(cr, .46, .53, .62);
         for (int line = 0; line < 3; line++) {
             cairo_rectangle(cr, -9, 13 + line * 6, line == 2 ? 11 : 17, 2); cairo_fill(cr);
@@ -436,8 +419,8 @@ static void desktop_icons(cairo_t *cr) {
         cairo_save(cr);
         cairo_translate(cr, x, y);
         if (panel.selected == i) {
-            cairo_set_source_rgba(cr, .21, .46, .80, .62);
-            rounded_rectangle(cr, 0, 0, IconWidth - 4, IconHeight - 4, panel.corner_radius);
+            cairo_set_source_rgba(cr, .21, .46, .80, .30);
+            cairo_rectangle(cr, 0, 0, IconWidth - 4, IconHeight - 4);
             cairo_fill(cr);
         }
         cairo_translate(cr, (IconWidth - 4) / 2.0, 4);
@@ -445,7 +428,7 @@ static void desktop_icons(cairo_t *cr) {
             panel.desktop_files[i - Shortcuts]->d_type == DT_DIR ? Folder : Document;
         desktop_glyph(cr, kind);
         cairo_rectangle(cr, -(IconWidth - 6)/2.0, 43, IconWidth - 6, 30); cairo_clip(cr);
-        cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        cairo_select_font_face(cr, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
         cairo_set_font_size(cr, 14);
         const char *label = desktop_name(i, russian);
         // Ошибочное имя файла не должно перевести общий контекст Cairo в состояние ошибки
@@ -460,9 +443,12 @@ static void desktop_icons(cairo_t *cr) {
         double left = ext.width < IconWidth - 8 ? -ext.width / 2.0 - ext.x_bearing : -IconWidth / 2.0 + 4;
         cairo_move_to(text, left, 63);
         cairo_text_path(text, label);
-        cairo_set_line_join(text, CAIRO_LINE_JOIN_ROUND);
-        cairo_set_line_width(text, 2.4); cairo_set_source_rgba(text, 0, 0, 0, .6);
-        cairo_stroke_preserve(text); cairo_set_source_rgb(text, 1, 1, 1); cairo_fill(text);
+        if (panel.theme == 4) {
+            cairo_set_source_rgb(text, .19, .21, .23);
+        } else {
+            cairo_set_source_rgb(text, 1, 1, 1);
+        }
+        cairo_fill(text);
         cairo_destroy(text);
         cairo_restore(cr);
     }
@@ -537,30 +523,172 @@ static void background_draw(void) {
 
 static char recording;
 
-// Вычислить ширину задач по свободному месту панели
-static int task_width(void) {
-    int count = 0;
-    for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
-        count++;
-    }
-    if (count == 0) {
-        return PANEL_TASK_MIN_WIDTH;
+// Определить закреплённую кнопку для открытого окна
+static int pinned_index(const struct panel_window *window) {
+    if (window->title != NULL && strstr(window->title, "Настройки SynapseOS") != NULL) {
+        return 3;
     }
 
-    int available = panel.width - PANEL_LAUNCHERS_WIDTH - PANEL_DESKTOP_WIDTH -
-        PANEL_CLOCK_WIDTH - PANEL_TRAY_WIDTH - (recording ? PANEL_RECORDING_WIDTH : 0) -
-        (panel.keyboard_available ? PANEL_KEYBOARD_WIDTH : 0);
-    int width = available / count;
-    if (width < PANEL_TASK_MIN_WIDTH) {
-        return PANEL_TASK_MIN_WIDTH;
+    if (window->app_id == NULL) {
+        return -1;
     }
-    return width > PANEL_TASK_MAX_WIDTH ? PANEL_TASK_MAX_WIDTH : width;
+    if (strstr(window->app_id, "synapse-files") != NULL) {
+        return 0;
+    }
+    if (strstr(window->app_id, "synapse-store") != NULL) {
+        return 1;
+    }
+    if (strstr(window->app_id, "wayland-terminal") != NULL ||
+        strstr(window->app_id, "weston-terminal") != NULL) {
+        return 2;
+    }
+
+    return -1;
 }
 
-// Нарисовать небольшой значок программы без обращения к теме значков
-static void draw_app_icon(cairo_t *context, int x, const char *app_id, bool active) {
+// Найти открытое окно для закреплённой кнопки
+static struct panel_window *pinned_window(int index) {
+    struct panel_window *first = NULL;
+    for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
+        if (pinned_index(window) != index) {
+            continue;
+        }
+        if (window->active) {
+            return window;
+        }
+        if (first == NULL) {
+            first = window;
+        }
+    }
+
+    return first;
+}
+
+// Свернуть активное окно или вывести его на передний план
+static void toggle_window(struct panel_window *window) {
+    if (window->active) {
+        zwlr_foreign_toplevel_handle_v1_set_minimized(window->handle);
+    } else {
+        if (window->minimized) {
+            zwlr_foreign_toplevel_handle_v1_unset_minimized(window->handle);
+        }
+
+        zwlr_foreign_toplevel_handle_v1_activate(window->handle, panel.seat);
+    }
+}
+
+// Загрузить значок PNG с проверкой размера
+static cairo_surface_t *load_png_icon(const char *path) {
+    struct stat details;
+    if (path == NULL || stat(path, &details) != 0 || !S_ISREG(details.st_mode) ||
+        details.st_size < 1 || details.st_size > 4 * 1024 * 1024) {
+        return NULL;
+    }
+
+    cairo_surface_t *icon = cairo_image_surface_create_from_png(path);
+    if (icon == NULL) {
+        return NULL;
+    }
+    if (cairo_surface_status(icon) != CAIRO_STATUS_SUCCESS ||
+        cairo_image_surface_get_width(icon) < 1 || cairo_image_surface_get_width(icon) > 1024 ||
+        cairo_image_surface_get_height(icon) < 1 || cairo_image_surface_get_height(icon) > 1024) {
+        cairo_surface_destroy(icon);
+        return NULL;
+    }
+
+    return icon;
+}
+
+// Найти значок по идентификатору окна в установленных приложениях
+static cairo_surface_t *load_window_icon(const char *app_id) {
+    if (app_id == NULL || app_id[0] == 0) {
+        return NULL;
+    }
+    char name[128];
+    size_t length = strnlen(app_id, sizeof(name));
+    if (length == 0 || length >= sizeof(name)) {
+        return NULL;
+    }
+    for (size_t index = 0; index < length; index++) {
+        unsigned char part = (unsigned char)app_id[index];
+        if (!((part >= 'a' && part <= 'z') || (part >= 'A' && part <= 'Z') ||
+            (part >= '0' && part <= '9') || part == '.' || part == '_' || part == '-')) {
+            return NULL;
+        }
+    }
+
+    if (strcasestr(app_id, "mindustry") != NULL) {
+        return load_png_icon("/usr/share/weston/mindustry-icon.png");
+    }
+    if (strcasestr(app_id, "synapse-camera") != NULL) {
+        return load_png_icon("/usr/share/icons/hicolor/128x128/apps/synapse-camera.png");
+    }
+    if (strcasestr(app_id, "synapse-dictaphone") != NULL) {
+        return load_png_icon("/usr/share/icons/hicolor/128x128/apps/synapse-dictaphone.png");
+    }
+    if (strcasestr(app_id, "recorder") != NULL) {
+        return load_png_icon("/usr/share/icons/hicolor/128x128/apps/synapse-recorder.png");
+    }
+
+    memcpy(name, app_id, length + 1);
+    if (length > 8 && strcmp(name + length - 8, ".desktop") == 0) {
+        name[length - 8] = 0;
+    }
+
+    static const char *directories[] = {
+        "/usr/share/icons/hicolor/128x128/apps",
+        "/usr/share/icons/hicolor/64x64/apps",
+        "/usr/share/icons/hicolor/48x48/apps",
+        "/usr/share/icons/hicolor/32x32/apps",
+        "/usr/share/pixmaps",
+        "/var/lib/flatpak/exports/share/icons/hicolor/128x128/apps",
+        "/var/lib/flatpak/exports/share/icons/hicolor/64x64/apps"
+    };
+    char path[PATH_MAX];
+    for (size_t index = 0; index < sizeof(directories) / sizeof(directories[0]); index++) {
+        int written = snprintf(path, sizeof(path), "%s/%s.png", directories[index], name);
+        if (written > 0 && written < (int)sizeof(path)) {
+            cairo_surface_t *icon = load_png_icon(path);
+            if (icon != NULL) {
+                return icon;
+            }
+        }
+    }
+
+    const char *home = getenv("HOME");
+    if (home != NULL && home[0] == '/') {
+        int written = snprintf(path, sizeof(path),
+            "%s/.local/share/flatpak/exports/share/icons/hicolor/128x128/apps/%s.png", home, name);
+        if (written > 0 && written < (int)sizeof(path)) {
+            return load_png_icon(path);
+        }
+    }
+    return NULL;
+}
+
+// Нарисовать установленный значок по центру кнопки
+static void draw_png_icon(cairo_t *context, int x, double center, cairo_surface_t *icon) {
+    int width = cairo_image_surface_get_width(icon);
+    int height = cairo_image_surface_get_height(icon);
+    double scale = width > height ? 24.0 / width : 24.0 / height;
+
+    cairo_save(context);
+    cairo_translate(context, x - width * scale / 2.0, center - height * scale / 2.0);
+    cairo_scale(context, scale, scale);
+    cairo_set_source_surface(context, icon, 0, 0);
+    cairo_paint(context);
+    cairo_restore(context);
+}
+
+// Нарисовать значок программы или простой знак для приложения без PNG
+static void draw_app_icon(cairo_t *context, int x, const char *app_id, bool active,
+    cairo_surface_t *icon) {
     const struct panel_palette *colors = &palettes[panel.theme];
     double center = panel.height / 2.0;
+    if (icon != NULL) {
+        draw_png_icon(context, x, center, icon);
+        return;
+    }
     if (active) {
         cairo_set_source_rgb(context, 1.0, 1.0, 1.0);
     } else {
@@ -571,7 +699,7 @@ static void draw_app_icon(cairo_t *context, int x, const char *app_id, bool acti
     cairo_set_line_join(context, CAIRO_LINE_JOIN_ROUND);
 
     if (app_id != NULL && strcasestr(app_id, "terminal") != NULL) {
-        rounded_rectangle(context, x - 10, center - 8, 20, 16, 2);
+        cairo_rectangle(context, x - 10, center - 8, 20, 16);
         cairo_stroke(context);
         cairo_move_to(context, x - 6, center - 3);
         cairo_line_to(context, x - 2, center);
@@ -590,7 +718,7 @@ static void draw_app_icon(cairo_t *context, int x, const char *app_id, bool acti
             cairo_fill(context);
         }
     } else if (app_id != NULL && strcasestr(app_id, "store") != NULL) {
-        rounded_rectangle(context, x - 9, center - 5, 18, 15, 2);
+        cairo_rectangle(context, x - 9, center - 5, 18, 15);
         cairo_stroke(context);
         cairo_arc(context, x, center - 5, 5, 3.1415926, 6.2831853);
         cairo_stroke(context);
@@ -605,7 +733,7 @@ static void draw_app_icon(cairo_t *context, int x, const char *app_id, bool acti
         cairo_line_to(context, x + 10, center - 2);
         cairo_stroke(context);
     } else if (app_id != NULL && strcasestr(app_id, "desktop") != NULL) {
-        rounded_rectangle(context, x - 10, center - 8, 20, 14, 1);
+        cairo_rectangle(context, x - 10, center - 8, 20, 14);
         cairo_stroke(context);
         cairo_move_to(context, x - 5, center + 9);
         cairo_line_to(context, x + 5, center + 9);
@@ -614,7 +742,7 @@ static void draw_app_icon(cairo_t *context, int x, const char *app_id, bool acti
         cairo_stroke(context);
     } else if (app_id != NULL && (strcasestr(app_id, "file") != NULL ||
         strcasestr(app_id, "home") != NULL)) {
-        rounded_rectangle(context, x - 10, center - 6, 20, 13, 2);
+        cairo_rectangle(context, x - 10, center - 6, 20, 13);
         cairo_stroke(context);
         cairo_move_to(context, x - 9, center - 6);
         cairo_line_to(context, x - 4, center - 6);
@@ -622,32 +750,57 @@ static void draw_app_icon(cairo_t *context, int x, const char *app_id, bool acti
         cairo_line_to(context, x + 5, center - 9);
         cairo_stroke(context);
     } else {
-        for (int row = 0; row < 2; row++) {
-            for (int column = 0; column < 2; column++) {
-                rounded_rectangle(context, x - 9 + column * 10, center - 9 + row * 10, 7, 7, 1);
-                cairo_fill(context);
+        cairo_rectangle(context, x - 10, center - 9, 20, 18);
+        cairo_stroke(context);
+        cairo_move_to(context, x - 10, center - 4);
+        cairo_line_to(context, x + 10, center - 4);
+        cairo_stroke(context);
+        cairo_rectangle(context, x - 6, center - 1, 5, 5);
+        cairo_fill(context);
+        const char *name = app_id;
+        if (name != NULL) {
+            for (const char *part = app_id; *part != 0; part++) {
+                if (*part == '.' || *part == '-' || *part == '_') {
+                    name = part + 1;
+                }
             }
         }
+        char letter[2] = {'?', 0};
+        if (name != NULL && ((name[0] >= 'a' && name[0] <= 'z') ||
+            (name[0] >= 'A' && name[0] <= 'Z'))) {
+            letter[0] = name[0] >= 'a' && name[0] <= 'z' ? name[0] - 'a' + 'A' : name[0];
+        }
+        cairo_save(context);
+        cairo_select_font_face(context, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL,
+            CAIRO_FONT_WEIGHT_BOLD);
+        cairo_set_font_size(context, 11);
+        cairo_move_to(context, x + 2, center + 6);
+        cairo_show_text(context, letter);
+        cairo_restore(context);
     }
 }
 
 // Нарисовать одну кнопку на панели
 static void draw_button(cairo_t *context, int x, int width, const char *label, bool active,
-    const char *app_id) {
+    const char *app_id, cairo_surface_t *icon) {
     const struct panel_palette *colors = &palettes[panel.theme];
     set_panel_color(context, active ? colors->active_button : colors->button);
-    rounded_rectangle(context, x + 3, 4, width - 6, panel.height - 8, panel.corner_radius);
+    cairo_rectangle(context, x, 0, width, panel.height);
     cairo_fill(context);
 
     if (active) {
         set_panel_color(context, colors->accent);
-        cairo_rectangle(context, x + 10, panel.height - 3, width - 20, 2);
+        cairo_rectangle(context, x + 9, panel.height - 3, width - 18, 3);
         cairo_fill(context);
     }
 
     if (app_id != NULL) {
-        draw_app_icon(context, label[0] == 0 ? x + width / 2 : x + 21, app_id, active);
+        draw_app_icon(context, label[0] == 0 ? x + width / 2 : x + 21, app_id, active, icon);
     }
+    if (label[0] == 0) {
+        return;
+    }
+
     cairo_save(context);
     int text_offset = app_id != NULL && label[0] != 0 ? 38 : 12;
     cairo_rectangle(context, x + text_offset, 0, width - text_offset - 7, panel.height);
@@ -691,7 +844,7 @@ static void draw_system_tray(cairo_t *context, int x) {
 
     const char *lang = getenv("LANG");
     const char *layout = lang != NULL && strncmp(lang, "ru", 2) == 0 ? "ru" : "en";
-    cairo_select_font_face(context, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_select_font_face(context, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(context, 13);
     cairo_move_to(context, x + 72, center + 5);
     cairo_show_text(context, layout);
@@ -779,10 +932,10 @@ static void draw_menu_icon(cairo_t *context) {
     }
 
     cairo_save(context);
-    cairo_set_source_surface(context, panel.menu_icon,
+    set_panel_color(context, palettes[panel.theme].text);
+    cairo_mask_surface(context, panel.menu_icon,
         (PANEL_MENU_WIDTH - PANEL_MENU_ICON_SIZE) / 2.0,
         (panel.height - PANEL_MENU_ICON_SIZE) / 2.0);
-    cairo_paint(context);
     cairo_restore(context);
 }
 
@@ -844,17 +997,17 @@ static void panel_draw(void) {
     set_panel_color(context, colors->border);
     cairo_rectangle(context, 0, 0, panel.width, 1);
     cairo_fill(context);
-    cairo_select_font_face(context, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_select_font_face(context, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(context, 15);
 
-    draw_button(context, 0, PANEL_MENU_WIDTH, "", false, NULL);
+    draw_button(context, 0, PANEL_MENU_WIDTH, "", false, NULL, NULL);
     draw_menu_icon(context);
-    draw_button(context, PANEL_MENU_WIDTH, PANEL_PIN_WIDTH, "", false, "files");
-    draw_button(context, PANEL_MENU_WIDTH + PANEL_PIN_WIDTH, PANEL_PIN_WIDTH, "", false, "store");
-    draw_button(context, PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * 2, PANEL_PIN_WIDTH,
-        "", false, "terminal");
-    draw_button(context, PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * 3, PANEL_PIN_WIDTH,
-        "", false, "settings");
+    static const char *pinned_icons[PANEL_PIN_COUNT] = {"files", "store", "terminal", "settings"};
+    for (int index = 0; index < PANEL_PIN_COUNT; index++) {
+        struct panel_window *window = pinned_window(index);
+        draw_button(context, PANEL_MENU_WIDTH + index * PANEL_PIN_WIDTH, PANEL_PIN_WIDTH,
+            "", window != NULL && window->active, pinned_icons[index], NULL);
+    }
 
     bool showing = false;
     for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
@@ -870,17 +1023,23 @@ static void panel_draw(void) {
         tasks_right -= PANEL_RECORDING_WIDTH;
     }
 
-    draw_button(context, desktop_x, PANEL_DESKTOP_WIDTH, "", showing, "desktop");
-    int width = task_width();
+    draw_button(context, desktop_x, PANEL_DESKTOP_WIDTH, "", showing, "desktop", NULL);
+    const int width = PANEL_TASK_WIDTH;
     int x = PANEL_LAUNCHERS_WIDTH;
     for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
+        if (pinned_index(window) >= 0) {
+            continue;
+        }
         if (x + width > tasks_right) {
             break;
         }
 
-        const char *title = window->title != NULL ? window->title :
-            (window->app_id != NULL ? window->app_id : "Окно");
-        draw_button(context, x, width, title, window->active, window->app_id);
+        const char *app_icon = window->app_id != NULL ? window->app_id : "app";
+        if (window->title != NULL && strstr(window->title, "Настройки") != NULL) {
+            app_icon = "settings";
+        }
+
+        draw_button(context, x, width, "", window->active, app_icon, window->icon);
         x += width;
     }
 
@@ -894,7 +1053,7 @@ static void panel_draw(void) {
 
     draw_system_tray(context, tray_x);
     if (panel.keyboard_available) {
-        draw_button(context, keyboard_x, PANEL_KEYBOARD_WIDTH, "123", false, NULL);
+        draw_button(context, keyboard_x, PANEL_KEYBOARD_WIDTH, "123", false, NULL, NULL);
     }
 
     time_t now = time(NULL);
@@ -907,7 +1066,7 @@ static void panel_draw(void) {
         cairo_text_extents_t extents;
         char clock_text[16];
         if (strftime(clock_text, sizeof(clock_text), "%H:%M", &local) != 0) {
-            cairo_select_font_face(context, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+            cairo_select_font_face(context, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
             cairo_set_font_size(context, 16);
             cairo_text_extents(context, clock_text, &extents);
             cairo_move_to(context, clock_x + (PANEL_CLOCK_WIDTH - extents.width) / 2.0,
@@ -917,7 +1076,7 @@ static void panel_draw(void) {
 
         char date_text[16];
         if (strftime(date_text, sizeof(date_text), "%d.%m.%Y", &local) != 0) {
-            cairo_select_font_face(context, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+            cairo_select_font_face(context, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
             cairo_set_font_size(context, 11);
             cairo_text_extents(context, date_text, &extents);
             cairo_move_to(context, clock_x + (PANEL_CLOCK_WIDTH - extents.width) / 2.0,
@@ -1030,19 +1189,22 @@ static void pointer_button(void *data, struct wl_pointer *pointer, uint32_t seri
         toggle_keyboard();
     } else if (panel.pointer_x < PANEL_MENU_WIDTH) {
         panel_launch("/bin/synapse-menuctl", NULL);
-    } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_PIN_WIDTH) {
-        panel_launch("/bin/synapse-files", NULL);
-    } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * 2) {
-        panel_launch("/bin/synapse-store", NULL);
-    } else if (panel.pointer_x < PANEL_MENU_WIDTH + PANEL_PIN_WIDTH * 3) {
-        panel_launch("/bin/weston-terminal", NULL);
     } else if (panel.pointer_x < PANEL_LAUNCHERS_WIDTH) {
-        panel_launch("/bin/synapse-desktop", "--settings");
+        static const char *pinned_commands[PANEL_PIN_COUNT] = {
+            "/bin/synapse-files", "/bin/synapse-store", "/bin/weston-terminal", "/bin/synapse-desktop"
+        };
+        int index = (panel.pointer_x - PANEL_MENU_WIDTH) / PANEL_PIN_WIDTH;
+        struct panel_window *window = pinned_window(index);
+        if (window != NULL) {
+            toggle_window(window);
+        } else {
+            panel_launch(pinned_commands[index], index == 3 ? "--settings" : NULL);
+        }
     } else {
         int right = panel.width - PANEL_DESKTOP_WIDTH - PANEL_CLOCK_WIDTH - PANEL_TRAY_WIDTH -
             (panel.keyboard_available ? PANEL_KEYBOARD_WIDTH : 0) -
             (recording ? PANEL_RECORDING_WIDTH : 0);
-        int width = task_width();
+        const int width = PANEL_TASK_WIDTH;
         int left = PANEL_LAUNCHERS_WIDTH;
         if (panel.pointer_x < left || panel.pointer_x >= right) {
             return;
@@ -1050,17 +1212,11 @@ static void pointer_button(void *data, struct wl_pointer *pointer, uint32_t seri
 
         int index = (panel.pointer_x - left) / width;
         for (struct panel_window *window = panel.windows; window != NULL; window = window->next) {
+            if (pinned_index(window) >= 0) {
+                continue;
+            }
             if (index-- == 0) {
-                if (window->active) {
-                    zwlr_foreign_toplevel_handle_v1_set_minimized(window->handle);
-                } else {
-                    if (window->minimized) {
-                        zwlr_foreign_toplevel_handle_v1_unset_minimized(window->handle);
-                    }
-
-                    zwlr_foreign_toplevel_handle_v1_activate(window->handle, panel.seat);
-                }
-
+                toggle_window(window);
                 break;
             }
         }
@@ -1173,11 +1329,19 @@ static void window_state(void *data, struct zwlr_foreign_toplevel_handle_v1 *han
 static void window_app_id(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle,
     const char *app_id) {
     (void)handle;
+    if (app_id == NULL) {
+        return;
+    }
     struct panel_window *window = data;
     char *copy = strdup(app_id);
     if (copy != NULL) {
+        cairo_surface_t *icon = load_window_icon(copy);
+        if (window->icon != NULL) {
+            cairo_surface_destroy(window->icon);
+        }
         free(window->app_id);
         window->app_id = copy;
+        window->icon = icon;
     }
 }
 
@@ -1220,6 +1384,9 @@ static void window_closed(void *data, struct zwlr_foreign_toplevel_handle_v1 *ha
     zwlr_foreign_toplevel_handle_v1_destroy(handle);
     free(window->title);
     free(window->app_id);
+    if (window->icon != NULL) {
+        cairo_surface_destroy(window->icon);
+    }
     free(window);
     panel.dirty = true;
 }

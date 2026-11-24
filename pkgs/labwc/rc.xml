@@ -5,7 +5,7 @@
     Описание: Единые кнопки окон и доступ к меню SynapseOS
     Подсистема: графическая оболочка
     Первое изменение: 28.10.2026
-    Последнее изменение: 23.11.2026
+    Последнее изменение: 24.11.2026
     Доступ: общедоступный
 -->
 <labwc_config>
@@ -25,12 +25,12 @@
         <keepBorder>yes</keepBorder>
         <dropShadows>no</dropShadows>
         <font place="ActiveWindow">
-            <name>sans</name>
+            <name>DejaVu Sans Mono</name>
             <size>10</size>
             <weight>bold</weight>
         </font>
         <font place="InactiveWindow">
-            <name>sans</name>
+            <name>DejaVu Sans Mono</name>
             <size>10</size>
         </font>
     </theme>
@@ -77,6 +77,10 @@
     </mouse>
     <windowRules>
         <windowRule identifier="org.freedesktop.weston.wayland-terminal" serverDecoration="yes" />
+        <windowRule title="Программы SynapseOS" skipTaskbar="yes">
+            <action name="MoveTo" x="8" y="0" />
+            <action name="MoveToEdge" direction="down" snapWindows="no" />
+        </windowRule>
         <windowRule title="Synapse Recorder HUD">
             <skipTaskbar>yes</skipTaskbar>
             <action name="MoveTo" x="20" y="20" />
@@ -84,7 +88,9 @@
         </windowRule>
         <windowRule title="Synapse Notification">
             <skipTaskbar>yes</skipTaskbar>
-            <action name="MoveTo" x="860" y="20" />
+            <action name="MoveTo" x="0" y="0" />
+            <action name="MoveToEdge" direction="right" snapWindows="no" />
+            <action name="MoveToEdge" direction="down" snapWindows="no" />
             <action name="ToggleAlwaysOnTop" />
         </windowRule>
     </windowRules>

@@ -4,7 +4,7 @@
 # Описание: Согласовать окна и меню с панелью рабочего стола
 # Подсистема: графическая оболочка
 # Первое изменение: 29.10.2026
-# Последнее изменение: 29.10.2026
+# Последнее изменение: 24.11.2026
 # Доступ: общедоступный
 
 border.width: 1
@@ -20,13 +20,11 @@ window.button.width: 28
 window.button.height: 28
 window.button.spacing: 2
 window.button.hover.bg.color: #428bca70
-window.button.hover.bg.corner-radius: 4
+window.button.hover.bg.corner-radius: 0
 window.active.button.unpressed.image.color: #f4f9ff
 window.inactive.button.unpressed.image.color: #b9c5cf
-window.active.shadow.size: 18
-window.inactive.shadow.size: 12
-window.active.shadow.color: #00000060
-window.inactive.shadow.color: #00000040
+window.active.shadow.size: 0
+window.inactive.shadow.size: 0
 menu.border.width: 1
 menu.border.color: #408ad3
 menu.items.bg.color: #202935

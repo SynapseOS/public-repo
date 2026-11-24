@@ -4,7 +4,7 @@
 // Описание: Передать управление композитору без зависимости от командной оболочки
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 21.11.2026
+// Последнее изменение: 24.11.2026
 // Доступ: общедоступный
 
 #include "posix-profile.h"
@@ -201,7 +201,7 @@ static void prepare_session_bus(const char *runtime) {
         return;
     }
 
-    if (access("/etc/machine-id", R_OK) != 0) {
+    if (geteuid() == 0 && access("/etc/machine-id", R_OK) != 0) {
         char *const generate[] = {"dbus-uuidgen", "--ensure=/etc/machine-id", NULL};
         if (!run_tool("/bin/dbus-uuidgen", generate)) {
             return;

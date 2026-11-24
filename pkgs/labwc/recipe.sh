@@ -4,7 +4,7 @@
 # Описание: Использовать системный Wayland SDK и закрытые библиотеки пакета
 # Подсистема: сборка пакетов
 # Первое изменение: 28.10.2026
-# Последнее изменение: 23.11.2026
+# Последнее изменение: 24.11.2026
 # Доступ: общедоступный
 
 prepare
@@ -283,32 +283,32 @@ copy "$port/themerc" usr/share/themes/SynapseOS-Dark/openbox-3/themerc
 mkdir -p "$payload/usr/share/themes/synapse-classic/openbox-3"
 cat >"$payload/usr/share/themes/synapse-classic/openbox-3/themerc" <<'THEME'
 border.width: 1
-window.active.border.color: #00708e
-window.inactive.border.color: #9aa8ac
-window.active.title.bg.color: #f4f3ec
-window.inactive.title.bg.color: #e3e8e9
+window.active.border.color: #185c91
+window.inactive.border.color: #d8dfe3
+window.active.title.bg.color: #185c91
+window.inactive.title.bg.color: #f4f6f7
 window.*.title.bg: Solid
-window.active.label.text.color: #17333c
-window.inactive.label.text.color: #596872
+window.active.label.text.color: #ffffff
+window.inactive.label.text.color: #606c75
 window.label.text.justify: left
 window.button.width: 30
 window.button.height: 30
 window.button.spacing: 2
-window.button.hover.bg.color: #00708e
+window.button.hover.bg.color: #104974
 window.button.hover.bg.corner-radius: 0
-window.active.button.unpressed.image.color: #17333c
-window.inactive.button.unpressed.image.color: #596872
+window.active.button.unpressed.image.color: #ffffff
+window.inactive.button.unpressed.image.color: #606c75
 menu.border.width: 1
-menu.border.color: #00708e
+menu.border.color: #185c91
 menu.items.bg.color: #ffffff
-menu.items.text.color: #17333c
-menu.items.active.bg.color: #00708e
+menu.items.text.color: #30363a
+menu.items.active.bg.color: #006699
 menu.items.active.text.color: #ffffff
-menu.title.bg.color: #f4f3ec
-menu.title.text.color: #17333c
+menu.title.bg.color: #f4f6f7
+menu.title.text.color: #30363a
 osd.bg.color: #ffffff
-osd.border.color: #00708e
-osd.label.text.color: #17333c
+osd.border.color: #185c91
+osd.label.text.color: #30363a
 THEME
 
 themes="$work/openbox-theme-collections-8da2d26201f937e34d7fab71dc8e64d6ce4c94e0"
