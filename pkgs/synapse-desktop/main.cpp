@@ -6,7 +6,7 @@
     Описание: Запуск установленных программ и изменение общих настроек системы
     Подсистема: рабочий стол
     Первое изменение: 25.10.2026
-    Последнее изменение: 23.11.2026
+    Последнее изменение: 24.11.2026
     Доступ: общедоступный
 */
 
@@ -28,6 +28,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QHash>
 #include <QHBoxLayout>
@@ -60,6 +61,7 @@
 #include <QPushButton>
 #include <QSaveFile>
 #include <QScreen>
+#include <QShortcut>
 #include <QSlider>
 #include <QPlainTextEdit>
 #include <QSysInfo>
@@ -74,6 +76,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <cerrno>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <sys/stat.h>
@@ -230,7 +233,7 @@ static QIcon flatpakIcon(const QString &name, const QStringList &directories) {
 	return QIcon::fromTheme(name);
 }
 
-// Прочитать значение из системного INI без промежуточного процесса и канала вывода
+// Прочитать настройку через службу для пользователя или напрямую для root
 static QString readSetting(const QString &key) {
 	QString fallback;
 	if (key == QStringLiteral("System.Language")) {
@@ -249,8 +252,69 @@ static QString readSetting(const QString &key) {
 
 	QString path = key;
 	path.replace(QLatin1Char('.'), QLatin1Char('/'));
+	if (geteuid() != 0) {
+		QProcess command;
+		command.start(QStringLiteral("/bin/synapse-store-control"), {QStringLiteral("--get-setting"), key});
+		if (!command.waitForStarted(5000)) {
+			return fallback;
+		}
+		command.closeWriteChannel();
+		if (command.waitForFinished(5000) && command.exitCode() == 0) {
+			const QString value = QString::fromUtf8(command.readAllStandardOutput()).trimmed();
+			return value.isEmpty() ? fallback : value;
+		}
+		return fallback;
+	}
 	QSettings settings(QStringLiteral("/etc/settings.ini"), QSettings::IniFormat);
 	return settings.value(path, fallback).toString().trimmed();
+}
+
+// Проверить, что PID относится к доступному композитору текущего сеанса
+static bool isSessionCompositor(int pid) {
+	if (pid <= 1 || kill(pid, 0) != 0) {
+		return false;
+	}
+
+	const QString executable = QFileInfo(QStringLiteral("/proc/%1/exe").arg(pid)).symLinkTarget();
+	return executable == QStringLiteral("/usr/libexec/labwc/labwc");
+}
+
+// Найти композитор текущего сеанса, если переменная окружения не передана
+static int sessionCompositorPid() {
+	bool valid = false;
+	const int configured = qgetenv("LABWC_PID").toInt(&valid);
+	if (valid && isSessionCompositor(configured)) {
+		return configured;
+	}
+
+	const QDir proc(QStringLiteral("/proc"));
+	for (const QString &entry : proc.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+		const int candidate = entry.toInt(&valid);
+		if (valid && isSessionCompositor(candidate)) {
+			return candidate;
+		}
+	}
+
+	return -1;
+}
+
+// Завершить композитор, чтобы менеджер вернул экран входа
+static bool endDesktopSession() {
+	const int pid = sessionCompositorPid();
+	if (pid < 0 || kill(pid, SIGTERM) != 0) {
+		return false;
+	}
+
+	for (int attempt = 0; attempt < 10; attempt++) {
+		if (!isSessionCompositor(pid)) {
+			return true;
+		}
+
+		usleep(100000);
+	}
+
+	// Менеджер очистит старый сеанс, если Labwc не ответил на SIGTERM
+	return isSessionCompositor(pid) && kill(pid, SIGKILL) == 0;
 }
 
 struct PrivilegedCommand {
@@ -264,8 +328,24 @@ static QByteArray sudoPassword;
 // Подготовить одну операцию root-службы без shell и без сохранения пароля в файлы
 static bool preparePrivileged(QWidget *parent, const QString &program, const QStringList &arguments,
                               const QByteArray &input, PrivilegedCommand &command) {
+	if (program == QStringLiteral("/bin/clock-settime") && arguments.size() == 1) {
+		command.program = QStringLiteral("/bin/synapse-store-control");
+		command.arguments = {QStringLiteral("--set-time"), arguments[0]};
+	} else if (program == QStringLiteral("/bin/ntpdate") && arguments.isEmpty()) {
+		command.program = QStringLiteral("/bin/synapse-store-control");
+		command.arguments = {QStringLiteral("--sync-time")};
+	} else if (program == QStringLiteral("/bin/setup") && arguments == QStringList{QStringLiteral("auto")}) {
+		command.program = QStringLiteral("/bin/synapse-store-control");
+		command.arguments = {QStringLiteral("--setup"), QStringLiteral("auto")};
+	} else {
+		command.program.clear();
+	}
 	if (geteuid() == 0) {
-		command = {program, arguments, input};
+		if (command.program.isEmpty()) {
+			command = {program, arguments, input};
+		} else {
+			command.input = input;
+		}
 		return true;
 	}
 	if (sudoPassword.isEmpty()) {
@@ -282,6 +362,10 @@ static bool preparePrivileged(QWidget *parent, const QString &program, const QSt
 			sudoPassword.fill(0);
 			sudoPassword.clear();
 		});
+	}
+	if (!command.program.isEmpty()) {
+		command.input = sudoPassword + "\n" + input;
+		return true;
 	}
 	command.program = QStringLiteral("/bin/synapse-store-control");
 	if (program == QStringLiteral("/bin/settings") && arguments.size() == 3) {
@@ -321,8 +405,8 @@ static bool runPrivileged(QWidget *parent, const QString &program, const QString
 	}
 	if (!prepared.input.isEmpty()) {
 		command.write(prepared.input);
-		command.closeWriteChannel();
 	}
+	command.closeWriteChannel();
 	prepared.input.fill(0);
 	if (!command.waitForFinished(120000)) {
 		command.kill();
@@ -349,6 +433,7 @@ static bool writeSetting(QWidget *parent, const QString &key, const QString &val
 
 struct DesktopThemeSpec {
 	const char *name;
+	const char *label;
 	const char *background;
 	const char *base;
 	const char *surface;
@@ -358,16 +443,16 @@ struct DesktopThemeSpec {
 };
 
 static const DesktopThemeSpec desktopThemes[] = {
-	{"synapse-classic", "#eff1ee", "#f8faf8", "#dde4e2", "#17333c", "#08738f", true},
-	{"Synapse-Midnight", "#10161e", "#151e28", "#223142", "#edf4fb", "#4c9aff", false},
-	{"Synapse-Graphite", "#202124", "#292a2d", "#3c4043", "#f1f3f4", "#a8c7fa", false},
-	{"Synapse-Ocean", "#102a34", "#153642", "#1e4b5a", "#ecfeff", "#38bdf8", false},
-	{"Synapse-Light", "#f3f5f8", "#ffffff", "#e1e7ef", "#172033", "#2563eb", true},
-	{"Synapse-Dracula", "#282a36", "#1e1f29", "#44475a", "#f8f8f2", "#bd93f9", false},
-	{"Numix-Clone", "#303238", "#26282d", "#41434a", "#f3f4f5", "#d65d3a", false},
-	{"Arc-Clone", "#e7e9ed", "#ffffff", "#d9e0e7", "#202a34", "#4388c5", true},
-	{"Penumbra", "#243842", "#1b2e37", "#304b57", "#f3f4f5", "#769fb4", false},
-	{"SynapseOS-Dark", "#1b2027", "#141920", "#29333d", "#f3f4f5", "#4388c5", false},
+	{"synapse-classic", "Светлая SynapseOS", "#f8f7ef", "#ffffff", "#f4f6f7", "#30363a", "#006699", true},
+	{"Synapse-Midnight", "Тёмная SynapseOS", "#10161e", "#151e28", "#223142", "#edf4fb", "#4c9aff", false},
+	{"Synapse-Graphite", "Графит", "#202124", "#292a2d", "#3c4043", "#f1f3f4", "#a8c7fa", false},
+	{"Synapse-Ocean", "Океан", "#102a34", "#153642", "#1e4b5a", "#ecfeff", "#38bdf8", false},
+	{"Synapse-Light", "Светлая", "#f3f5f8", "#ffffff", "#e1e7ef", "#172033", "#2563eb", true},
+	{"Synapse-Dracula", "Ночная", "#282a36", "#1e1f29", "#44475a", "#f8f8f2", "#bd93f9", false},
+	{"Numix-Clone", "Тёмно-серая", "#303238", "#26282d", "#41434a", "#f3f4f5", "#d65d3a", false},
+	{"Arc-Clone", "Серо-голубая", "#e7e9ed", "#ffffff", "#d9e0e7", "#202a34", "#4388c5", true},
+	{"Penumbra", "Сине-серая", "#243842", "#1b2e37", "#304b57", "#f3f4f5", "#769fb4", false},
+	{"SynapseOS-Dark", "Тёмная", "#1b2027", "#141920", "#29333d", "#f3f4f5", "#4388c5", false},
 };
 
 static const DesktopThemeSpec &desktopThemeSpec(const QString &name) {
@@ -411,14 +496,14 @@ static void applyDesktopPalette(const QString &theme) {
 	                                                  QStringLiteral("#aab4be")));
 	QApplication::setPalette(palette);
 	QFont font = QApplication::font();
-	font.setFamily(preferences.value(QStringLiteral("appearance/font-family"), font.family()).toString());
+	font.setFamily(preferences.value(QStringLiteral("appearance/font-family"),
+	    QStringLiteral("DejaVu Sans Mono")).toString());
 	font.setPointSize(preferences.value(QStringLiteral("appearance/font-size"), 10).toInt());
 	QApplication::setFont(font);
 
-	const QString radius = preferences.value(QStringLiteral("appearance/corner-radius"),
-	    theme == QStringLiteral("synapse-classic") ? 0 : 7).toString();
+	const QString radius = QStringLiteral("0");
 	const QString padding = preferences.value(QStringLiteral("appearance/padding"), 6).toString();
-	qApp->setStyleSheet(QStringLiteral(
+	QString style = QStringLiteral(
 	    "QMainWindow, QDialog { background-color: %1; color: %4; }"
 	    "QLineEdit, QListWidget, QComboBox, QSpinBox, QDoubleSpinBox, QDateTimeEdit, QPlainTextEdit, QTableWidget, QTreeView {"
 	    " background-color: %2; color: %4; border: 1px solid %3; border-radius: %6px; padding: %7px 7px;"
@@ -465,9 +550,21 @@ static void applyDesktopPalette(const QString &theme) {
 	    "QListWidget#menuApplications { background-color: %1; border: 0; padding: 0; }"
 	    "QListWidget#menuApplications::item { padding: 6px 10px; border-radius: %6px; }"
 	    "QListWidget#menuApplications::item:selected { background-color: %5; color: white; }"
-	    "QWidget#notificationPopup { background-color: %2; border: 1px solid %5; border-radius: %6px; }"
+	    "QWidget#notificationPopup { background-color: %2; border: 1px solid %3; border-left: 3px solid %5; border-radius: 0; }"
+	    "QLabel#notificationSource { color: %4; font-size: 10px; }"
+	    "QToolButton#notificationDismiss { border: 0; background: transparent; border-radius: 0; }"
+	    "QToolButton#notificationDismiss:hover { background-color: %3; }"
 	    "QToolTip { background-color: %2; color: %4; border: 1px solid %5; padding: 5px; }"
-	    ).arg(background, base, surface, foreground, accent, radius, padding));
+	    ).arg(background, base, surface, foreground, accent, radius, padding);
+	if (theme == QStringLiteral("synapse-classic")) {
+		style += QStringLiteral(
+		    "QWidget#settingsSidebar, QListWidget#settingsSections { background-color: #f4f6f7; }"
+		    "QListWidget#settingsSections::item:selected, QListWidget#menuCategories::item:selected {"
+		    " background-color: #dfe8ee; color: #006699; border-left: 3px solid #006699; }"
+		    "QListWidget#menuApplications::item:selected { background-color: #dfe8ee; color: #006699; }"
+		    "QTabWidget#settingsPages, QScrollArea { background-color: #ffffff; }");
+	}
+	qApp->setStyleSheet(style);
 }
 
 // Прочитать тему из настройки Labwc до показа меню
@@ -503,8 +600,8 @@ public:
 		setWindowTitle(QStringLiteral("Программы SynapseOS"));
 		setWindowIcon(QIcon(QStringLiteral("/usr/share/weston/synapse-logo.png")));
 		setObjectName(QStringLiteral("applicationMenu"));
-		resize(780, 580);
-		setMinimumSize(640, 460);
+		resize(600, 540);
+		setMinimumSize(520, 440);
 
 		QWidget *content = new QWidget(this);
 		content->setObjectName(QStringLiteral("menuRoot"));
@@ -512,34 +609,11 @@ public:
 		layout->setContentsMargins(0, 0, 0, 0);
 		layout->setSpacing(0);
 
-		QWidget *headerPanel = new QWidget(content);
-		headerPanel->setObjectName(QStringLiteral("menuHeader"));
-		QHBoxLayout *header = new QHBoxLayout(headerPanel);
-		header->setContentsMargins(22, 16, 22, 16);
-		header->setSpacing(12);
-		QLabel *logo = new QLabel(headerPanel);
-		QPixmap logoImage(QStringLiteral("/usr/share/weston/synapse-logo.png"));
-		logo->setPixmap(logoImage.scaled(38, 38, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-		logo->setFixedSize(40, 40);
-		header->addWidget(logo);
-
-		QVBoxLayout *identity = new QVBoxLayout();
-		identity->setSpacing(1);
-		QLabel *heading = new QLabel(QStringLiteral("Программы"), headerPanel);
-		heading->setObjectName(QStringLiteral("menuTitle"));
-		identity->addWidget(heading);
-		QLabel *subtitle = new QLabel(QStringLiteral("Все установленные приложения"), headerPanel);
-		subtitle->setObjectName(QStringLiteral("menuSubtitle"));
-		identity->addWidget(subtitle);
-		header->addLayout(identity);
-		header->addStretch();
-		layout->addWidget(headerPanel);
-
 		QWidget *body = new QWidget(content);
 		body->setObjectName(QStringLiteral("menuBody"));
 		QVBoxLayout *bodyLayout = new QVBoxLayout(body);
-		bodyLayout->setContentsMargins(18, 16, 18, 16);
-		bodyLayout->setSpacing(12);
+		bodyLayout->setContentsMargins(10, 10, 10, 10);
+		bodyLayout->setSpacing(10);
 		search = new QLineEdit(body);
 		search->setObjectName(QStringLiteral("menuSearch"));
 		search->setPlaceholderText(QStringLiteral("Поиск программ"));
@@ -548,7 +622,7 @@ public:
 		bodyLayout->addWidget(search);
 
 		QHBoxLayout *browser = new QHBoxLayout();
-		browser->setSpacing(14);
+		browser->setSpacing(10);
 		category = new QListWidget(body);
 		category->setObjectName(QStringLiteral("menuCategories"));
 		category->setFixedWidth(190);
@@ -574,9 +648,12 @@ public:
 		list = new QListWidget(body);
 		list->setObjectName(QStringLiteral("menuApplications"));
 		list->setViewMode(QListView::ListMode);
-		list->setIconSize(QSize(36, 36));
-		list->setSpacing(2);
-		list->setUniformItemSizes(false);
+		list->setIconSize(QSize(28, 28));
+		list->setResizeMode(QListView::Adjust);
+		list->setMovement(QListView::Static);
+		list->setWordWrap(false);
+		list->setSpacing(0);
+		list->setUniformItemSizes(true);
 		list->setAlternatingRowColors(false);
 		list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 		browser->addWidget(list, 1);
@@ -605,15 +682,23 @@ public:
 		setCentralWidget(content);
 
 		connect(search, &QLineEdit::textChanged, this, [this]() { refresh(); });
+		auto *closeMenu = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+		connect(closeMenu, &QShortcut::activated, this, &MenuWindow::hide);
+		connect(search, &QLineEdit::returnPressed, this, [this]() {
+			if (!search->text().trimmed().isEmpty() && list->count() > 0) {
+				launch(list->item(0));
+			}
+		});
 		connect(category, &QListWidget::currentRowChanged, this, [this]() { refresh(); });
 		connect(list, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) {
 			launch(item);
 		});
 		connect(settings, &QPushButton::clicked, this, &MenuWindow::openSettings);
 		connect(logout, &QPushButton::clicked, this, [this]() {
-			QProcess::startDetached(QStringLiteral("/bin/labwc"),
-			                        {QStringLiteral("--exit")});
-			close();
+			if (!endDesktopSession()) {
+				QMessageBox::warning(this, QStringLiteral("Сеанс SynapseOS"),
+				                     QStringLiteral("Не удалось вернуться к экрану входа"));
+			}
 		});
 		refresh();
 		search->setFocus();
@@ -761,9 +846,9 @@ private:
 				    QApplication::style()->standardIcon(QStyle::SP_FileIcon));
 			}
 
-			QListWidgetItem *item = new QListWidgetItem(icon, title + QStringLiteral("\n") + group, list);
+			QListWidgetItem *item = new QListWidgetItem(icon, title, list);
 			item->setToolTip(QStringLiteral("%1\n%2").arg(title, group));
-			item->setSizeHint(QSize(0, 58));
+			item->setSizeHint(QSize(0, 44));
 			item->setData(Qt::UserRole, index);
 		}
 
@@ -781,10 +866,9 @@ private:
 			if (icon.isNull()) {
 				icon = QApplication::style()->standardIcon(QStyle::SP_FileIcon);
 			}
-			QListWidgetItem *item = new QListWidgetItem(icon,
-			    entry.title + QStringLiteral("\nFlatpak"), list);
+			QListWidgetItem *item = new QListWidgetItem(icon, entry.title, list);
 			item->setToolTip(QStringLiteral("Flatpak: %1").arg(entry.id));
-			item->setSizeHint(QSize(0, 58));
+			item->setSizeHint(QSize(0, 44));
 			item->setData(Qt::UserRole, entry.id);
 			item->setData(Qt::UserRole + 1, entry.path);
 			item->setData(Qt::UserRole + 2, entry.userInstall);
@@ -1012,7 +1096,8 @@ public:
 			return false;
 		}
 		const quint32 id = arguments[1].toUInt() ? arguments[1].toUInt() : nextId_++;
-		show(id, arguments[3].toString(), arguments[4].toString(), arguments[5].toStringList(),
+		show(id, arguments[0].toString(), arguments[3].toString(), arguments[4].toString(),
+		     arguments[5].toStringList(),
 		     arguments[7].toInt(), connection);
 		connection.send(message.createReply(QVariantList{id}));
 		return true;
@@ -1021,18 +1106,38 @@ public:
 private:
 	quint32 nextId_ = 1;
 	QHash<quint32, QPointer<QWidget>> popups_;
+	QList<quint32> popupOrder_;
+
+	// Расположить уведомления над панелью без наложения
+	void arrange() {
+		QScreen *screen = QGuiApplication::primaryScreen();
+		if (screen == nullptr) {
+			return;
+		}
+		const QRect available = screen->availableGeometry();
+		int bottom = available.bottom() - 12;
+		for (quint32 id : popupOrder_) {
+			if (QWidget *popup = popups_.value(id)) {
+				popup->move(available.right() - popup->width() - 12, bottom - popup->height());
+				bottom -= popup->height() + 8;
+			}
+		}
+	}
 
 	void close(quint32 id, quint32 reason, const QDBusConnection &connection) {
 		if (QWidget *popup = popups_.take(id)) {
 			popup->close();
 		}
+		popupOrder_.removeAll(id);
+		arrange();
 		auto signal = QDBusMessage::createSignal(QStringLiteral("/org/freedesktop/Notifications"),
 		    QStringLiteral("org.freedesktop.Notifications"), QStringLiteral("NotificationClosed"));
 		signal.setArguments({id, reason});
 		connection.send(signal);
 	}
 
-	void show(quint32 id, const QString &title, const QString &body, const QStringList &actions,
+	void show(quint32 id, const QString &source, const QString &title, const QString &body,
+	          const QStringList &actions,
 	          int timeout, const QDBusConnection &connection) {
 		QSettings preferences(QStringLiteral("SynapseOS"), QStringLiteral("Desktop"));
 		QStringList history = preferences.value(QStringLiteral("notifications/history")).toStringList();
@@ -1048,37 +1153,46 @@ private:
 		}
 		if (QWidget *previous = popups_.take(id)) {
 			previous->close();
+			popupOrder_.removeAll(id);
 		}
-		auto *popup = new QFrame(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+		auto *popup = new QFrame(nullptr, Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
 		popup->setObjectName(QStringLiteral("notificationPopup"));
 		popup->setWindowTitle(QStringLiteral("Synapse Notification"));
-		popup->setMinimumSize(390, 120);
+		popup->setFixedWidth(360);
 		popup->setAttribute(Qt::WA_DeleteOnClose);
 		auto *layout = new QVBoxLayout(popup);
-		layout->setContentsMargins(14, 12, 14, 12);
+		layout->setContentsMargins(14, 10, 10, 12);
+		layout->setSpacing(5);
 		auto *header = new QHBoxLayout();
-		auto *icon = new QLabel(popup);
-		icon->setPixmap(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation).pixmap(32, 32));
-		header->addWidget(icon);
-		auto *heading = new QLabel(title.isEmpty() ? QStringLiteral("SynapseOS") : title, popup);
-		QFont font = heading->font();
-		font.setBold(true);
-		font.setPointSize(font.pointSize() + 1);
-		heading->setFont(font);
-		header->addWidget(heading, 1);
+		const QString appName = source == QStringLiteral("synapse-desktop") ? QStringLiteral("SynapseOS") : source;
+		auto *app = new QLabel(appName.isEmpty() ? QStringLiteral("Система") : appName, popup);
+		app->setObjectName(QStringLiteral("notificationSource"));
+		app->setTextFormat(Qt::PlainText);
+		header->addWidget(app, 1);
 		auto *time = new QLabel(QTime::currentTime().toString(QStringLiteral("HH:mm")), popup);
+		time->setObjectName(QStringLiteral("notificationSource"));
 		header->addWidget(time);
 		auto *dismiss = new QToolButton(popup);
+		dismiss->setObjectName(QStringLiteral("notificationDismiss"));
 		dismiss->setText(QStringLiteral("×"));
 		dismiss->setToolTip(QStringLiteral("Закрыть уведомление"));
-		dismiss->setFixedSize(28, 28);
+		dismiss->setFixedSize(24, 24);
 		header->addWidget(dismiss);
 		layout->addLayout(header);
+		auto *heading = new QLabel(title.isEmpty() ? QStringLiteral("SynapseOS") : title, popup);
+		heading->setTextFormat(Qt::PlainText);
+		heading->setWordWrap(true);
+		QFont font = heading->font();
+		font.setBold(true);
+		heading->setFont(font);
+		layout->addWidget(heading);
 		auto *text = new QLabel(body, popup);
+		text->setTextFormat(Qt::PlainText);
 		text->setWordWrap(true);
-		text->setMaximumWidth(360);
 		text->setTextInteractionFlags(Qt::TextSelectableByMouse);
-		layout->addWidget(text);
+		if (!body.isEmpty()) {
+			layout->addWidget(text);
+		}
 		connect(dismiss, &QToolButton::clicked, popup, [this, id, connection]() { close(id, 2, connection); });
 
 		if (actions.size() > 1) {
@@ -1098,31 +1212,14 @@ private:
 			}
 			layout->addLayout(buttons);
 		}
-		auto *progress = new QProgressBar(popup);
-		progress->setRange(0, 1000);
-		progress->setValue(1000);
-		progress->setTextVisible(false);
-		progress->setMaximumHeight(4);
-		layout->addWidget(progress);
 		popup->adjustSize();
-		const QRect available = QGuiApplication::primaryScreen()->availableGeometry();
-		popup->move(available.right() - popup->width() - 24, available.bottom() - popup->height() - 24);
 		popups_.insert(id, popup);
+		popupOrder_.prepend(id);
+		arrange();
 		popup->show();
 		const int delay = timeout > 0 ? timeout :
 		    preferences.value(QStringLiteral("notifications/duration"), 7).toInt() * 1000;
-		auto *animation = new QTimer(popup);
-		animation->setInterval(50);
-		connect(animation, &QTimer::timeout, popup,
-		    [this, id, connection, animation, progress, delay, elapsed = 0]() mutable {
-			elapsed += 50;
-			progress->setValue(qMax(0, 1000 - elapsed * 1000 / delay));
-			if (elapsed >= delay) {
-				animation->stop();
-				close(id, 1, connection);
-			}
-		});
-		animation->start();
+		QTimer::singleShot(qMax(1000, delay), popup, [this, id, connection]() { close(id, 1, connection); });
 	}
 };
 
@@ -1595,6 +1692,7 @@ public:
 		tabs->tabBar()->hide();
 		layout->addWidget(tabs, 1);
 		setCentralWidget(content);
+		addOverviewPage(tabs);
 		addDisplayPage(tabs);
 		addOnDemand(tabs, QStringLiteral("Оформление"), &SettingsWindow::buildAppearancePage);
 		addOnDemand(tabs, QStringLiteral("Уведомления"), &SettingsWindow::buildNotificationsPage);
@@ -1673,6 +1771,9 @@ private:
 
 	// Назначить разделу одну из постоянных групп боковой панели
 	static QString sectionGroup(const QString &title) {
+		if (title == QStringLiteral("Главная")) {
+			return QStringLiteral("Начало");
+		}
 		if (title == QStringLiteral("Сеть") || title == QStringLiteral("Wi-Fi") ||
 		    title == QStringLiteral("Локальная сеть") || title == QStringLiteral("Bluetooth")) {
 			return QStringLiteral("Сеть и связь");
@@ -1735,6 +1836,56 @@ private:
 			}
 			group->setHidden(!visible);
 		}
+	}
+
+	// Показать основные задачи без технических параметров
+	void addOverviewPage(QTabWidget *tabs) {
+		auto *page = new QWidget(tabs);
+		auto *layout = new QVBoxLayout(page);
+		layout->setContentsMargins(24, 20, 24, 24);
+		layout->setSpacing(12);
+		auto *heading = new QLabel(QStringLiteral("Настройки SynapseOS"), page);
+		QFont font = heading->font();
+		font.setPointSize(font.pointSize() + 6);
+		font.setBold(true);
+		heading->setFont(font);
+		layout->addWidget(heading);
+		auto *hint = new QLabel(QStringLiteral("Выберите, что хотите настроить"), page);
+		layout->addWidget(hint);
+		auto *grid = new QGridLayout();
+		grid->setSpacing(12);
+		const struct {
+			const char *title;
+			const char *description;
+			const char *target;
+		} shortcuts[] = {
+			{"Оформление", "Тема, обои и размер текста", "Оформление"},
+			{"Экран", "Разрешение и частота кадров", "Экран"},
+			{"Сеть", "Подключение к интернету", "Сеть"},
+			{"Звук", "Устройства и громкость", "Звук"},
+			{"Пользователи", "Учётные записи и вход", "Пользователи"},
+			{"Подсистемы", "POSIX, Android, WinAPI, DOS", "POSIX"},
+		};
+		for (int index = 0; index < static_cast<int>(std::size(shortcuts)); ++index) {
+			const QString title = QString::fromUtf8(shortcuts[index].title);
+			const QString target = QString::fromUtf8(shortcuts[index].target);
+			auto *button = new QPushButton(title + QLatin1Char('\n') +
+			    QString::fromUtf8(shortcuts[index].description), page);
+			button->setMinimumHeight(80);
+			button->setStyleSheet(QStringLiteral("text-align: left; padding: 14px;"));
+			grid->addWidget(button, index / 2, index % 2);
+			connect(button, &QPushButton::clicked, tabs, [tabs, target]() {
+				for (int tab = 0; tab < tabs->count(); ++tab) {
+					if (tabs->tabText(tab) == target) {
+						tabs->setCurrentIndex(tab);
+						return;
+					}
+				}
+			});
+		}
+		layout->addLayout(grid);
+		layout->addStretch();
+		tabs->addTab(page, QStringLiteral("Главная"));
 	}
 
 	// Прочитать настройки вкладки один раз при первом переходе на неё
@@ -1830,15 +1981,19 @@ private:
 				return;
 			}
 			const qint64 seconds = manual->dateTime().toSecsSinceEpoch();
-			const timespec requested {static_cast<time_t>(seconds), 0};
-			if (clock_settime(CLOCK_REALTIME, &requested) != 0) {
-				status->setText(QString::fromLocal8Bit(strerror(errno)));
+			QString output;
+			if (!runPrivileged(page, QStringLiteral("/bin/clock-settime"), {QString::number(seconds)}, {}, output)) {
+				status->setText(output.isEmpty() ? QStringLiteral("Время не изменено") : output);
 				return;
 			}
-			QProcess::startDetached(QStringLiteral("/bin/hwclock"), {QStringLiteral("-w")});
-			status->setText(QStringLiteral("Дата, время и часовой пояс сохранены"));
+			status->setText(output.isEmpty() ? QStringLiteral("Дата, время и часовой пояс сохранены") : output);
 		});
 		connect(ntp, &QPushButton::clicked, page, [=]() {
+			PrivilegedCommand prepared;
+			if (!preparePrivileged(page, QStringLiteral("/bin/ntpdate"), {}, {}, prepared)) {
+				status->setText(QStringLiteral("Синхронизация отменена"));
+				return;
+			}
 			auto *job = new QProcess(page);
 			job->setProcessChannelMode(QProcess::MergedChannels);
 			ntp->setEnabled(false);
@@ -1847,15 +2002,26 @@ private:
 				ntp->setEnabled(true);
 				if (code == 0 && result == QProcess::NormalExit) {
 					writeSetting(page, QStringLiteral("System.Timezone"), zone->currentText());
-					QProcess::startDetached(QStringLiteral("/bin/hwclock"), {QStringLiteral("-w")});
 					manual->setDateTime(QDateTime::currentDateTime());
 				}
+				const QString output = QString::fromUtf8(job->readAllStandardOutput()).trimmed();
 				status->setText(code == 0 && result == QProcess::NormalExit ?
-				                QStringLiteral("Время синхронизировано") :
-				                QString::fromUtf8(job->readAllStandardOutput()).trimmed());
+				                (output.isEmpty() ? QStringLiteral("Время синхронизировано") : output) : output);
 				job->deleteLater();
 			});
-			job->start(QStringLiteral("/bin/ntpdate"), {QStringLiteral("-s"), QStringLiteral("pool.ntp.org")});
+			connect(job, &QProcess::errorOccurred, page, [=](QProcess::ProcessError error) {
+				if (error == QProcess::FailedToStart) {
+					ntp->setEnabled(true);
+					status->setText(job->errorString());
+					job->deleteLater();
+				}
+			});
+			connect(job, &QProcess::started, page, [job, prepared]() mutable {
+				job->write(prepared.input);
+				job->closeWriteChannel();
+				prepared.input.fill(0);
+			});
+			job->start(prepared.program, prepared.arguments);
 		});
 	}
 
@@ -1879,6 +2045,11 @@ private:
 			QProcess::startDetached(QStringLiteral("/bin/synapse-store"), {});
 		});
 		connect(update, &QPushButton::clicked, page, [=]() {
+			PrivilegedCommand prepared;
+			if (!preparePrivileged(page, QStringLiteral("/bin/setup"), {QStringLiteral("auto")}, {}, prepared)) {
+				status->setText(QStringLiteral("Обновление отменено"));
+				return;
+			}
 			auto *job = new QProcess(page);
 			job->setProcessChannelMode(QProcess::MergedChannels);
 			update->setEnabled(false);
@@ -1890,7 +2061,19 @@ private:
 				                QStringLiteral("Обновление завершено") : output.right(1200));
 				job->deleteLater();
 			});
-			job->start(QStringLiteral("/bin/setup"), {QStringLiteral("auto")});
+			connect(job, &QProcess::errorOccurred, page, [=](QProcess::ProcessError error) {
+				if (error == QProcess::FailedToStart) {
+					update->setEnabled(true);
+					status->setText(job->errorString());
+					job->deleteLater();
+				}
+			});
+			connect(job, &QProcess::started, page, [job, prepared]() mutable {
+				job->write(prepared.input);
+				job->closeWriteChannel();
+				prepared.input.fill(0);
+			});
+			job->start(prepared.program, prepared.arguments);
 		});
 	}
 
@@ -2536,8 +2719,6 @@ private:
 				    QString::fromLatin1(fallback)).toString();
 				return QColor(value).isValid() ? QColor(value).name() : QString::fromLatin1(fallback);
 			};
-			const QString corner = preferences.value(QStringLiteral("appearance/corner-radius"),
-			    name == QStringLiteral("synapse-classic") ? 0 : 6).toString();
 			const QString background = configured(QStringLiteral("background"), spec.background);
 			const QString base = configured(QStringLiteral("base"), spec.base);
 			const QString surface = configured(QStringLiteral("surface"), spec.surface);
@@ -2549,13 +2730,13 @@ private:
 			    "window.*.title.bg: Solid\nwindow.active.label.text.color: %4\n"
 			    "window.inactive.label.text.color: #63717d\nwindow.label.text.justify: left\n"
 			    "window.button.width: 30\nwindow.button.height: 30\nwindow.button.spacing: 3\n"
-			    "window.button.hover.bg.color: %5\nwindow.button.hover.bg.corner-radius: %6\n"
+			    "window.button.hover.bg.color: %5\nwindow.button.hover.bg.corner-radius: 0\n"
 			    "window.active.button.unpressed.image.color: %4\nwindow.inactive.button.unpressed.image.color: #63717d\n"
 			    "menu.border.width: 1\nmenu.border.color: %5\nmenu.items.bg.color: %2\n"
 			    "menu.items.text.color: %4\nmenu.items.active.bg.color: %5\nmenu.items.active.text.color: #ffffff\n"
 			    "menu.title.bg.color: %1\nmenu.title.text.color: %4\nosd.bg.color: %2\n"
 			    "osd.border.color: %5\nosd.label.text.color: %4\n")
-			    .arg(background, base, surface, foreground, accent, corner).toUtf8();
+			    .arg(background, base, surface, foreground, accent).toUtf8();
 			QSaveFile themeFile(directory + QStringLiteral("/themerc"));
 			if (!themeFile.open(QIODevice::WriteOnly) || themeFile.write(themeData) != themeData.size() ||
 			    !themeFile.commit()) {
@@ -2668,32 +2849,36 @@ private:
 	// Настроить и переносить оформление всех штатных программ
 	void buildAppearancePage(QWidget *page) {
 		auto *layout = new QVBoxLayout(page);
-		auto *form = new QFormLayout();
+		auto *intro = new QLabel(QStringLiteral("Выберите тему, размер текста и обои для рабочего стола"), page);
+		intro->setWordWrap(true);
+		layout->addWidget(intro);
+		auto *basic = new QFormLayout();
+		basic->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+		layout->addLayout(basic);
+		auto *advanced = new QWidget(page);
+		auto *form = new QFormLayout(advanced);
 		form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 		auto *theme = new QComboBox(page);
 		for (const auto &item : desktopThemes) {
-			theme->addItem(QLatin1String(item.name));
+			theme->addItem(QString::fromUtf8(item.label), QLatin1String(item.name));
 		}
-		theme->setCurrentText(currentTheme());
-		form->addRow(QStringLiteral("Базовая тема"), theme);
+		const int selectedTheme = theme->findData(currentTheme());
+		theme->setCurrentIndex(selectedTheme < 0 ? 0 : selectedTheme);
+		theme->setMaximumWidth(420);
+		basic->addRow(QStringLiteral("Тема"), theme);
 		QSettings preferences(QStringLiteral("SynapseOS"), QStringLiteral("Desktop"));
-		const auto spec = desktopThemeSpec(theme->currentText());
+		const auto spec = desktopThemeSpec(theme->currentData().toString());
 
 		auto *fontFamily = new QFontComboBox(page);
 		fontFamily->setCurrentFont(QFont(preferences.value(QStringLiteral("appearance/font-family"),
-		    QApplication::font().family()).toString()));
+		    QStringLiteral("DejaVu Sans Mono")).toString()));
 		form->addRow(QStringLiteral("Шрифт интерфейса"), fontFamily);
 		auto *fontSize = new QSpinBox(page);
 		fontSize->setRange(8, 24);
 		fontSize->setSuffix(QStringLiteral(" пт"));
 		fontSize->setValue(preferences.value(QStringLiteral("appearance/font-size"), 10).toInt());
-		form->addRow(QStringLiteral("Размер текста"), fontSize);
-		auto *radius = new QSpinBox(page);
-		radius->setRange(0, 24);
-		radius->setSuffix(QStringLiteral(" пикс."));
-		radius->setValue(preferences.value(QStringLiteral("appearance/corner-radius"),
-		    theme->currentText() == QStringLiteral("synapse-classic") ? 0 : 7).toInt());
-		form->addRow(QStringLiteral("Скругление углов"), radius);
+		fontSize->setMaximumWidth(160);
+		basic->addRow(QStringLiteral("Размер текста"), fontSize);
 		auto *padding = new QSpinBox(page);
 		padding->setRange(2, 16);
 		padding->setSuffix(QStringLiteral(" пикс."));
@@ -2733,7 +2918,8 @@ private:
 				}
 			});
 		}
-		connect(theme, &QComboBox::currentTextChanged, page, [=](const QString &name) {
+		connect(theme, &QComboBox::currentIndexChanged, page, [=](int) {
+			const QString name = theme->currentData().toString();
 			const auto selected = desktopThemeSpec(name);
 			const QStringList values = {QString::fromLatin1(selected.background), QString::fromLatin1(selected.base),
 			    QString::fromLatin1(selected.surface), QString::fromLatin1(selected.foreground),
@@ -2742,7 +2928,6 @@ private:
 				colors[index]->setProperty("color", values[index]);
 				colors[index]->setText(values[index]);
 			}
-			radius->setValue(name == QStringLiteral("synapse-classic") ? 0 : 7);
 		});
 
 		auto *wallpaper = new QComboBox(page);
@@ -2750,37 +2935,63 @@ private:
 		    QStringLiteral("/usr/share/backgrounds/synapse/Desktop-dark.png"));
 		wallpaper->addItem(QStringLiteral("Светлый фон SynapseOS"),
 		    QStringLiteral("/usr/share/backgrounds/synapse/Desktop-light.png"));
-		form->addRow(QStringLiteral("Обои"), wallpaper);
-		layout->addLayout(form);
+		QString selectedWallpaper = theme->currentData().toString() == QStringLiteral("synapse-classic") ?
+		    QStringLiteral("/usr/share/backgrounds/synapse/Desktop-light.png") :
+		    QStringLiteral("/usr/share/backgrounds/synapse/Desktop-dark.png");
+		QFile wallpaperConfig(QDir::homePath() + QStringLiteral("/.config/synapse/wallpaper"));
+		if (wallpaperConfig.open(QIODevice::ReadOnly | QIODevice::Text)) {
+			const QString configured = QString::fromUtf8(wallpaperConfig.readLine()).trimmed();
+			if (wallpaper->findData(configured) >= 0) {
+				selectedWallpaper = configured;
+			}
+		}
+		wallpaper->setCurrentIndex(wallpaper->findData(selectedWallpaper));
+		connect(theme, &QComboBox::currentIndexChanged, wallpaper, [theme, wallpaper](int) {
+			wallpaper->setCurrentIndex(desktopThemeSpec(theme->currentData().toString()).light ? 1 : 0);
+		});
+		wallpaper->setMaximumWidth(420);
+		basic->addRow(QStringLiteral("Обои"), wallpaper);
 		auto *preview = new QLabel(page);
-		preview->setMinimumHeight(150);
+		preview->setFixedSize(362, 204);
+		preview->setFrameShape(QFrame::Box);
+		preview->setLineWidth(1);
 		preview->setAlignment(Qt::AlignCenter);
-		layout->addWidget(preview);
+		layout->addWidget(preview, 0, Qt::AlignLeft);
 		auto updatePreview = [=]() {
-			preview->setPixmap(QPixmap(wallpaper->currentData().toString()).scaled(520, 200,
+			preview->setPixmap(QPixmap(wallpaper->currentData().toString()).scaled(360, 202,
 			    Qt::KeepAspectRatio, Qt::SmoothTransformation));
 		};
 		connect(wallpaper, &QComboBox::currentIndexChanged, page, updatePreview);
 		updatePreview();
+		auto *advancedToggle = new QToolButton(page);
+		advancedToggle->setText(QStringLiteral("Дополнительные параметры"));
+		advancedToggle->setCheckable(true);
+		advancedToggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+		advancedToggle->setArrowType(Qt::RightArrow);
+		layout->addWidget(advancedToggle, 0, Qt::AlignLeft);
+		layout->addWidget(advanced);
+		advanced->hide();
+		connect(advancedToggle, &QToolButton::toggled, advanced, [advanced, advancedToggle](bool open) {
+			advanced->setVisible(open);
+			advancedToggle->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+		});
 
 		auto *apply = new QPushButton(QStringLiteral("Применить оформление"), page);
+		apply->setMaximumWidth(240);
 		auto *save = new QPushButton(QStringLiteral("Экспортировать тему в файл…"), page);
 		auto *load = new QPushButton(QStringLiteral("Импортировать тему из файла…"), page);
-		auto *buttons = new QHBoxLayout();
-		buttons->addWidget(apply);
-		buttons->addWidget(save);
-		buttons->addWidget(load);
-		layout->addLayout(buttons);
+		form->addRow(save);
+		form->addRow(load);
+		layout->addWidget(apply, 0, Qt::AlignLeft);
 		auto *status = new QLabel(page);
 		status->setWordWrap(true);
 		layout->addWidget(status);
 		layout->addStretch();
 
 		auto saveValues = [=](QSettings &target) {
-			target.setValue(QStringLiteral("theme"), theme->currentText());
+			target.setValue(QStringLiteral("theme"), theme->currentData().toString());
 			target.setValue(QStringLiteral("font-family"), fontFamily->currentFont().family());
 			target.setValue(QStringLiteral("font-size"), fontSize->value());
-			target.setValue(QStringLiteral("corner-radius"), radius->value());
 			target.setValue(QStringLiteral("padding"), padding->value());
 			target.setValue(QStringLiteral("sidebar-width"), sidebar->value());
 			target.setValue(QStringLiteral("panel-height"), panelHeight->value());
@@ -2800,12 +3011,12 @@ private:
 			const QByteArray selected = wallpaper->currentData().toString().toUtf8() + "\n";
 			if (!QDir().mkpath(configDirectory) || !background.open(QIODevice::WriteOnly) ||
 			    background.write(selected) != selected.size() || !background.commit() ||
-			    !applyTheme(theme->currentText())) {
+			    !applyTheme(theme->currentData().toString())) {
 				QMessageBox::warning(this, QStringLiteral("Настройки SynapseOS"),
 				    QStringLiteral("Не удалось полностью применить оформление"));
 				return;
 			}
-			status->setText(QStringLiteral("Оформление применено ко всем новым штатным программам"));
+			status->setText(QStringLiteral("Оформление сохранено. Новые окна откроются с выбранной темой"));
 		});
 		connect(save, &QPushButton::clicked, page, [=]() {
 			QString path = QFileDialog::getSaveFileName(page, QStringLiteral("Экспорт темы"),
@@ -2830,7 +3041,7 @@ private:
 				return;
 			}
 			QSettings file(path, QSettings::IniFormat);
-			const int importedTheme = theme->findText(file.value(QStringLiteral("theme")).toString());
+			const int importedTheme = theme->findData(file.value(QStringLiteral("theme")).toString());
 			if (importedTheme < 0) {
 				status->setText(QStringLiteral("В файле нет известной базовой темы"));
 				return;
@@ -2839,7 +3050,6 @@ private:
 			fontFamily->setCurrentFont(QFont(file.value(QStringLiteral("font-family"),
 			    fontFamily->currentFont().family()).toString()));
 			fontSize->setValue(file.value(QStringLiteral("font-size"), fontSize->value()).toInt());
-			radius->setValue(file.value(QStringLiteral("corner-radius"), radius->value()).toInt());
 			padding->setValue(file.value(QStringLiteral("padding"), padding->value()).toInt());
 			sidebar->setValue(file.value(QStringLiteral("sidebar-width"), sidebar->value()).toInt());
 			panelHeight->setValue(file.value(QStringLiteral("panel-height"), panelHeight->value()).toInt());
@@ -3948,6 +4158,10 @@ static long long startupMicros(bool enabled) {
 
 // Выбрать меню программ либо окно настроек и проверить его в госте
 int main(int argc, char **argv) {
+	if (argc == 2 && std::strcmp(argv[1], "--logout") == 0) {
+		return endDesktopSession() ? 0 : 1;
+	}
+
 	const bool timing = std::getenv("SYNAPSE_PI_WINDOW_TIMING") != nullptr;
 	const auto entered = startupMicros(timing);
 	const bool notificationClient = argc == 4 && std::strcmp(argv[1], "--notify") == 0;
