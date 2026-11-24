@@ -6,7 +6,7 @@
     Описание: Каталог программ SynapseOS и Flatpak с явным состоянием Debian
     Подсистема: графические программы
     Первое изменение: 01.11.2026
-    Последнее изменение: 23.11.2026
+    Последнее изменение: 24.11.2026
     Доступ: общедоступный
 */
 
@@ -251,10 +251,11 @@ static void applyDesktopTheme() {
     QApplication::setStyle(QStringLiteral("Fusion"));
     QApplication::setPalette(palette);
     QFont font = QApplication::font();
-    font.setFamily(preferences.value(QStringLiteral("appearance/font-family"), font.family()).toString());
+    font.setFamily(preferences.value(QStringLiteral("appearance/font-family"),
+        QStringLiteral("DejaVu Sans Mono")).toString());
     font.setPointSize(preferences.value(QStringLiteral("appearance/font-size"), 10).toInt());
     QApplication::setFont(font);
-    const int radius = preferences.value(QStringLiteral("appearance/corner-radius"), classic ? 0 : 7).toInt();
+    const int radius = 0;
     const int padding = preferences.value(QStringLiteral("appearance/padding"), 6).toInt();
     qApp->setStyleSheet(QStringLiteral(
         "QMainWindow, QDialog { background-color: %1; color: %4; }"

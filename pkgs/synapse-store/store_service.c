@@ -6,7 +6,7 @@
     Описание: Проверяет клиента и запускает только установку подписанного пакета через setup
     Подсистема: графический магазин программ
     Первое изменение: 01.11.2026
-    Последнее изменение: 23.11.2026
+    Последнее изменение: 24.11.2026
     Доступ: общедоступный
 */
 
@@ -123,14 +123,14 @@ static void write_result(int descriptor, int32_t code) {
 static bool valid_name(const struct store_request *request) {
     size_t length = request->name_length;
     if (request->source == STORE_SOURCE_UPDATE || request->source == STORE_SOURCE_DEBIAN_CATALOG ||
-        request->source == STORE_SOURCE_UPGRADE) {
+        request->source == STORE_SOURCE_UPGRADE || request->source == STORE_SOURCE_NTP) {
         return length == 0 && request->name[0] == 0;
     }
 
     if (length == 0 || length >= STORE_MAX_NAME || request->name[length] != 0) {
         return false;
     }
-    if (request->source >= STORE_SOURCE_SETTINGS && request->source <= STORE_SOURCE_PASSWD) {
+    if (request->source >= STORE_SOURCE_SETTINGS && request->source <= STORE_SOURCE_TIME) {
         return true;
     }
 
@@ -186,7 +186,7 @@ static bool valid_account_data(const struct store_request *request) {
 
 static bool valid_setting(const struct store_request *request) {
     const char *separator = strchr(request->name, '=');
-    if (separator == NULL || separator == request->name || separator[1] == 0) {
+    if (separator == NULL || separator == request->name) {
         return false;
     }
     for (const char *part = request->name; part < separator; part++) {
@@ -208,9 +208,43 @@ static bool valid_setting(const struct store_request *request) {
 
 static bool valid_setup(const struct store_request *request) {
     static const char *const commands[] = {"auth", "auth status", "auth logout", "plus enable",
-                                           "plus disable", "plus status", "update"};
+                                           "plus disable", "plus status", "update", "auto"};
     for (size_t index = 0; index < sizeof(commands) / sizeof(commands[0]); index++) {
         if (!strcmp(request->name, commands[index])) {
+            return valid_data(request, false);
+        }
+    }
+    return false;
+}
+
+// Разрешить время только в десятичном формате и в пределах используемых дат
+static bool valid_time(const struct store_request *request) {
+    const char *value = request->name;
+    if (request->name_length < 9 || request->name_length > 10) {
+        return false;
+    }
+    for (const char *part = value; *part; part++) {
+        if (*part < '0' || *part > '9') {
+            return false;
+        }
+    }
+    unsigned long long seconds = strtoull(value, NULL, 10);
+    return seconds >= 946684800ULL && seconds <= 4102444799ULL;
+}
+
+// Разрешить чтение только обычных параметров, которые показывает графическая панель
+static bool valid_read_setting(const struct store_request *request) {
+    static const char *const names[] = {
+        "Boot.DefaultShell", "Terminal.Font", "Terminal.SerialConsoles", "System.Timezone",
+        "Setup.CheckUpdates", "stats.stats", "stats.statsDelay", "Power.Profile",
+        "Display.Resolution", "Display.FPS", "Desktop.Enabled", "Desktop.LoginManager",
+        "System.Hostname", "System.Language", "SSH.Enabled", "SSH.Port", "FTP.Enabled",
+        "FTP.Port", "GuestAgent.Enabled", "Network.Mode", "Network.IP", "Network.Subnet",
+        "Network.Gateway", "DNS.1", "DNS.2", "LanDiscovery.Enabled", "Bluetooth.Role",
+        "Bluetooth.Name", "Bluetooth.Enabled", "Bluetooth.Discoverable"
+    };
+    for (size_t index = 0; index < sizeof(names) / sizeof(names[0]); index++) {
+        if (!strcmp(request->name, names[index])) {
             return valid_data(request, false);
         }
     }
@@ -239,6 +273,15 @@ static bool valid_source(const struct store_request *request) {
     }
     if (request->source == STORE_SOURCE_PASSWD) {
         return valid_account_name(request) && valid_data(request, true);
+    }
+    if (request->source == STORE_SOURCE_TIME) {
+        return valid_time(request) && valid_data(request, false);
+    }
+    if (request->source == STORE_SOURCE_NTP) {
+        return valid_name(request) && valid_data(request, false);
+    }
+    if (request->source == STORE_SOURCE_GET_SETTING) {
+        return valid_read_setting(request);
     }
     return request->source == STORE_SOURCE_DEBIAN && valid_name(request);
 }
@@ -423,6 +466,45 @@ static void install_package(int client, int listener, uint32_t source, const cha
             }
             _exit(okay ? 0 : 1);
         }
+        if (source == STORE_SOURCE_TIME) {
+            struct timespec requested = {.tv_sec = (time_t)strtoull(name, NULL, 10), .tv_nsec = 0};
+            if (clock_settime(CLOCK_REALTIME, &requested) != 0) {
+                dprintf(STDERR_FILENO, "Не удалось установить время: %s\n", strerror(errno));
+                _exit(1);
+            }
+            if (access("/dev/rtc", F_OK) != 0) {
+                dprintf(STDOUT_FILENO, "Время установлено, аппаратные часы недоступны\n");
+                _exit(0);
+            }
+            execl("/bin/hwclock", "hwclock", "-w", (char *)NULL);
+            dprintf(STDERR_FILENO, "Не удалось сохранить время: %s\n", strerror(errno));
+            _exit(1);
+        }
+        if (source == STORE_SOURCE_NTP) {
+            pid_t sync = fork();
+            if (sync == 0) {
+                execl("/bin/ntpdate", "ntpdate", "-s", "pool.ntp.org", (char *)NULL);
+                dprintf(STDERR_FILENO, "Не удалось запустить NTP: %s\n", strerror(errno));
+                _exit(127);
+            }
+            if (sync < 0) {
+                dprintf(STDERR_FILENO, "Не удалось запустить NTP: %s\n", strerror(errno));
+                _exit(1);
+            }
+            int sync_status = 0;
+            if (waitpid(sync, &sync_status, 0) != sync || !WIFEXITED(sync_status) ||
+                WEXITSTATUS(sync_status) != 0) {
+                dprintf(STDERR_FILENO, "Синхронизация времени не завершилась\n");
+                _exit(1);
+            }
+            if (access("/dev/rtc", F_OK) != 0) {
+                dprintf(STDOUT_FILENO, "Время синхронизировано, аппаратные часы недоступны\n");
+                _exit(0);
+            }
+            execl("/bin/hwclock", "hwclock", "-w", (char *)NULL);
+            dprintf(STDERR_FILENO, "Не удалось сохранить время: %s\n", strerror(errno));
+            _exit(1);
+        }
         if (source == STORE_SOURCE_SETTINGS) {
             char setting[STORE_MAX_NAME];
             snprintf(setting, sizeof(setting), "%s", name);
@@ -431,6 +513,10 @@ static void install_package(int client, int listener, uint32_t source, const cha
                 *separator = 0;
                 execl("/bin/settings", "settings", "--set", setting, separator + 1, (char *)NULL);
             }
+            _exit(127);
+        }
+        if (source == STORE_SOURCE_GET_SETTING) {
+            execl("/bin/settings", "settings", "--get", name, (char *)NULL);
             _exit(127);
         }
         if (source == STORE_SOURCE_USERADD) {
@@ -451,6 +537,8 @@ static void install_package(int client, int listener, uint32_t source, const cha
                 execl("/bin/setup", "setup", "auth", "logout", (char *)NULL);
             } else if (!strcmp(name, "update")) {
                 execl("/bin/setup", "setup", "update", (char *)NULL);
+            } else if (!strcmp(name, "auto")) {
+                execl("/bin/setup", "setup", "auto", (char *)NULL);
             } else {
                 execl("/bin/setup", "setup", "plus", name + 5, (char *)NULL);
             }
@@ -550,7 +638,7 @@ static void handle_client(int client, int listener) {
     bool valid = request.magic == STORE_REQUEST_MAGIC &&
                  request.version == STORE_REQUEST_VERSION && valid_name(&request) &&
                  valid_source(&request) &&
-                 authenticate(peer.uid, &request);
+                 (request.source == STORE_SOURCE_GET_SETTING || authenticate(peer.uid, &request));
     clear_secret(request.password, sizeof(request.password));
     if (!valid) {
         static const char message[] = "Неверный пароль или имя пакета\n";

@@ -6,7 +6,7 @@
     Описание: Передаёт имя пакета и пароль root по проверенному локальному сокету
     Подсистема: графический магазин программ
     Первое изменение: 01.11.2026
-    Последнее изменение: 23.11.2026
+    Последнее изменение: 24.11.2026
     Доступ: общедоступный
 */
 
@@ -171,6 +171,15 @@ int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--update") == 0) {
         source = STORE_SOURCE_UPDATE;
         name = "";
+    } else if (argc == 2 && strcmp(argv[1], "--sync-time") == 0) {
+        source = STORE_SOURCE_NTP;
+        name = "";
+    } else if (argc == 3 && strcmp(argv[1], "--set-time") == 0) {
+        source = STORE_SOURCE_TIME;
+        name = argv[2];
+    } else if (argc == 3 && strcmp(argv[1], "--get-setting") == 0) {
+        source = STORE_SOURCE_GET_SETTING;
+        name = argv[2];
     } else if (argc == 2 && strcmp(argv[1], "--upgrade") == 0) {
         source = STORE_SOURCE_UPGRADE;
         name = "";
@@ -224,9 +233,9 @@ int main(int argc, char **argv) {
         name = argv[2];
     }
 
-    bool catalog = source == STORE_SOURCE_DEBIAN_CATALOG || source == STORE_SOURCE_UPDATE ||
-                   source == STORE_SOURCE_UPGRADE;
-    if (name == NULL || (source <= STORE_SOURCE_UPGRADE && !catalog && !valid_name(name))) {
+    bool no_name = source == STORE_SOURCE_DEBIAN_CATALOG || source == STORE_SOURCE_UPDATE ||
+                   source == STORE_SOURCE_UPGRADE || source == STORE_SOURCE_NTP;
+    if (name == NULL || (source <= STORE_SOURCE_UPGRADE && !no_name && !valid_name(name))) {
         fputs("usage: synapse-store-control [--debian] PACKAGE | --remove PACKAGE | --upgrade | --update | --debian-catalog\n", stderr);
         return 2;
     }
@@ -256,7 +265,8 @@ int main(int argc, char **argv) {
             request.data_length = (uint32_t)strlen(request.data);
         }
     }
-    if (!read_password(&request) || (data_stdin && !read_data(&request, source == STORE_SOURCE_PASSWD))) {
+    if ((source != STORE_SOURCE_GET_SETTING && !read_password(&request)) ||
+        (data_stdin && !read_data(&request, source == STORE_SOURCE_PASSWD))) {
         clear_secret(request.password, sizeof(request.password));
         clear_secret(request.data, sizeof(request.data));
         close(socket_fd);
