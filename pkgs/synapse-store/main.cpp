@@ -257,21 +257,32 @@ static void applyDesktopTheme() {
     const int radius = preferences.value(QStringLiteral("appearance/corner-radius"), classic ? 0 : 7).toInt();
     const int padding = preferences.value(QStringLiteral("appearance/padding"), 6).toInt();
     qApp->setStyleSheet(QStringLiteral(
+        "QMainWindow, QDialog { background-color: %1; color: %4; }"
         "QLineEdit, QListWidget, QComboBox, QPlainTextEdit, QTableWidget { background-color: %2; color: %4;"
-        " border: 1px solid %3; border-radius: %6px; padding: %7px; }"
+        " border: 1px solid %3; border-radius: %6px; padding: %7px;"
+        " selection-background-color: %5; selection-color: white; }"
+        "QLineEdit:focus, QComboBox:focus { border-color: %5; }"
         "QPushButton, QToolButton { background-color: %3; color: %4; border: 1px solid %3;"
-        " border-radius: %6px; padding: %7px 12px; }"
-        "QPushButton:hover, QToolButton:hover { background-color: %5; color: white; }"
+        " border-radius: %6px; padding: %7px 12px; min-height: 20px; }"
+        "QPushButton:hover, QToolButton:hover { background-color: %3; color: %4; border-color: %5; }"
+        "QPushButton:pressed, QToolButton:pressed, QPushButton:default { background-color: %5; color: white; }"
         "QPushButton:disabled, QToolButton:disabled { color: #63717d; background-color: %1; border-color: %3; }"
         "QListWidget::item:selected, QTableWidget::item:selected { background-color: %5; color: white; }"
         "QHeaderView::section { background-color: %3; color: %4; border: 0; padding: 10px; }"
         "QWidget#storeHeader { background-color: %2; border-bottom: 1px solid %3; }"
         "QLabel#storeSubtitle { color: %4; }"
-        "QListWidget#storeNavigation { background-color: %2; border: 0; padding: 6px; }"
+        "QListWidget#storeNavigation { background-color: %2; border: 0; border-right: 1px solid %3; padding: 8px; }"
         "QListWidget#storeNavigation::item { padding: 9px; border-radius: %6px; }"
         "QListWidget#storeNavigation::item:hover { background-color: %3; }"
+        "QListWidget#storeNavigation::item:selected { background-color: %5; color: white; }"
         "QTableWidget::item { padding: 8px; border-bottom: 1px solid %3; }"
-        "QLabel#packageDetail { background-color: %2; border: 1px solid %3; border-radius: %6px; padding: 14px; }")
+        "QLabel#packageDetail { background-color: %2; border: 1px solid %3; border-radius: %6px; padding: 14px; }"
+        "QGroupBox { border: 1px solid %3; border-radius: %6px; margin-top: 14px; padding: 14px; }"
+        "QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; font-weight: bold; }"
+        "QScrollBar:vertical { background: %1; width: 12px; margin: 0; }"
+        "QScrollBar::handle:vertical { background: %3; min-height: 28px; border-radius: %6px; }"
+        "QScrollBar::handle:vertical:hover { background: %5; }"
+        "QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }")
         .arg(background.name(), base.name(), surface.name(), foreground.name(), accent.name())
         .arg(radius).arg(padding));
 }
@@ -312,6 +323,7 @@ class StoreWindow final : public QMainWindow {
         tabs_->setUniformItemSizes(false);
         tabs_->setSpacing(3);
         tabs_->setContentsMargins(8, 12, 8, 12);
+        tabs_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         tabs_->addItems({QStringLiteral("Обзор"), QStringLiteral("SynapseOS"), QStringLiteral("Flathub"),
                          QStringLiteral("Debian"), QStringLiteral("Установленные"), QStringLiteral("Обновления"),
                          QStringLiteral("Настройки")});
@@ -320,7 +332,7 @@ class StoreWindow final : public QMainWindow {
         for (int index = 0; index < tabs_->count(); ++index) {
             auto *item = tabs_->item(index);
             item->setIcon(QIcon::fromTheme(QString::fromLatin1(icons[index])));
-            item->setSizeHint(QSize(190, 46));
+            item->setSizeHint(QSize(0, 46));
         }
         tabs_->setIconSize(QSize(24, 24));
         tabs_->setCurrentRow(0);

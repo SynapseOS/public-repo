@@ -62,6 +62,13 @@ static void posixControls(QWidget *page, QFormLayout *form) {
 	memory->setToolTip(QStringLiteral("Мягкий RLIMIT_AS для каждого процесса нового графического сеанса"));
 	form->addRow(QStringLiteral("Память на процесс"), memory);
 
+	auto *populate = new QComboBox(page);
+	populate->addItem(QStringLiteral("Ленивое выделение памяти"), 0);
+	populate->addItem(QStringLiteral("Выделять страницы сразу"), 1);
+	populate->setCurrentIndex(profile.populate ? 1 : 0);
+	populate->setToolTip(QStringLiteral("Ленивый режим выделяет память при первом обращении к странице"));
+	form->addRow(QStringLiteral("Выделение памяти"), populate);
+
 	auto *nice = new QSpinBox(page);
 	nice->setRange(-20, 19);
 	nice->setValue(profile.nice);
@@ -94,7 +101,7 @@ static void posixControls(QWidget *page, QFormLayout *form) {
 		const QByteArray data = "mask=" + QByteArray::number(mode) + "\nfiles=" +
 		                        QByteArray::number(files->value()) + "\nmemory=" +
 		                        QByteArray::number(memory->currentData().toInt()) + "\npopulate=" +
-		                        QByteArray::number(profile.populate) + "\nnice=" +
+		                        QByteArray::number(populate->currentData().toInt()) + "\nnice=" +
 		                        QByteArray::number(nice->value()) + "\nstack=" +
 		                        QByteArray::number(stack->value()) + "\n";
 		if (!file.open(QIODevice::WriteOnly) ||
@@ -106,35 +113,106 @@ static void posixControls(QWidget *page, QFormLayout *form) {
 		status->setText(QStringLiteral("Параметры будут применены при следующем входе"));
 	});
 
-	const char *keys[] = {"rmem_default", "rmem_max", "wmem_default", "wmem_max"};
-	const char *labels[] = {"Буфер приёма по умолчанию", "Предельный буфер приёма",
-	                        "Буфер передачи по умолчанию", "Предельный буфер передачи"};
-	for (int i = 0; i < 4; i++) {
-		const QString path = QStringLiteral("/proc/sys/net/core/") + keys[i];
-		QFile file(path);
-		if (!file.open(QIODevice::ReadOnly)) {
-			continue;
+	struct PosixNumberOption {
+		const char *path;
+		const char *label;
+		int minimum;
+		int maximum;
+		const char *suffix;
+	};
+
+	auto numberControls = [page, form](const PosixNumberOption *settings, int count) {
+		for (int i = 0; i < count; i++) {
+			const QString path = QString::fromUtf8(settings[i].path);
+			QFile file(path);
+			bool valid = false;
+			int current = settings[i].minimum;
+			if (file.open(QIODevice::ReadOnly)) {
+				current = file.read(32).trimmed().toInt(&valid);
+			}
+			auto *value = new QSpinBox(page);
+			value->setRange(settings[i].minimum, settings[i].maximum);
+			value->setValue(valid ? current : settings[i].minimum);
+			if (settings[i].suffix != nullptr) {
+				value->setSuffix(QString::fromUtf8(settings[i].suffix));
+			}
+			value->setEnabled(valid && QFileInfo(path).isWritable());
+			if (!valid) {
+				value->setToolTip(QStringLiteral("Ядро не предоставляет этот параметр"));
+			}
+			form->addRow(QString::fromUtf8(settings[i].label), value);
+			QObject::connect(value, &QSpinBox::editingFinished, page, [=]() {
+				const QByteArray requested = QByteArray::number(value->value()) + "\n";
+				QFile actual(path);
+				const bool ok = writeSubsystemFile(path, requested);
+				if (actual.open(QIODevice::ReadOnly)) {
+					value->setValue(actual.read(32).trimmed().toInt());
+				}
+				if (!ok) {
+					QMessageBox::warning(page, "POSIX", QStringLiteral("Ядро отклонило значение."));
+				}
+			});
 		}
-		bool valid;
-		const int current = file.read(32).trimmed().toInt(&valid);
-		if (!valid) {
-			continue;
+	};
+	static const PosixNumberOption network[] = {
+		{"/proc/sys/net/core/rmem_default", "Буфер приёма по умолчанию", 1, INT_MAX, " Б"},
+		{"/proc/sys/net/core/rmem_max", "Предельный буфер приёма", 1, INT_MAX, " Б"},
+		{"/proc/sys/net/core/wmem_default", "Буфер передачи по умолчанию", 1, INT_MAX, " Б"},
+		{"/proc/sys/net/core/wmem_max", "Предельный буфер передачи", 1, INT_MAX, " Б"},
+		{"/proc/sys/net/ipv4/tcp_keepalive_time", "TCP keepalive", 10, 86400, " с"},
+		{"/proc/sys/net/ipv4/tcp_fin_timeout", "Завершение TCP", 1, 600, " с"},
+		{"/proc/sys/net/ipv4/ip_forward", "Маршрутизация IPv4, 0 или 1", 0, 1, nullptr},
+	};
+	numberControls(network, sizeof(network) / sizeof(network[0]));
+}
+
+// Добавить реальные пределы ядра, памяти и планировщика POSIX
+static void posixKernelControls(QWidget *page, QFormLayout *form) {
+	struct KernelNumberOption {
+		const char *path;
+		const char *label;
+		int minimum;
+		int maximum;
+		const char *suffix;
+	};
+	static const KernelNumberOption settings[] = {
+		{"/proc/sys/kernel/pid_max", "Максимум процессов", 32768, 4194304, nullptr},
+		{"/proc/sys/kernel/threads-max", "Максимум потоков", 1024, INT_MAX, nullptr},
+		{"/proc/sys/kernel/sched_rt_period_us", "Период планировщика RT", 1000, INT_MAX, " мкс"},
+		{"/proc/sys/kernel/sched_rt_runtime_us", "Время RT в периоде", -1, INT_MAX, " мкс"},
+		{"/proc/sys/vm/swappiness", "Использование подкачки", 0, 100, "%"},
+		{"/proc/sys/vm/dirty_background_ratio", "Фоновая запись страниц", 1, 90, "%"},
+		{"/proc/sys/vm/dirty_ratio", "Блокирующая запись страниц", 1, 90, "%"},
+		{"/proc/sys/vm/max_map_count", "Отображений памяти на процесс", 65530, INT_MAX, nullptr},
+	};
+	for (const KernelNumberOption &setting : settings) {
+		const QString path = QString::fromUtf8(setting.path);
+		QFile file(path);
+		bool valid = false;
+		int current = setting.minimum;
+		if (file.open(QIODevice::ReadOnly)) {
+			current = file.read(32).trimmed().toInt(&valid);
 		}
 		auto *value = new QSpinBox(page);
-		value->setRange(1, INT_MAX);
-		value->setValue(current);
-		value->setSuffix(QStringLiteral(" Б"));
-		value->setEnabled(QFileInfo::exists(path));
-		form->addRow(QString::fromUtf8(labels[i]), value);
+		value->setRange(setting.minimum, setting.maximum);
+		value->setValue(valid ? current : setting.minimum);
+		if (setting.suffix != nullptr) {
+			value->setSuffix(QString::fromUtf8(setting.suffix));
+		}
+		value->setEnabled(valid && QFileInfo(path).isWritable());
+		if (!valid) {
+			value->setToolTip(QStringLiteral("Ядро не предоставляет этот параметр"));
+		}
+		form->addRow(QString::fromUtf8(setting.label), value);
 		QObject::connect(value, &QSpinBox::editingFinished, page, [=]() {
 			const QByteArray requested = QByteArray::number(value->value()) + "\n";
-			QFile actual(path);
 			const bool ok = writeSubsystemFile(path, requested);
+			QFile actual(path);
 			if (actual.open(QIODevice::ReadOnly)) {
 				value->setValue(actual.read(32).trimmed().toInt());
 			}
 			if (!ok) {
-				QMessageBox::warning(page, "POSIX", QStringLiteral("Ядро отклонило размер буфера."));
+				QMessageBox::warning(page, "POSIX", QStringLiteral("Ядро отклонило значение."));
 			}
 		});
 	}
@@ -474,14 +552,19 @@ static void androidControls(QWidget *page, QFormLayout *form, int version) {
 	const bool dimensions = version >= 2;
 	const QString path = QStringLiteral("/synapse/subsys/android/data/orientation-%1").arg(getuid());
 	QFile file(path);
-	if (!file.open(QIODevice::ReadOnly) || flock(file.handle(), LOCK_SH) != 0) {
-		form->addRow(new QLabel(QStringLiteral("Профиль Android для этого сеанса ещё не создан."), page));
-		return;
+	QList<QByteArray> parts;
+	bool readable = file.open(QIODevice::ReadOnly) && flock(file.handle(), LOCK_SH) == 0;
+	if (readable) {
+		parts = file.read(80).simplified().split(' ');
+		file.close();
+	} else {
+		auto *message = new QLabel(QStringLiteral(
+		    "Профиль Android для этого сеанса ещё не создан. Показаны значения по умолчанию"), page);
+		message->setWordWrap(true);
+		form->addRow(message);
 	}
-	const QList<QByteArray> parts = file.read(80).simplified().split(' ');
-	file.close();
 	const bool phones = version >= 4;
-	const bool writable = QFileInfo(path).isWritable();
+	const bool writable = readable && QFileInfo(path).isWritable();
 	struct Phone { const char *name; int height, width, dpi; };
 	static const Phone models[] = {
 		{"Google Pixel 5", 2340, 1080, 440},
@@ -665,11 +748,30 @@ static void subsystemToggle(QWidget *page, QFormLayout *form, const QString &nam
 	});
 }
 
+// Разделить страницу на карточки, чтобы близкие параметры читались вместе
+static QFormLayout *settingsSection(QWidget *page, QFormLayout *root, const QString &title) {
+	auto *heading = new QLabel(title, page);
+	heading->setObjectName(QStringLiteral("settingsHeading"));
+	root->addRow(heading);
+	auto *frame = new QFrame(page);
+	frame->setObjectName(QStringLiteral("settingsCard"));
+	frame->setFrameShape(QFrame::NoFrame);
+	auto *form = new QFormLayout(frame);
+	form->setContentsMargins(12, 10, 12, 10);
+	form->setHorizontalSpacing(12);
+	form->setVerticalSpacing(7);
+	form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+	root->addRow(frame);
+	return form;
+}
+
 // Добавить самостоятельные страницы подсистем в общий список настроек
 static void discoverSubsystems(QTabWidget *pages, const QString &selected = {}) {
 	auto add = [pages](const QString &id, const QString &title) {
 		auto *page = new QWidget(pages);
 		auto *form = new QFormLayout(page);
+		form->setContentsMargins(18, 16, 18, 18);
+		form->setVerticalSpacing(8);
 		form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 		auto *scroll = new QScrollArea(pages);
 		scroll->setObjectName(id);
@@ -682,11 +784,15 @@ static void discoverSubsystems(QTabWidget *pages, const QString &selected = {}) 
 	};
 
 	auto *posix = add(QStringLiteral("posix"), QStringLiteral("POSIX"));
+	auto *posixPage = posix->parentWidget();
 	auto *posixNote = new QLabel(QStringLiteral(
-	    "Обязательная подсистема Linux ABI. Эти параметры наследуют процессы нового графического сеанса"), posix->parentWidget());
+	    "Обязательная подсистема Linux ABI. Эти параметры наследуют процессы нового графического сеанса"), posixPage);
 	posixNote->setWordWrap(true);
 	posix->addRow(posixNote);
-	posixControls(posix->parentWidget(), posix);
+	auto *posixSession = settingsSection(posixPage, posix, QStringLiteral("Процессы и сеть"));
+	posixControls(posixSession->parentWidget(), posixSession);
+	auto *posixKernel = settingsSection(posixPage, posix, QStringLiteral("Ядро и память"));
+	posixKernelControls(posixKernel->parentWidget(), posixKernel);
 
 	const QDir registry(QStringLiteral("/usr/share/synapse/subsystems"));
 	QSettings spec(registry.filePath(QStringLiteral("android.ini")), QSettings::IniFormat);
@@ -695,21 +801,29 @@ static void discoverSubsystems(QTabWidget *pages, const QString &selected = {}) 
 	auto *androidPage = android->parentWidget();
 	const bool androidInstalled = QFileInfo(QStringLiteral("/bin/android-run")).isExecutable() &&
 	    QFileInfo(QStringLiteral("/usr/share/android-rt/activity.template")).isFile();
+	auto *runtimeSection = settingsSection(androidPage, android, QStringLiteral("Среда выполнения"));
 	auto *androidState = new QLabel(androidInstalled ?
 	    QStringLiteral("Android Runtime установлен. Изменения окон применяются к новым процессам") :
-	    QStringLiteral("Android Runtime не установлен. Установите пакет android-rt через магазин программ"), androidPage);
+	    QStringLiteral("Android Runtime не установлен. Установите пакет android-rt через магазин программ"),
+	    runtimeSection->parentWidget());
 	androidState->setWordWrap(true);
-	android->addRow(androidState);
-	subsystemToggle(androidPage, android, QStringLiteral("android"));
-	androidApiControls(androidPage, android);
-	androidControls(androidPage, android, spec.value(QStringLiteral("DisplayProfile"), 5).toInt());
-	androidGpsControls(androidPage, android);
-	androidLogControls(androidPage, android);
-	androidPackageLogControls(androidPage, android);
-	auto *packages = new QPushButton(QStringLiteral("Приложения, установка APK и клоны…"), androidPage);
+	runtimeSection->addRow(androidState);
+	subsystemToggle(runtimeSection->parentWidget(), runtimeSection, QStringLiteral("android"));
+	androidApiControls(runtimeSection->parentWidget(), runtimeSection);
+	auto *packages = new QPushButton(QStringLiteral("Приложения, установка APK и клоны…"),
+	    runtimeSection->parentWidget());
 	packages->setEnabled(androidInstalled);
-	android->addRow(packages);
+	runtimeSection->addRow(packages);
 	QObject::connect(packages, &QPushButton::clicked, androidPage, [=]() { androidPackages(androidPage); });
+
+	auto *displaySection = settingsSection(androidPage, android, QStringLiteral("Экран и производительность"));
+	androidControls(displaySection->parentWidget(), displaySection,
+	    spec.value(QStringLiteral("DisplayProfile"), 5).toInt());
+	auto *locationSection = settingsSection(androidPage, android, QStringLiteral("Местоположение"));
+	androidGpsControls(locationSection->parentWidget(), locationSection);
+	auto *logsSection = settingsSection(androidPage, android, QStringLiteral("Журналы"));
+	androidLogControls(logsSection->parentWidget(), logsSection);
+	androidPackageLogControls(logsSection->parentWidget(), logsSection);
 
 	const QString access = QStringLiteral(
 	    "Доступ к подсистеме закрыт, обратитесь к aren@synapseos.ru и/или t.me/nera00 "
@@ -741,19 +855,68 @@ static void discoverSubsystems(QTabWidget *pages, const QString &selected = {}) 
 			form->addRow(value);
 		};
 		if (locked.first == QStringLiteral("winapi")) {
-			choice(QStringLiteral("Совместимость"), {QStringLiteral("Windows 10 22H2")});
-			choice(QStringLiteral("Архитектура приложений"), {QStringLiteral("x86_64 и x86"), QStringLiteral("Только x86_64"), QStringLiteral("Только x86")});
-			text(QStringLiteral("Каталог системы"), QStringLiteral("/synapse/subsys/winapi/system"));
-			text(QStringLiteral("Диск C:"), QStringLiteral("/synapse/subsys/winapi/c"));
-			choice(QStringLiteral("Поиск DLL"), {QStringLiteral("Сначала системные"), QStringLiteral("Сначала из каталога программы")});
-			choice(QStringLiteral("Direct3D 11"), {QStringLiteral("Аппаратный"), QStringLiteral("Программный")});
-			choice(QStringLiteral("Аудио"), {QStringLiteral("Системный выход SynapseOS"), QStringLiteral("Выключен")});
-			choice(QStringLiteral("Исключения SEH"), {QStringLiteral("Полная обработка"), QStringLiteral("Только совместимость")});
-			choice(QStringLiteral("Планировщик потоков"), {QStringLiteral("Windows 10"), QStringLiteral("Совместимый")});
-			toggle(QStringLiteral("Поддержка Unicode UTF-16"));
-			toggle(QStringLiteral("Изолировать программы в отдельных каталогах"));
-			toggle(QStringLiteral("Журнал вызовов WinAPI"));
-			toggle(QStringLiteral("Показывать диагностику запуска"));
+			auto *page = form->parentWidget();
+			auto *core = settingsSection(page, form, QStringLiteral("Совместимость и файлы"));
+			auto *loader = settingsSection(page, form, QStringLiteral("Загрузка библиотек"));
+			auto *graphics = settingsSection(page, form, QStringLiteral("Графика и ввод"));
+			auto *system = settingsSection(page, form, QStringLiteral("Система"));
+			auto *diagnostics = settingsSection(page, form, QStringLiteral("Диагностика"));
+			auto choiceIn = [=](QFormLayout *target, const QString &name, const QStringList &values) {
+				auto *value = new QComboBox(target->parentWidget());
+				value->addItems(values);
+				value->setEnabled(false);
+				target->addRow(name, value);
+			};
+			auto textIn = [=](QFormLayout *target, const QString &name, const QString &value) {
+				auto *field = new QLineEdit(value, target->parentWidget());
+				field->setEnabled(false);
+				target->addRow(name, field);
+			};
+			auto toggleIn = [=](QFormLayout *target, const QString &name) {
+				auto *value = new QCheckBox(name, target->parentWidget());
+				value->setEnabled(false);
+				target->addRow(value);
+			};
+			choiceIn(core, QStringLiteral("Совместимость"), {QStringLiteral("Windows 10 22H2")});
+			choiceIn(core, QStringLiteral("Архитектура приложений"),
+			    {QStringLiteral("x86_64 и x86"), QStringLiteral("Только x86_64"), QStringLiteral("Только x86")});
+			choiceIn(core, QStringLiteral("Режим WoW64"), {QStringLiteral("Автоматически"), QStringLiteral("Выключен")});
+			choiceIn(core, QStringLiteral("Язык системы"), {QStringLiteral("Русский"), QStringLiteral("Английский")});
+			textIn(core, QStringLiteral("Каталог системы"), QStringLiteral("/synapse/subsys/winapi/system"));
+			textIn(core, QStringLiteral("Диск C:"), QStringLiteral("/synapse/subsys/winapi/c"));
+			textIn(core, QStringLiteral("Профиль пользователя"),
+			    QDir::homePath() + QStringLiteral("/WinAPI"));
+			choiceIn(loader, QStringLiteral("Поиск DLL"),
+			    {QStringLiteral("Сначала системные"), QStringLiteral("Сначала из каталога программы")});
+			choiceIn(loader, QStringLiteral("API Set Schema"), {QStringLiteral("Windows 10"), QStringLiteral("Минимальный")});
+			choiceIn(loader, QStringLiteral("Манифесты"), {QStringLiteral("Учитывать"), QStringLiteral("Игнорировать")});
+			choiceIn(loader, QStringLiteral("Разрешение имён"), {QStringLiteral("Без учёта регистра"), QStringLiteral("Строгое")});
+			toggleIn(loader, QStringLiteral("Изолировать DLL каждой программы"));
+			toggleIn(loader, QStringLiteral("Кэшировать загруженные образы"));
+			choiceIn(graphics, QStringLiteral("Direct3D 11"), {QStringLiteral("Аппаратный"), QStringLiteral("Программный")});
+			choiceIn(graphics, QStringLiteral("Direct3D 12"), {QStringLiteral("Автоматически"), QStringLiteral("Выключен")});
+			choiceIn(graphics, QStringLiteral("OpenGL"), {QStringLiteral("Системный"), QStringLiteral("Программный")});
+			choiceIn(graphics, QStringLiteral("Масштаб DPI"), {QStringLiteral("По экрану"), QStringLiteral("100%"), QStringLiteral("125%")});
+			choiceIn(graphics, QStringLiteral("Игровые контроллеры"), {QStringLiteral("Системные"), QStringLiteral("Выключены")});
+			toggleIn(graphics, QStringLiteral("Вертикальная синхронизация"));
+			toggleIn(graphics, QStringLiteral("Методы ввода IME"));
+			choiceIn(system, QStringLiteral("Исключения SEH"),
+			    {QStringLiteral("Полная обработка"), QStringLiteral("Только совместимость")});
+			choiceIn(system, QStringLiteral("Планировщик потоков"),
+			    {QStringLiteral("Windows 10"), QStringLiteral("Совместимый")});
+			choiceIn(system, QStringLiteral("Реестр"), {QStringLiteral("Транзакционный"), QStringLiteral("Простой")});
+			choiceIn(system, QStringLiteral("Длинные пути"), {QStringLiteral("Включены"), QStringLiteral("Ограничение 260 знаков")});
+			choiceIn(system, QStringLiteral("Аудио"), {QStringLiteral("Системный выход SynapseOS"), QStringLiteral("Выключен")});
+			toggleIn(system, QStringLiteral("Поддержка Unicode UTF-16"));
+			toggleIn(system, QStringLiteral("Изолировать программы в отдельных каталогах"));
+			toggleIn(system, QStringLiteral("Разрешить службы Windows"));
+			toggleIn(system, QStringLiteral("Разрешить фоновые задачи"));
+			choiceIn(diagnostics, QStringLiteral("Журнал вызовов"),
+			    {QStringLiteral("Выключен"), QStringLiteral("Только ошибки"), QStringLiteral("Все вызовы")});
+			choiceIn(diagnostics, QStringLiteral("Аварийные дампы"),
+			    {QStringLiteral("Сохранять"), QStringLiteral("Не сохранять")});
+			toggleIn(diagnostics, QStringLiteral("Показывать диагностику запуска"));
+			toggleIn(diagnostics, QStringLiteral("Проверять подписи драйверов"));
 		} else {
 			choice(QStringLiteral("Машина"), {QStringLiteral("PC/AT"), QStringLiteral("80486"), QStringLiteral("Pentium"), QStringLiteral("Pentium II")});
 			choice(QStringLiteral("Процессор"), {QStringLiteral("Автоматически"), QStringLiteral("80486DX"), QStringLiteral("Pentium MMX")});

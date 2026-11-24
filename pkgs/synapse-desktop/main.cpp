@@ -358,7 +358,7 @@ struct DesktopThemeSpec {
 };
 
 static const DesktopThemeSpec desktopThemes[] = {
-	{"synapse-classic", "#f4f3ec", "#ffffff", "#e3e8e9", "#17333c", "#006f8f", true},
+	{"synapse-classic", "#eff1ee", "#f8faf8", "#dde4e2", "#17333c", "#08738f", true},
 	{"Synapse-Midnight", "#10161e", "#151e28", "#223142", "#edf4fb", "#4c9aff", false},
 	{"Synapse-Graphite", "#202124", "#292a2d", "#3c4043", "#f1f3f4", "#a8c7fa", false},
 	{"Synapse-Ocean", "#102a34", "#153642", "#1e4b5a", "#ecfeff", "#38bdf8", false},
@@ -419,28 +419,52 @@ static void applyDesktopPalette(const QString &theme) {
 	    theme == QStringLiteral("synapse-classic") ? 0 : 7).toString();
 	const QString padding = preferences.value(QStringLiteral("appearance/padding"), 6).toString();
 	qApp->setStyleSheet(QStringLiteral(
-	    "QMainWindow, QWidget, QDialog { background-color: %1; color: %4; }"
+	    "QMainWindow, QDialog { background-color: %1; color: %4; }"
 	    "QLineEdit, QListWidget, QComboBox, QSpinBox, QDoubleSpinBox, QDateTimeEdit, QPlainTextEdit, QTableWidget, QTreeView {"
-	    " background-color: %2; color: %4; border: 1px solid %3; border-radius: %6px; padding: %7px; }"
-	    "QListWidget::item { border-radius: %6px; padding: %7px; }"
+	    " background-color: %2; color: %4; border: 1px solid %3; border-radius: %6px; padding: %7px 7px;"
+	    " min-height: 24px; selection-background-color: %5; selection-color: white; }"
+	    "QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover { border-color: %5; }"
+	    "QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid %5; }"
+	    "QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {"
+	    " background-color: %1; color: #7f8b98; }"
+	    "QListWidget::item { border: 1px solid transparent; border-radius: %6px; padding: 5px 7px; }"
+	    "QListWidget::item:hover { background-color: %3; }"
 	    "QListWidget::item:selected, QTableWidget::item:selected { background-color: %5; color: white; }"
-	    "QPushButton, QToolButton { background-color: %3; color: %4; border: 1px solid %3;"
-	    " border-radius: %6px; padding: %7px 12px; min-height: 20px; }"
-	    "QPushButton:hover, QToolButton:hover { background-color: %5; color: white; }"
-	    "QPushButton:disabled, QToolButton:disabled, QComboBox:disabled { color: #7f8b98; background-color: %1; }"
-	    "QTabWidget::pane { border: 1px solid %3; border-radius: %6px; }"
-	    "QTabBar::tab { background-color: %3; color: %4; padding: 9px 16px; border-top-left-radius: %6px;"
-	    " border-top-right-radius: %6px; }"
+	    "QPushButton, QToolButton { background-color: %2; color: %4; border: 1px solid %3;"
+	    " border-radius: %6px; padding: 4px 12px; min-height: 24px; }"
+	    "QPushButton:hover, QToolButton:hover { border-color: %5; background-color: %2; color: %4; }"
+	    "QPushButton:pressed, QToolButton:pressed { background-color: %5; color: white; }"
+	    "QPushButton:focus, QToolButton:focus { border-color: %5; }"
+	    "QPushButton:disabled, QToolButton:disabled { color: #7f8b98; background-color: %1; }"
+	    "QTabWidget::pane { border: 0; }"
+	    "QTabBar::tab { background-color: %1; color: %4; padding: 8px 14px; border: 0; }"
 	    "QTabBar::tab:selected { background-color: %5; color: white; }"
-	    "QGroupBox { border: 1px solid %3; border-radius: %6px; margin-top: 12px; padding: 12px 8px 8px 8px; }"
+	    "QGroupBox { border: 1px solid %3; border-radius: %6px; margin-top: 14px; padding: 14px 10px 10px 10px; }"
 	    "QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; font-weight: bold; }"
-	    "QHeaderView::section { background-color: %3; color: %4; border: 0; padding: 7px; }"
+	    "QLabel#settingsHeading { font-size: 13px; font-weight: 700; padding: 8px 0 0 2px; }"
+	    "QFrame#settingsCard { background-color: %2; border: 1px solid %3; border-radius: %6px; }"
+	    "QHeaderView::section { background-color: %3; color: %4; border: 0; padding: 8px; }"
 	    "QProgressBar { background-color: %2; border: 1px solid %3; border-radius: %6px; text-align: center; }"
 	    "QProgressBar::chunk { background-color: %5; border-radius: %6px; }"
+	    "QScrollBar:vertical { background: %1; width: 12px; margin: 0; }"
+	    "QScrollBar::handle:vertical { background: %3; min-height: 28px; border-radius: %6px; }"
+	    "QScrollBar::handle:vertical:hover { background: %5; }"
+	    "QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }"
 	    "QWidget#settingsSidebar { background-color: %2; border-right: 1px solid %3; }"
 	    "QListWidget#settingsSections { background-color: %2; border: 0; border-radius: 0; padding: 0; }"
 	    "QListWidget#settingsSections::item { border-radius: %6px; padding: 7px 9px; }"
-	    "QTabWidget#settingsPages, QScrollArea { border: 0; }"
+	    "QListWidget#settingsSections::item:selected { background-color: %5; color: white; }"
+	    "QTabWidget#settingsPages, QScrollArea { border: 0; background-color: %1; }"
+	    "QWidget#menuHeader, QWidget#menuFooter { background-color: %2; }"
+	    "QWidget#menuHeader { border-bottom: 1px solid %3; }"
+	    "QWidget#menuFooter { border-top: 1px solid %3; }"
+	    "QLabel#menuTitle { font-size: 22px; font-weight: 600; }"
+	    "QLabel#menuSubtitle, QLabel#menuCount { color: %4; }"
+	    "QListWidget#menuCategories { background-color: %2; border: 1px solid %3; border-radius: %6px; padding: 6px; }"
+	    "QListWidget#menuCategories::item { padding: 7px 9px; }"
+	    "QListWidget#menuApplications { background-color: %1; border: 0; padding: 0; }"
+	    "QListWidget#menuApplications::item { padding: 6px 10px; border-radius: %6px; }"
+	    "QListWidget#menuApplications::item:selected { background-color: %5; color: white; }"
 	    "QWidget#notificationPopup { background-color: %2; border: 1px solid %5; border-radius: %6px; }"
 	    "QToolTip { background-color: %2; color: %4; border: 1px solid %5; padding: 5px; }"
 	    ).arg(background, base, surface, foreground, accent, radius, padding));
@@ -476,126 +500,114 @@ class MenuWindow final : public QMainWindow {
 public:
 	// Показать системное меню с разделами, поиском и быстрыми действиями
 	MenuWindow() {
-		setWindowTitle(QStringLiteral("Меню SynapseOS"));
+		setWindowTitle(QStringLiteral("Программы SynapseOS"));
 		setWindowIcon(QIcon(QStringLiteral("/usr/share/weston/synapse-logo.png")));
-		resize(680, 540);
+		setObjectName(QStringLiteral("applicationMenu"));
+		resize(780, 580);
+		setMinimumSize(640, 460);
 
 		QWidget *content = new QWidget(this);
+		content->setObjectName(QStringLiteral("menuRoot"));
 		QVBoxLayout *layout = new QVBoxLayout(content);
-		layout->setContentsMargins(16, 14, 16, 14);
-		layout->setSpacing(12);
+		layout->setContentsMargins(0, 0, 0, 0);
+		layout->setSpacing(0);
 
-		QHBoxLayout *header = new QHBoxLayout();
-		QLabel *logo = new QLabel(content);
+		QWidget *headerPanel = new QWidget(content);
+		headerPanel->setObjectName(QStringLiteral("menuHeader"));
+		QHBoxLayout *header = new QHBoxLayout(headerPanel);
+		header->setContentsMargins(22, 16, 22, 16);
+		header->setSpacing(12);
+		QLabel *logo = new QLabel(headerPanel);
 		QPixmap logoImage(QStringLiteral("/usr/share/weston/synapse-logo.png"));
-		logo->setPixmap(logoImage.scaled(42, 42, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-		logo->setFixedSize(46, 46);
+		logo->setPixmap(logoImage.scaled(38, 38, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+		logo->setFixedSize(40, 40);
 		header->addWidget(logo);
 
 		QVBoxLayout *identity = new QVBoxLayout();
-		QLabel *heading = new QLabel(QStringLiteral("SynapseOS"), content);
-		QFont font = heading->font();
-		font.setPointSize(17);
-		font.setBold(true);
-		heading->setFont(font);
+		identity->setSpacing(1);
+		QLabel *heading = new QLabel(QStringLiteral("Программы"), headerPanel);
+		heading->setObjectName(QStringLiteral("menuTitle"));
 		identity->addWidget(heading);
-		identity->addWidget(new QLabel(QStringLiteral("Программы и действия"), content));
+		QLabel *subtitle = new QLabel(QStringLiteral("Все установленные приложения"), headerPanel);
+		subtitle->setObjectName(QStringLiteral("menuSubtitle"));
+		identity->addWidget(subtitle);
 		header->addLayout(identity);
 		header->addStretch();
-		layout->addLayout(header);
+		layout->addWidget(headerPanel);
 
-		search = new QLineEdit(content);
-		search->setPlaceholderText(QStringLiteral("Найти программу…"));
-		search->setMinimumHeight(36);
-		layout->addWidget(search);
-
-		QLabel *quickTitle = new QLabel(QStringLiteral("Быстрый доступ"), content);
-		QFont quickFont = quickTitle->font();
-		quickFont.setBold(true);
-		quickTitle->setFont(quickFont);
-		layout->addWidget(quickTitle);
-
-		QHBoxLayout *quick = new QHBoxLayout();
-		quick->setSpacing(8);
-		for (int index : {0, 1, 2}) {
-			const ApplicationEntry &entry = applications[index];
-			if (!QFileInfo(QString::fromUtf8(entry.path)).isExecutable()) {
-				continue;
-			}
-
-			QToolButton *button = new QToolButton(content);
-			button->setText(QString::fromUtf8(entry.name));
-			button->setIcon(QIcon(QString::fromUtf8(entry.icon)));
-			button->setIconSize(QSize(28, 28));
-			button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-			button->setMinimumHeight(46);
-			quick->addWidget(button, 1);
-			connect(button, &QToolButton::clicked, this, [this, index]() {
-				const ApplicationEntry &selected = applications[index];
-				if (std::strcmp(selected.path, "/bin/synapse-desktop") == 0) {
-					openSettings();
-					return;
-				}
-				QStringList arguments;
-				if (selected.argument != nullptr) {
-					arguments.append(QString::fromUtf8(selected.argument));
-				}
-
-				if (QProcess::startDetached(QString::fromUtf8(selected.path), arguments)) {
-					close();
-				}
-			});
-		}
-		layout->addLayout(quick);
+		QWidget *body = new QWidget(content);
+		body->setObjectName(QStringLiteral("menuBody"));
+		QVBoxLayout *bodyLayout = new QVBoxLayout(body);
+		bodyLayout->setContentsMargins(18, 16, 18, 16);
+		bodyLayout->setSpacing(12);
+		search = new QLineEdit(body);
+		search->setObjectName(QStringLiteral("menuSearch"));
+		search->setPlaceholderText(QStringLiteral("Поиск программ"));
+		search->setClearButtonEnabled(true);
+		search->setMinimumHeight(38);
+		bodyLayout->addWidget(search);
 
 		QHBoxLayout *browser = new QHBoxLayout();
-		category = new QListWidget(content);
-		category->setFixedWidth(150);
-		category->setSpacing(3);
+		browser->setSpacing(14);
+		category = new QListWidget(body);
+		category->setObjectName(QStringLiteral("menuCategories"));
+		category->setFixedWidth(190);
+		category->setSpacing(2);
+		category->setIconSize(QSize(22, 22));
+		category->setUniformItemSizes(true);
+		category->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 		category->addItems({QStringLiteral("Все программы"), QStringLiteral("Система"),
 		                    QStringLiteral("Мультимедиа"), QStringLiteral("Игры"), QStringLiteral("Flatpak")});
+		const char *categoryIcons[] = {"applications-all", "applications-system", "applications-multimedia",
+		                               "applications-games", "folder-download"};
+		const QStyle::StandardPixmap fallbackIcons[] = {QStyle::SP_ComputerIcon, QStyle::SP_ComputerIcon,
+		    QStyle::SP_MediaPlay, QStyle::SP_ComputerIcon, QStyle::SP_DirIcon};
+		for (int index = 0; index < category->count(); ++index) {
+			QListWidgetItem *item = category->item(index);
+			item->setIcon(QIcon::fromTheme(QString::fromLatin1(categoryIcons[index]),
+			    QApplication::style()->standardIcon(fallbackIcons[index])));
+			item->setSizeHint(QSize(0, 42));
+		}
 		category->setCurrentRow(0);
 		browser->addWidget(category);
 
-		list = new QListWidget(content);
+		list = new QListWidget(body);
+		list->setObjectName(QStringLiteral("menuApplications"));
 		list->setViewMode(QListView::ListMode);
-		list->setIconSize(QSize(30, 30));
-		list->setSpacing(4);
-		list->setAlternatingRowColors(true);
+		list->setIconSize(QSize(36, 36));
+		list->setSpacing(2);
+		list->setUniformItemSizes(false);
+		list->setAlternatingRowColors(false);
+		list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 		browser->addWidget(list, 1);
-		layout->addLayout(browser, 1);
+		bodyLayout->addLayout(browser, 1);
+		layout->addWidget(body, 1);
 
-		count = new QLabel(content);
-		layout->addWidget(count);
-
-		QHBoxLayout *actions = new QHBoxLayout();
-		QPushButton *files = new QPushButton(QStringLiteral("Файлы"), content);
-		QPushButton *terminal = new QPushButton(QStringLiteral("Терминал"), content);
-		QPushButton *settings = new QPushButton(QStringLiteral("Настройки"), content);
+		QWidget *footer = new QWidget(content);
+		footer->setObjectName(QStringLiteral("menuFooter"));
+		QHBoxLayout *actions = new QHBoxLayout(footer);
+		actions->setContentsMargins(18, 10, 18, 10);
+		count = new QLabel(footer);
+		count->setObjectName(QStringLiteral("menuCount"));
+		QPushButton *settings = new QPushButton(QStringLiteral("Настройки"), footer);
+		settings->setIcon(QIcon::fromTheme(QStringLiteral("configure"),
+		    QIcon(QStringLiteral("/usr/share/weston/settings-icon.png"))));
 		const bool loginManager = readSetting(QStringLiteral("Desktop.LoginManager")) ==
 		                          QStringLiteral("1");
 		QPushButton *logout = new QPushButton(loginManager ?
-		    QStringLiteral("Сменить пользователя") : QStringLiteral("Завершить сеанс"), content);
-		actions->addWidget(files);
-		actions->addWidget(terminal);
-		actions->addWidget(settings);
+		    QStringLiteral("Сменить пользователя") : QStringLiteral("Завершить сеанс"), footer);
+		logout->setIcon(QIcon::fromTheme(QStringLiteral("system-log-out")));
+		actions->addWidget(count);
 		actions->addStretch();
+		actions->addWidget(settings);
 		actions->addWidget(logout);
-		layout->addLayout(actions);
+		layout->addWidget(footer);
 		setCentralWidget(content);
 
 		connect(search, &QLineEdit::textChanged, this, [this]() { refresh(); });
 		connect(category, &QListWidget::currentRowChanged, this, [this]() { refresh(); });
 		connect(list, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) {
 			launch(item);
-		});
-		connect(files, &QPushButton::clicked, this, [this]() {
-			QProcess::startDetached(QStringLiteral("/bin/synapse-files"));
-			close();
-		});
-		connect(terminal, &QPushButton::clicked, this, [this]() {
-			QProcess::startDetached(QStringLiteral("/bin/weston-terminal"));
-			close();
 		});
 		connect(settings, &QPushButton::clicked, this, &MenuWindow::openSettings);
 		connect(logout, &QPushButton::clicked, this, [this]() {
@@ -740,19 +752,24 @@ private:
 			QIcon icon;
 			if (entry.icon != nullptr) {
 				icon = QIcon(QString::fromUtf8(entry.icon));
-			} else if (title == QStringLiteral("Монитор системы")) {
+			} else if (title == QStringLiteral("Системный монитор")) {
 				icon = QApplication::style()->standardIcon(QStyle::SP_ComputerIcon);
 			}
+			if (icon.isNull()) {
+				icon = QIcon::fromTheme(group == QStringLiteral("Игры") ?
+				    QStringLiteral("applications-games") : QStringLiteral("application-x-executable"),
+				    QApplication::style()->standardIcon(QStyle::SP_FileIcon));
+			}
 
-			QListWidgetItem *item = new QListWidgetItem(
-			    icon, title, list);
-			item->setToolTip(group);
+			QListWidgetItem *item = new QListWidgetItem(icon, title + QStringLiteral("\n") + group, list);
+			item->setToolTip(QStringLiteral("%1\n%2").arg(title, group));
+			item->setSizeHint(QSize(0, 58));
 			item->setData(Qt::UserRole, index);
 		}
 
 		if (!QFileInfo(QStringLiteral("/bin/flatpak")).isExecutable() ||
-		    (category->currentRow() != 0 && category->currentRow() != 3)) {
-			count->setText(QStringLiteral("Программ: %1").arg(list->count()));
+		    (category->currentRow() != 0 && category->currentRow() != 4)) {
+			count->setText(QStringLiteral("Доступно программ: %1").arg(list->count()));
 			return;
 		}
 
@@ -760,15 +777,20 @@ private:
 			if (!entry.title.contains(query, Qt::CaseInsensitive)) {
 				continue;
 			}
-			QListWidgetItem *item = new QListWidgetItem(
-			    entry.icon, entry.title, list);
+			QIcon icon = entry.icon;
+			if (icon.isNull()) {
+				icon = QApplication::style()->standardIcon(QStyle::SP_FileIcon);
+			}
+			QListWidgetItem *item = new QListWidgetItem(icon,
+			    entry.title + QStringLiteral("\nFlatpak"), list);
 			item->setToolTip(QStringLiteral("Flatpak: %1").arg(entry.id));
+			item->setSizeHint(QSize(0, 58));
 			item->setData(Qt::UserRole, entry.id);
 			item->setData(Qt::UserRole + 1, entry.path);
 			item->setData(Qt::UserRole + 2, entry.userInstall);
 		}
 
-		count->setText(QStringLiteral("Программ: %1").arg(list->count()));
+		count->setText(QStringLiteral("Доступно программ: %1").arg(list->count()));
 	}
 
 	// Запустить выбранную программу отдельным процессом
@@ -1723,9 +1745,21 @@ private:
 		scroll->setFrameShape(QFrame::NoFrame);
 		scroll->setWidget(page);
 		const int index = tabs->addTab(scroll, title);
-		connect(tabs, &QTabWidget::currentChanged, page, [this, page, scroll, index, build](int current) {
+		connect(tabs, &QTabWidget::currentChanged, page, [this, page, scroll, index, title, build](int current) {
 			if (current == index && !page->layout()) {
 				(this->*build)(page);
+				page->layout()->setContentsMargins(24, 20, 24, 24);
+				page->layout()->setSpacing(12);
+				auto *heading = new QLabel(title, page);
+				QFont font = heading->font();
+				font.setPointSize(font.pointSize() + 6);
+				font.setBold(true);
+				heading->setFont(font);
+				if (auto *box = qobject_cast<QBoxLayout *>(page->layout())) {
+					box->insertWidget(0, heading);
+				} else if (auto *form = qobject_cast<QFormLayout *>(page->layout())) {
+					form->insertRow(0, heading);
+				}
 				scroll->setProperty("settingsBuilt", true);
 			}
 		});

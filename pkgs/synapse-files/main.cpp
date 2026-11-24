@@ -25,6 +25,9 @@
 #include <QFileSystemModel>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QHash>
+#include <QIcon>
+#include <QStyle>
 #include <QHeaderView>
 #include <QImageReader>
 #include <QInputDialog>
@@ -124,16 +127,30 @@ static void applyDesktopTheme() {
 	const int radius = preferences.value(QStringLiteral("appearance/corner-radius"), classic ? 0 : 6).toInt();
 	const int padding = preferences.value(QStringLiteral("appearance/padding"), 6).toInt();
 	qApp->setStyleSheet(QStringLiteral(
-	    "QMainWindow, QDialog, QWidget { background-color: %1; color: %4; }"
+	    "QMainWindow, QDialog { background-color: %1; color: %4; }"
 	    "QLineEdit, QListWidget, QTreeView, QListView, QTextEdit, QComboBox { background-color: %2;"
-	    " color: %4; border: 1px solid %3; border-radius: %6px; padding: %7px; }"
-	    "QPushButton, QToolButton { background-color: %3; color: %4; border: 1px solid %3;"
+	    " color: %4; border: 1px solid %3; border-radius: %6px; padding: %7px;"
+	    " selection-background-color: %5; selection-color: white; }"
+	    "QLineEdit:focus, QComboBox:focus { border-color: %5; }"
+	    "QPushButton, QToolButton { background-color: transparent; color: %4; border: 1px solid transparent;"
 	    " border-radius: %6px; padding: %7px; }"
-	    "QPushButton:hover, QToolButton:hover { background-color: %5; color: white; }"
-	    "QHeaderView::section { background-color: %3; color: %4; border: 0; padding: 7px; }"
+	    "QPushButton:hover, QToolButton:hover { background-color: %3; border-color: %5; }"
+	    "QPushButton:pressed, QToolButton:pressed, QToolButton:checked { background-color: %5; color: white; }"
+	    "QToolBar { background-color: %1; border: 0; border-bottom: 1px solid %3; padding: 5px; spacing: 3px; }"
+	    "QHeaderView::section { background-color: %3; color: %4; border: 0; padding: 8px; }"
+	    "QTreeView::item, QListView::item { padding: 5px; border-radius: %6px; }"
+	    "QTreeView::item:hover, QListView::item:hover { background-color: %3; }"
+	    "QListWidget#filePlaces { border: 0; border-right: 1px solid %3; border-radius: 0; padding: 8px; }"
+	    "QListWidget#filePlaces::item { padding: 7px; border-radius: %6px; }"
+	    "QListWidget#filePlaces::item:selected { background-color: %5; color: white; }"
 	    "QMenuBar, QMenu { background-color: %2; color: %4; }"
+	    "QMenu::item { padding: 7px 24px; }"
 	    "QMenu::item:selected { background-color: %5; color: white; }"
-	    "QStatusBar { background-color: %2; color: %4; }")
+	    "QStatusBar { background-color: %2; color: %4; border-top: 1px solid %3; }"
+	    "QScrollBar:vertical { background: %1; width: 12px; margin: 0; }"
+	    "QScrollBar::handle:vertical { background: %3; min-height: 28px; border-radius: %6px; }"
+	    "QScrollBar::handle:vertical:hover { background: %5; }"
+	    "QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }")
 	    .arg(background.name(), base.name(), surface.name(), foreground.name(), accent.name())
 	    .arg(radius).arg(padding));
 }
@@ -257,8 +274,11 @@ public:
 		views->addWidget(icons);
 
 		places = new QListWidget(this);
-		places->setMinimumWidth(175);
+		places->setObjectName(QStringLiteral("filePlaces"));
+		places->setMinimumWidth(185);
 		places->setMaximumWidth(240);
+		places->setIconSize(QSize(20, 20));
+		places->setSpacing(2);
 		addPlace(QStringLiteral("Домой"), QDir::homePath());
 		addPlace(QStringLiteral("Рабочий стол"), QDir::homePath() + QStringLiteral("/Desktop"));
 		addPlace(QStringLiteral("Документы"), QDir::homePath() + QStringLiteral("/Documents"));
@@ -344,9 +364,23 @@ private:
 	}
 
 	void addPlace(const QString &title, const QString &path) {
-		auto *item = new QListWidgetItem(title, places);
+		QString iconName = QStringLiteral("folder");
+		if (title == QStringLiteral("Домой")) iconName = QStringLiteral("user-home");
+		if (title == QStringLiteral("Рабочий стол")) iconName = QStringLiteral("user-desktop");
+		if (title == QStringLiteral("Документы")) iconName = QStringLiteral("folder-documents");
+		if (title == QStringLiteral("Загрузки")) iconName = QStringLiteral("folder-download");
+		if (title == QStringLiteral("Изображения")) iconName = QStringLiteral("folder-pictures");
+		if (title == QStringLiteral("Музыка")) iconName = QStringLiteral("folder-music");
+		if (title == QStringLiteral("Видео")) iconName = QStringLiteral("folder-videos");
+		if (title == QStringLiteral("Корзина")) iconName = QStringLiteral("user-trash");
+		if (path == QStringLiteral("/") || title.startsWith(QStringLiteral("Том:"))) {
+			iconName = QStringLiteral("drive-harddisk");
+		}
+		QIcon icon = QIcon::fromTheme(iconName, style()->standardIcon(QStyle::SP_DirIcon));
+		auto *item = new QListWidgetItem(icon, title, places);
 		item->setData(Qt::UserRole, path);
 		item->setToolTip(path);
+		item->setSizeHint(QSize(0, 34));
 	}
 
 	void buildActions() {
@@ -416,6 +450,24 @@ private:
 	template <typename Handler>
 	QAction *addButton(QToolBar *toolbar, const QString &title, Handler handler, const QString &shortcut = {}) {
 		QAction *action = toolbar->addAction(title);
+		static const QHash<QString, QString> icons = {
+		    {QStringLiteral("Назад"), QStringLiteral("go-previous")},
+		    {QStringLiteral("Вперёд"), QStringLiteral("go-next")},
+		    {QStringLiteral("Вверх"), QStringLiteral("go-up")},
+		    {QStringLiteral("Домой"), QStringLiteral("go-home")},
+		    {QStringLiteral("Перейти"), QStringLiteral("go-jump")},
+		    {QStringLiteral("Обновить"), QStringLiteral("view-refresh")},
+		    {QStringLiteral("Создать"), QStringLiteral("folder-new")},
+		    {QStringLiteral("Копировать"), QStringLiteral("edit-copy")},
+		    {QStringLiteral("Вырезать"), QStringLiteral("edit-cut")},
+		    {QStringLiteral("Вставить"), QStringLiteral("edit-paste")},
+		    {QStringLiteral("Переименовать"), QStringLiteral("edit-rename")},
+		    {QStringLiteral("В корзину"), QStringLiteral("user-trash")},
+		    {QStringLiteral("Свойства"), QStringLiteral("document-properties")},
+		    {QStringLiteral("Скрытые файлы"), QStringLiteral("view-visible")},
+		    {QStringLiteral("В терминале"), QStringLiteral("utilities-terminal")}
+		};
+		action->setIcon(QIcon::fromTheme(icons.value(title)));
 		connect(action, &QAction::triggered, this, handler);
 		if (!shortcut.isEmpty()) {
 			addShortcut(QKeySequence(shortcut), [action]() { action->trigger(); });
