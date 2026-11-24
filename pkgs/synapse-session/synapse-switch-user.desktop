@@ -3,7 +3,7 @@
 # Архитектура: x86_64, ABI: Wayland
 # Подсистема: графический сеанс
 # Первое изменение: 30.10.2026
-# Последнее изменение: 30.10.2026
+# Последнее изменение: 24.11.2026
 # Доступ: общедоступный
 [Desktop Entry]
 Type=Application
@@ -11,7 +11,7 @@ Name=Switch User
 Name[ru]=Сменить пользователя
 Comment=Return to the graphical login screen
 Comment[ru]=Вернуться к экрану выбора пользователя
-Exec=/bin/labwc -e
+Exec=/bin/synapse-desktop --logout
 Icon=system-users
 Categories=System;
 Terminal=false

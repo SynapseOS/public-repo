@@ -2,7 +2,7 @@
 // Автор: Елчинян Арен Артурович, 2026. AMD64, ABI Qt6 и POSIX
 // Подсистема: графический сеанс
 // Первое изменение: 30.10.2026
-// Последнее изменение: 23.11.2026
+// Последнее изменение: 24.11.2026
 // Доступ: общедоступный
 
 #include <QApplication>
@@ -10,12 +10,12 @@
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QFile>
+#include <QFont>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
-#include <QPixmap>
 #include <QProcess>
 #include <QPushButton>
 #include <QTimer>
@@ -102,92 +102,53 @@ int main(int argc, char **argv) {
 
     QApplication application(argc, argv);
     application.setStyle(QStringLiteral("Fusion"));
+    application.setFont(QFont(QStringLiteral("DejaVu Sans Mono"), 10));
     LoginScreen window;
     window.setObjectName(QStringLiteral("loginScreen"));
     window.setWindowTitle(QStringLiteral("Вход в SynapseOS"));
     window.setWindowFlags(Qt::FramelessWindowHint);
     window.setStyleSheet(QStringLiteral(
         "#loginScreen { border-image: url(/usr/share/backgrounds/synapse/Desktop-dark.png) 0 0 0 0 stretch stretch; }"
-        "QWidget { color: #edf4fa; font-size: 15px; }"
-        "#brand { background: transparent; }"
-        "#loginCard { background-color: rgba(16, 27, 39, 245); border-left: 1px solid #40566a; }"
-        "QLineEdit { background: #142230; color: #f5f9fc; border: 1px solid #526b80;"
-        " padding: 11px 12px; selection-background-color: #3daee9; }"
-        "QLineEdit:focus { border: 1px solid #3daee9; }"
-        "QPushButton { background: #3daee9; color: #07131c; border: 0; padding: 12px; font-weight: bold; }"
-        "QPushButton:hover { background: #6bc5f2; }"
-        "QPushButton:focus { border: 1px solid #b8e4fa; }"
-        "#powerButton { background: transparent; color: #c1d2df; border: 1px solid #40566a; padding: 9px; }"
-        "#powerButton:hover { background: #24384a; color: #ffffff; }"));
+        "QWidget { color: #ffffff; font-size: 15px; }"
+        "#loginCard { background-color: #104974; border: 1px solid #8fa6b2; }"
+        "QLineEdit { background: #ffffff; color: #30363a; border: 1px solid #aab7be;"
+        " padding: 10px 12px; selection-background-color: #006699; border-radius: 0; }"
+        "QLineEdit:focus { border: 2px solid #b25e00; }"
+        "QPushButton { background: #006699; color: #ffffff; border: 1px solid #8fc3e8;"
+        " padding: 10px; font-weight: bold; border-radius: 0; }"
+        "QPushButton:hover { background: #185c91; }"
+        "QPushButton:focus { border: 2px solid #b25e00; }"
+        "#powerButton { background: #104974; border: 1px solid #8fa6b2; padding: 9px; }"
+        "#powerButton:hover { background: #185c91; }"));
 
     auto *root = new QVBoxLayout(&window);
-    root->setContentsMargins(48, 32, 48, 32);
-    root->setSpacing(24);
-
-    auto *header = new QHBoxLayout();
-    auto *brand = new QLabel(QStringLiteral("SynapseOS"), &window);
-    brand->setObjectName(QStringLiteral("brand"));
-    brand->setStyleSheet(QStringLiteral("font-size: 27px; font-weight: bold; color: #ffffff;"));
-    header->addWidget(brand);
-    header->addStretch();
-    auto *clock = new QLabel(&window);
-    clock->setObjectName(QStringLiteral("brand"));
-    clock->setStyleSheet(QStringLiteral("font-size: 16px; color: #d0dfeb;"));
-    auto updateClock = [clock]() {
-        clock->setText(QDateTime::currentDateTime().toString(QStringLiteral("dd MMMM yyyy, HH:mm")));
-    };
-    updateClock();
-    auto *timer = new QTimer(&window);
-    QObject::connect(timer, &QTimer::timeout, &window, updateClock);
-    timer->start(30000);
-    header->addWidget(clock);
-    root->addLayout(header);
+    root->setContentsMargins(40, 28, 40, 28);
+    root->setSpacing(0);
+    root->addStretch();
 
     auto *center = new QHBoxLayout();
-    center->setSpacing(42);
     center->addStretch();
-    auto *welcome = new QWidget(&window);
-    welcome->setObjectName(QStringLiteral("brand"));
-    welcome->setMinimumWidth(390);
-    auto *welcomeLayout = new QVBoxLayout(welcome);
-    welcomeLayout->setContentsMargins(20, 36, 0, 24);
-    auto *logo = new QLabel(welcome);
-    logo->setPixmap(QPixmap(QStringLiteral("/usr/share/weston/synapse-logo.png")).scaled(92, 92,
-        Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    welcomeLayout->addWidget(logo);
-    auto *welcomeTitle = new QLabel(QStringLiteral("Ваш рабочий стол.\nВаши возможности."), welcome);
-    welcomeTitle->setStyleSheet(QStringLiteral("font-size: 34px; font-weight: bold; line-height: 120%;"));
-    welcomeLayout->addWidget(welcomeTitle);
-    auto *welcomeText = new QLabel(QStringLiteral(
-        "Приложения, файлы и настройки находятся\nв вашем личном сеансе SynapseOS."), welcome);
-    welcomeText->setStyleSheet(QStringLiteral("font-size: 17px; color: #c4d5e2;"));
-    welcomeLayout->addWidget(welcomeText);
-    welcomeLayout->addStretch();
-    center->addWidget(welcome, 1);
 
     auto *card = new QWidget(&window);
     card->setObjectName(QStringLiteral("loginCard"));
-    card->setFixedSize(510, 490);
+    card->setFixedSize(460, 370);
     auto *layout = new QVBoxLayout(card);
-    layout->setContentsMargins(42, 38, 42, 30);
-    layout->setSpacing(13);
+    layout->setContentsMargins(34, 28, 34, 28);
+    layout->setSpacing(12);
 
-    auto *title = new QLabel(QStringLiteral("С возвращением"), card);
-    title->setStyleSheet(QStringLiteral("font-size: 30px; font-weight: bold; padding-bottom: 4px;"));
+    auto *title = new QLabel(QStringLiteral("Вход в систему"), card);
+    title->setAlignment(Qt::AlignCenter);
+    title->setStyleSheet(QStringLiteral("font-size: 25px; font-weight: bold;"));
     layout->addWidget(title);
 
-    auto *description = new QLabel(QStringLiteral("Войдите в свой рабочий стол"), card);
-    description->setStyleSheet(QStringLiteral("color: #b6c8d6; padding-bottom: 8px;"));
-    layout->addWidget(description);
-
     auto *form = new QFormLayout();
-    form->setSpacing(14);
+    form->setSpacing(12);
     auto *user = new QLineEdit(card);
     auto *password = new QLineEdit(card);
     user->setPlaceholderText(QStringLiteral("Имя пользователя"));
     password->setPlaceholderText(QStringLiteral("Пароль"));
-    user->setMinimumHeight(48);
-    password->setMinimumHeight(48);
+    user->setMinimumHeight(44);
+    password->setMinimumHeight(44);
     password->setEchoMode(QLineEdit::Password);
     form->addRow(QStringLiteral("Пользователь"), user);
     form->addRow(QStringLiteral("Пароль"), password);
@@ -196,17 +157,28 @@ int main(int argc, char **argv) {
     auto *error = new QLabel(card);
     error->setWordWrap(true);
     error->setMinimumHeight(28);
-    error->setStyleSheet(QStringLiteral("color: #ffadad;"));
+    error->setStyleSheet(QStringLiteral("color: #ffcece;"));
     layout->addWidget(error);
 
-    auto *submit = new QPushButton(QStringLiteral("Войти в SynapseOS"), card);
-    submit->setMinimumHeight(50);
+    auto *submit = new QPushButton(QStringLiteral("Войти"), card);
+    submit->setMinimumHeight(46);
     layout->addWidget(submit);
-    layout->addStretch();
     center->addWidget(card);
-    root->addLayout(center, 1);
+    center->addStretch();
+    root->addLayout(center);
+    root->addStretch();
 
     auto *footer = new QHBoxLayout();
+    auto *clock = new QLabel(&window);
+    clock->setStyleSheet(QStringLiteral("font-size: 15px; color: #ffffff;"));
+    auto updateClock = [clock]() {
+        clock->setText(QDateTime::currentDateTime().toString(QStringLiteral("dd MMMM yyyy, HH:mm")));
+    };
+    updateClock();
+    auto *timer = new QTimer(&window);
+    QObject::connect(timer, &QTimer::timeout, &window, updateClock);
+    timer->start(30000);
+    footer->addWidget(clock);
     footer->addStretch();
     auto *shutdown = new QPushButton(QStringLiteral("Выключить"), &window);
     auto *reboot = new QPushButton(QStringLiteral("Перезагрузить"), &window);

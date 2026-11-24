@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "synapse-session",
-  "version": "0.1.0-r9",
+  "version": "0.1.0-r12",
   "description": "Graphical login and user session switcher",
   "kind": "application",
   "arch": "x86_64",
@@ -9,6 +9,7 @@
   "depends": [
     "musl-runtime",
     "labwc",
+    "synapse-desktop >= 0.1.0-r46",
     "qt6-base",
     "qt6-wayland"
   ],
