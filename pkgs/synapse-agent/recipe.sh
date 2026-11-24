@@ -1,4 +1,4 @@
-# recipe.sh: сборка графического агента SynapseOS
+# recipe.sh: сборка агентской среды SynapseOS
 # Автор: Елчинян Арен Артурович, 2026, архитектура x86_64, ABI musl
 # Подсистема: пользовательские приложения
 # Первое изменение: 24.11.2026, последнее изменение: 24.11.2026
@@ -12,13 +12,24 @@ cxx=(bash "$ROOT/build/cxx-shared.sh")
 
 mkdir -p "$payload/usr/libexec/qt6" "$payload/bin" "$payload/usr/share/applications"
 
+# Список исходных файлов для компиляции
+sources=(
+    "$port/main.cpp"
+    "$port/ai_provider.cpp"
+    "$port/agent_config.cpp"
+    "$port/chat_agent.cpp"
+    "$port/os_tools.cpp"
+    "$port/main_window.cpp"
+)
+
 "${cxx[@]}" -std=c++20 -O2 -Wall -Wextra -Werror -D__synapse__ \
+    -I"$port" \
     -I"$qt/usr/include/qt6" \
     -I"$qt/usr/include/qt6/QtWidgets" \
     -I"$qt/usr/include/qt6/QtGui" \
     -I"$qt/usr/include/qt6/QtCore" \
     -I"$qt/usr/include/qt6/QtNetwork" \
-    "$port/main.cpp" -L"$qt/usr/lib" \
+    "${sources[@]}" -L"$qt/usr/lib" \
     -Wl,-rpath-link,"$runtime" -Wl,--no-allow-shlib-undefined \
     -lQt6Widgets -lQt6Gui -lQt6Network -lQt6DBus -lQt6Core \
     -o "$payload/usr/libexec/qt6/synapse-agent"

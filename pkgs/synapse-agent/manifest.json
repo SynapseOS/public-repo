@@ -1,16 +1,14 @@
 {
   "format": 1,
   "name": "synapse-agent",
-  "version": "0.1.0-r1",
-  "description": "Графический ИИ-агент SynapseOS",
+  "version": "0.1.0-r2",
+  "description": "Агентская среда SynapseOS с поддержкой провайдеров ИИ",
   "kind": "application",
   "arch": "x86_64",
   "abi": "synapse-x86_64-v1",
   "depends": [
     "qt6-base",
-    "qt6-wayland",
-    "synapse-recorder-desktop",
-    "sudo"
+    "qt6-wayland"
   ],
   "conflicts": [],
   "files": []
