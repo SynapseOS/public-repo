@@ -2,7 +2,7 @@
 # Автор: Елчинян Арен Артурович, 2026
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 01.11.2026
+# Первое изменение: 18.10.2026, последнее изменение: 24.11.2026
 # Статус доступа: общедоступный
 
 fetch "$(jq -r .source "$spec")" "$(jq -r .sha256 "$spec")" "$work/mesa.tar.xz"
@@ -59,9 +59,13 @@ LD_LIBRARY_PATH='$work/wayland-sdk/usr/lib' exec '$scanner.real' "\$@"
 SCANNER
 chmod 755 "$scanner"
 
-alias="$work/wayland-sdk"
-export PKG_CONFIG_SYSROOT_DIR="$alias"
-export PKG_CONFIG_LIBDIR="$alias/usr/lib/pkgconfig:$alias/usr/share/pkgconfig"
+alias_path="/tmp/synapse-public-mesa-$(printf '%s' "$ROOT" | sha256sum | cut -c1-16)"
+if [[ ! -e $alias_path ]]; then
+	ln -s "$work/wayland-sdk" "$alias_path"
+fi
+[[ $(realpath "$alias_path") == $(realpath "$work/wayland-sdk") ]]
+export PKG_CONFIG_SYSROOT_DIR="$alias_path"
+export PKG_CONFIG_LIBDIR="$alias_path/usr/lib/pkgconfig:$alias_path/usr/share/pkgconfig"
 
 while IFS=$'\t' read -r filename url sha; do
 	fetch "$url" "$sha" "$work/llvm/downloads/$filename"
@@ -113,7 +117,7 @@ options=(-Dbuildtype=release -Dplatforms=x11,wayland
 	"-Dcpp_args=-D_GNU_SOURCE -idirafter $work/linux-headers/usr/include")
 
 if [[ -f $work/egl-build/build.ninja ]] &&
-	grep -q '/tmp/synapse-public-mesa-' "$work/egl-build/build.ninja"; then
+	! grep -Fq "$work/cxx" "$work/egl-build/build.ninja"; then
 	meson setup "$work/egl-build" "$source" --wipe --cross-file "$work/cross.ini" \
 		--prefix=/usr --libdir=lib "${options[@]}"
 elif [[ -f $work/egl-build/build.ninja ]]; then
