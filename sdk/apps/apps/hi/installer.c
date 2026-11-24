@@ -5,7 +5,7 @@
 // Работа с GPT и копирование файлов на выбранный целевой раздел
 // Подсистема: установка и начальная настройка системы
 // Первое изменение: до текущей уборки, исходная дата не установлена
-// Последнее изменение: 22.11.2026
+// Последнее изменение: 24.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -616,6 +616,11 @@ static int install_boot(struct disk *d, unsigned root_index, const char *iso_roo
     }
     snprintf(source, sizeof(source), "%s/boot/kernel", iso_root);
     if (copy_file(source, "/tmp/hi-efi/boot/synapse/kernel")) {
+        return -1;
+    }
+    // Модульная POSIX-подсистема ставится рядом с ядром, когда присутствует на носителе
+    snprintf(source, sizeof(source), "%s/boot/posix.so", iso_root);
+    if (access(source, F_OK) == 0 && copy_file(source, "/tmp/hi-efi/boot/synapse/posix.so")) {
         return -1;
     }
     snprintf(source, sizeof(source), "%s/boot/install.cfg", iso_root);
