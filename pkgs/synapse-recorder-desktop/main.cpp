@@ -1,4 +1,4 @@
-// Synapse Recorder, панель записи Desktop, 21.11.2026
+// Synapse Recorder, панель записи Desktop, 24.11.2026
 #include "ink.h"
 #include <QPointer>
 #include <QApplication>
@@ -59,9 +59,9 @@ public:
         p.translate(width()/2,height()/2);
         p.setPen(QPen(QColor("#73dfc7"),2));
         p.setBrush(QColor("#172c33"));
-        p.drawRoundedRect(QRect(-55,-35,98,64),7,7);
+        p.drawRect(QRect(-55,-35,98,64));
         p.drawLine(-7,30,-7,37); p.drawLine(-27,38,13,38);
-        p.setBrush(QColor("#22444a")); p.drawRoundedRect(QRect(17,3,43,31),4,4);
+        p.setBrush(QColor("#22444a")); p.drawRect(QRect(17,3,43,31));
         p.setPen(Qt::NoPen); p.setBrush(QColor("#ff8069")); p.drawEllipse(QPoint(31,17),4,4);
     }
 };
@@ -168,7 +168,7 @@ class Studio : public QWidget {
         }
         if (clock->isChecked()) a << "--clock";
         if (!title->text().isEmpty()) {
-            QFont font("DejaVu Sans",14,QFont::DemiBold); QFontMetrics fm(font);
+            QFont font("DejaVu Sans Mono",14,QFont::DemiBold); QFontMetrics fm(font);
             QString text=fm.elidedText(title->text(),Qt::ElideRight,1400);
             QImage img(fm.horizontalAdvance(text)+20,fm.height()+10,QImage::Format_ARGB32);
             img.fill(QColor(10,17,21,175)); QPainter paint(&img);
@@ -361,12 +361,12 @@ int main(int argc,char **argv) {
     app.setDesktopFileName("synapse-recorder");
     app.setWindowIcon(QIcon("/usr/share/icons/hicolor/128x128/apps/synapse-recorder.png"));
     app.setStyle("Fusion");
-    app.setStyleSheet("QWidget{background:#12171c;color:#e3e9ec;font:14px 'DejaVu Sans'}"
+    app.setStyleSheet("QWidget{background:#12171c;color:#e3e9ec;font:14px 'DejaVu Sans Mono'}"
         "QLabel#title{font-size:27px;font-weight:700} QLabel#section{font-size:16px;font-weight:600;color:#b3e3d6}"
         "QLabel#state,QLabel#muted{color:#a5b5bf} QLabel#live{color:#ff8777;font-weight:700}"
         "QLabel#time{font:18px monospace;color:#8ee4c9}"
-        "QLineEdit,QComboBox,QSpinBox{background:#202930;border:1px solid #39464d;border-radius:5px;padding:5px}"
-        "QPushButton{background:#28343a;border:1px solid #435258;border-radius:5px;padding:7px 12px}"
+        "QLineEdit,QComboBox,QSpinBox{background:#202930;border:1px solid #39464d;border-radius:0;padding:5px}"
+        "QPushButton{background:#28343a;border:1px solid #435258;border-radius:0;padding:7px 12px}"
         "QPushButton:hover{background:#374950} QPushButton#record{background:#fd896f;color:#191714;font-weight:700}"
         "QPushButton:disabled{color:#77858b;background:#1e272e} QCheckBox{spacing:8px}");
     Studio studio; studio.show();
