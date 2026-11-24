@@ -29,6 +29,8 @@ static char txn[2304];
 static char *boot_config;
 static size_t boot_config_len;
 static int kernel_pending;
+// Индекс файла posix.so в текущем пакете ядра, -1 когда подсистема встроена
+static int kernel_module_file = -1;
 static char *boot_marker;
 static size_t boot_marker_len;
 static const char *boot_config_path = "boot/boot/limine/limine.conf";
@@ -433,6 +435,13 @@ int kernel_boot_has_space(const struct package *p) {
     snprintf(relative, sizeof relative, "boot/boot/kernels/%s/kernel", p->version);
     path(dest, relative);
     uint64_t kernel_bytes = lstat(dest, &st) == 0 && S_ISREG(st.st_mode) ? 0 : p->files[0].size;
+    // Модульная подсистема занимает отдельный файл рядом с ядром той же версии
+    if (kernel_module_file >= 0) {
+        snprintf(relative, sizeof relative, "boot/boot/kernels/%s/posix.so", p->version);
+        path(dest, relative);
+        kernel_bytes += lstat(dest, &st) == 0 && S_ISREG(st.st_mode) ? 0
+                                                                     : p->files[kernel_module_file].size;
+    }
     uint64_t bytes = kernel_bytes + 1024U * 1024U;
     uint64_t blocks = bytes / space.f_frsize + (bytes % space.f_frsize != 0);
     return space.f_bavail >= blocks;
@@ -671,8 +680,10 @@ static int parse_boot_entry(char *entry, struct clean_plan *plan, const char *cm
         } else if (!strncmp(line, "cmdline:", 8)) {
             commands++;
             matched = !strcmp(trim_line(line + 8), cmdline);
-        } else if (*line == '/' || !strncmp(line, "module_path:", 12)) {
+        } else if (*line == '/') {
             return -2;
+        } else if (!strncmp(line, "module_path:", 12) || !strncmp(line, "module_cmdline:", 15)) {
+            // Модульные строки сопровождают path версии и не влияют на отбор записей
         } else if (*line && strncmp(line, "comment:", 8) && strncmp(line, "kaslr:", 6)) {
             extra = 1;
         }
@@ -1069,16 +1080,26 @@ static void plan_kernel(struct package *p, int index) {
 
     char payload[512];
     snprintf(payload, sizeof payload, "usr/share/setup/kernels/%s/kernel", p->version);
-    if ((p->nfile != 1 && p->nfile != 2) || strcmp(p->files[0].path, payload) ||
+    if ((p->nfile < 1 || p->nfile > 3) || strcmp(p->files[0].path, payload) ||
         p->files[0].type || p->files[0].config) {
         fail("invalid kernel payload layout");
     }
-    if (p->nfile == 2) {
+    kernel_module_file = -1;
+    int build_file = -1;
+    for (int k = 1; k < p->nfile; k++) {
+        char module_payload[512];
+        snprintf(module_payload, sizeof module_payload, "usr/share/setup/kernels/%s/posix.so",
+                 p->version);
         snprintf(payload, sizeof payload, "usr/share/setup/kernels/%s/build.txt",
                  p->version);
-        if (strcmp(p->files[1].path, payload) || p->files[1].type ||
-            p->files[1].config) {
-            fail("invalid kernel build metadata");
+        if (!strcmp(p->files[k].path, module_payload) && !p->files[k].type &&
+            !p->files[k].config && kernel_module_file < 0) {
+            kernel_module_file = k;
+        } else if (!strcmp(p->files[k].path, payload) && !p->files[k].type &&
+                   !p->files[k].config && build_file < 0) {
+            build_file = k;
+        } else {
+            fail("invalid kernel payload layout");
         }
     }
 
@@ -1109,7 +1130,7 @@ static void plan_kernel(struct package *p, int index) {
         }
         pos = end + (end < marker_len);
     }
-    if (p->nfile == 1) {
+    if (build_file < 0) {
         const char *commit =
             !strncmp(marker, "commit=", 7) ? marker : strstr(marker, "\ncommit=");
         if (commit && *commit == '\n') {
@@ -1185,7 +1206,7 @@ static void plan_kernel(struct package *p, int index) {
     size_t used = first;
     used +=
         snprintf(boot_config + used, capacity - used, "/SynapseOS %s\n", p->version);
-    int replaced_path = 0, limine_protocol = 0, has_cmdline = 0;
+    int replaced_path = 0, limine_protocol = 0, has_cmdline = 0, has_module_path = 0;
     for (size_t pos = title_end < len ? title_end + 1 : len; pos < section_end;) {
         size_t end = pos;
         while (end < section_end && config[end] != '\n') {
@@ -1203,6 +1224,12 @@ static void plan_kernel(struct package *p, int index) {
             used += snprintf(boot_config + used, capacity - used,
                              "    path: boot():/boot/kernels/%s/kernel\n", p->version);
             replaced_path++;
+        } else if (end - trim >= 12 && !memcmp(config + trim, "module_path:", 12) &&
+                   kernel_module_file >= 0) {
+            // Модульная подсистема обновляется вместе с ядром из того же пакета
+            used += snprintf(boot_config + used, capacity - used,
+                             "    module_path: boot():/boot/kernels/%s/posix.so\n", p->version);
+            has_module_path = 1;
         } else if (end - trim >= 8 && !memcmp(config + trim, "cmdline:", 8)) {
             if (has_cmdline++) {
                 fail("first boot entry contains multiple command lines");
@@ -1235,6 +1262,13 @@ static void plan_kernel(struct package *p, int index) {
     }
     if (!limine_protocol || replaced_path != 1) {
         fail("first boot entry must contain one Limine kernel path");
+    }
+    if (kernel_module_file >= 0 && !has_module_path) {
+        // Прежняя запись была встроенной, модульные строки добавляем к версии
+        used += snprintf(boot_config + used, capacity - used,
+                         "    module_path: boot():/boot/kernels/%s/posix.so\n"
+                         "    module_cmdline: posix\n",
+                         p->version);
     }
     if (!has_cmdline) {
         if (used && boot_config[used - 1] != '\n') {
@@ -1281,6 +1315,23 @@ static void plan_kernel(struct package *p, int index) {
         struct operation *o = add(relative);
         o->mode = 0644;
         snprintf(o->stage, sizeof o->stage, "%s/pkg%d/f0", txn, index);
+    }
+    if (kernel_module_file >= 0) {
+        snprintf(relative, sizeof relative, "boot/boot/kernels/%s/posix.so", p->version);
+        path(full, relative);
+        int module_exists = !lstat(full, &st);
+        if (module_exists) {
+            char digest[65];
+            sha_file(full, digest);
+            if (strcmp(digest, p->files[kernel_module_file].hash)) {
+                fail("posix module already exists with different content");
+            }
+        }
+        if (!module_exists) {
+            struct operation *o = add(relative);
+            o->mode = 0644;
+            snprintf(o->stage, sizeof o->stage, "%s/pkg%d/f%d", txn, index, kernel_module_file);
+        }
     }
     kernel_pending = 1;
 }
