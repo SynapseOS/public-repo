@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Synapse Agent
+Name[ru]=Агент SynapseOS
+Exec=/bin/synapse-agent
+Categories=Utility;Development;
+Terminal=false

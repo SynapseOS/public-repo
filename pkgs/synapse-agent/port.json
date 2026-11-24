@@ -1,0 +1,8 @@
+{
+  "name": "synapse-agent",
+  "version": "0.1.0-r1",
+  "description": "Графический ИИ-агент SynapseOS",
+  "build_system": "recipe",
+  "status": "experimental",
+  "upstream_license": "NOASSERTION"
+}
