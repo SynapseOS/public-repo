@@ -3,7 +3,7 @@
 // Архитектура: x86_64, ABI: Linux ELF64 musl
 // Подсистема: учётные записи
 // Первое изменение: дата исходной адаптации не установлена
-// Последнее изменение: 22.11.2026
+// Последнее изменение: 24.11.2026
 // Доступ: общедоступный
 /* See LICENSE file for copyright and license details. */
 #include <sys/ioctl.h>
@@ -792,7 +792,7 @@ int main(int argc, char *argv[]) {
     if (argc == 3 && !strcmp(argv[1], "--stdin")) {
         password_stdin = true;
         argv[1] = argv[2];
-        argc = 1;
+        argc = 2;
     }
 
     ARGBEGIN {
@@ -800,7 +800,7 @@ int main(int argc, char *argv[]) {
         usage();
         goto cleanup;
     } ARGEND;
-    if (argc > 2 || (password_stdin && argc != 0)) {
+    if (argc > 2 || (password_stdin && argc != 1)) {
         usage();
         goto cleanup;
     }
