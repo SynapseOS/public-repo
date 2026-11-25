@@ -4,7 +4,7 @@
 // Описание: Передать управление композитору без зависимости от командной оболочки
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 24.11.2026
+// Последнее изменение: 25.11.2026
 // Доступ: общедоступный
 
 #include "posix-profile.h"
@@ -400,6 +400,18 @@ int main(int argc, char **argv) {
 
     bool native = getenv("WAYLAND_DISPLAY") == NULL && getenv("WAYLAND_SOCKET") == NULL;
     char runtime[256] = "";
+
+    if (getenv("XKB_DEFAULT_LAYOUT") == NULL &&
+        setenv("XKB_DEFAULT_LAYOUT", "us,ru", 1) != 0) {
+        perror("labwc: keyboard layouts");
+        return 1;
+    }
+
+    if (getenv("XKB_DEFAULT_OPTIONS") == NULL &&
+        setenv("XKB_DEFAULT_OPTIONS", "grp:alt_shift_toggle", 1) != 0) {
+        perror("labwc: keyboard switch");
+        return 1;
+    }
 
     if (setenv("LD_LIBRARY_PATH", "/usr/lib/labwc/runtime:/usr/lib/weston/runtime:/usr/lib", 1) != 0) {
         perror("labwc: LD_LIBRARY_PATH");

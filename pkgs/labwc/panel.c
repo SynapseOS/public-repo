@@ -4,7 +4,7 @@
 // Описание: Показывать меню, работающие окна и часы на нижней панели
 // Подсистема: графическая оболочка
 // Первое изменение: 28.10.2026
-// Последнее изменение: 24.11.2026
+// Последнее изменение: 25.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -842,11 +842,10 @@ static void draw_system_tray(cairo_t *context, int x) {
     cairo_arc(context, x + 49, center, 6, -0.85, 0.85);
     cairo_stroke(context);
 
-    const char *lang = getenv("LANG");
-    const char *layout = lang != NULL && strncmp(lang, "ru", 2) == 0 ? "ru" : "en";
+    const char *layout = "en/ru";
     cairo_select_font_face(context, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(context, 13);
-    cairo_move_to(context, x + 72, center + 5);
+    cairo_move_to(context, x + 60, center + 5);
     cairo_show_text(context, layout);
 }
 
