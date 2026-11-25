@@ -1,10 +1,16 @@
 # recipe.sh: Собрать только ядро GLib со статической PCRE2
 # Автор: Елчинян Арен Артурович, 2026
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 18.10.2026
+# Первое изменение: 18.10.2026, последнее изменение: 25.11.2026
 # Статус доступа: общедоступный
 
 prepare
+cpu=${TARGET_ARCH:-x86_64}
+if [[ $cpu == aarch64 ]]; then
+	compiler_headers=$("${ARM64_CC:-clang}" --print-resource-dir)/include
+else
+	compiler_headers=$(gcc -print-file-name=include)
+fi
 pcre="$BUILD_ROOT/pcre2/payload/usr"
 cat >"$work/cross.ini" <<CROSS
 [binaries]
@@ -14,13 +20,13 @@ strip = 'strip'
 pkg-config = '/bin/false'
 [host_machine]
 system = 'linux'
-cpu_family = 'x86_64'
-cpu = 'x86_64'
+cpu_family = '$cpu'
+cpu = '$cpu'
 endian = 'little'
 [properties]
 needs_exe_wrapper = true
 [built-in options]
-c_args = ['-O2', '-D__synapse__', '-isystem', '$(gcc -print-file-name=include)', '-I$pcre/include']
+c_args = ['-O2', '-D__synapse__', '-isystem', '$compiler_headers', '-I$pcre/include']
 c_link_args = ['-static', '-L$pcre/lib']
 CROSS
 rm -rf "$work/build"

@@ -1,0 +1,20 @@
+#!/bin/bash
+# qmi-cross-cc: статический ARM64 musl компилятор без пересборки SDK
+# Автор: Елчинян Арен Артурович, 2026
+# Архитектура: ARM64, ABI: synapse-aarch64-v1
+# Подсистема: сборка пакетов
+# Первое изменение: 25.11.2026, последнее изменение: 25.11.2026
+# Статус доступа: общедоступный
+set -euo pipefail
+arguments=(--target=aarch64-alpine-linux-musl --sysroot="${QMI_SYSROOT:?}"
+	--gcc-install-dir="${QMI_GCC_DIR:?}" -I"${QMI_EXTRA_HEADERS:?}")
+link=true
+for argument do
+	case "$argument" in
+		-c|-E|-S) link=false ;;
+	esac
+done
+if $link; then
+	arguments+=(--ld-path="${QMI_LLD:?}" -static -Wl,--image-base=0x10000000,-z,max-page-size=4096)
+fi
+exec "${QMI_CLANG:-clang}" "${arguments[@]}" "$@"

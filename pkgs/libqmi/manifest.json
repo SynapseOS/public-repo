@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "name": "libqmi",
+  "version": "1.38.0-r1",
+  "description": "Full QMI modem library and qmicli with QRTR support",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "glib-gio >= 2.84.4-r4",
+    "qrtr-glib >= 1.4.0-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/qmicli",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    }
+  ]
+}

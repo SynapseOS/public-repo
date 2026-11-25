@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "libffi",
-  "version": "3.8.0-r1",
+  "version": "3.8.0-r2",
   "description": "Foreign function interface library for GObject",
   "kind": "library",
   "arch": "x86_64",

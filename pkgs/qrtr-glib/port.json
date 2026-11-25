@@ -1,0 +1,10 @@
+{
+  "name": "qrtr-glib",
+  "version": "1.4.0-r1",
+  "source": "https://codeload.github.com/linux-mobile-broadband/libqrtr-glib/tar.gz/refs/tags/1.4.0",
+  "sha256": "9e5f988c6005af347f6d0ac95c872e473c9c10c3ec3714ee0b73d896db7d5766",
+  "source_directory": "libqrtr-glib-1.4.0",
+  "license": "LGPL-2.1-or-later",
+  "patches": [],
+  "build_system": "recipe"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "libqmi",
+  "version": "1.38.0-r1",
+  "source": "https://codeload.github.com/linux-mobile-broadband/libqmi/tar.gz/refs/tags/1.38.0",
+  "sha256": "8ee3b3a9002f2b45c825deade85710db006e01674f5f9359d351c192cc926015",
+  "source_directory": "libqmi-1.38.0",
+  "license": "LGPL-2.1-or-later AND GPL-2.0-or-later",
+  "patches": [],
+  "build_system": "recipe"
+}

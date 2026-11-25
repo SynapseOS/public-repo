@@ -1,12 +1,18 @@
 # recipe.sh: собрать GObject и GIO отдельно от базового GLib
 # Автор: Елчинян Арен Артурович, 2026
-# Архитектура: x86_64, ABI: synapse-x86_64-v1
+# Архитектура: x86_64 / ARM64, ABI: synapse-x86_64-v1 / synapse-aarch64-v1
 # Описание: расширения GLib для зависимостей Flatpak
 # Подсистема: сборка пакетов
-# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Первое изменение: 25.10.2026, последнее изменение: 25.11.2026
 # Статус доступа: общедоступный
 
 prepare
+cpu=${TARGET_ARCH:-x86_64}
+if [[ $cpu == aarch64 ]]; then
+	compiler_headers=$("${ARM64_CC:-clang}" --print-resource-dir)/include
+else
+	compiler_headers=$(gcc -print-file-name=include)
+fi
 
 pcre="$BUILD_ROOT/pcre2/payload/usr"
 ffi="$BUILD_ROOT/libffi/payload/usr"
@@ -25,15 +31,15 @@ pkg-config = '/bin/false'
 
 [host_machine]
 system = 'linux'
-cpu_family = 'x86_64'
-cpu = 'x86_64'
+cpu_family = '$cpu'
+cpu = '$cpu'
 endian = 'little'
 
 [properties]
 needs_exe_wrapper = true
 
 [built-in options]
-c_args = ['-O2', '-D__synapse__', '-isystem', '$(gcc -print-file-name=include)', '-I$pcre/include', '-I$ffi/include', '-I$zlib/include']
+c_args = ['-O2', '-D__synapse__', '-isystem', '$compiler_headers', '-I$pcre/include', '-I$ffi/include', '-I$zlib/include']
 c_link_args = ['-static', '-L$pcre/lib', '-L$ffi/lib', '-L$zlib/lib']
 CROSS
 

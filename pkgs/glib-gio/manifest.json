@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "glib-gio",
-  "version": "2.84.4-r3",
+  "version": "2.84.4-r4",
   "description": "GObject and GIO static libraries for Flatpak dependencies",
   "kind": "library",
   "arch": "x86_64",

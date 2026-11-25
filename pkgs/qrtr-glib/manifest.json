@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "name": "qrtr-glib",
+  "version": "1.4.0-r1",
+  "description": "Static QRTR GLib library",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "glib-gio >= 2.84.4-r4"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/lib/libqrtr-glib.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
