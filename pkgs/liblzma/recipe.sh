@@ -1,17 +1,20 @@
 # recipe.sh: собрать статическую liblzma из исходника XZ
 # Автор: Елчинян Арен Артурович, 2026
-# Архитектура: x86_64, ABI: synapse-x86_64-v1
+# Архитектура: x86_64 и AArch64, ABI: musl
 # Описание: библиотека сжатия для OSTree
 # Подсистема: сборка пакетов
-# Первое изменение: 25.10.2026, последнее изменение: 25.10.2026
+# Первое изменение: 25.10.2026, последнее изменение: 25.11.2026
 # Статус доступа: общедоступный
 
 prepare
+CC=${LZMA_CC:-$CC}
+host=${TARGET_ARCH:-x86_64}-linux-musl
+build_triple=$(gcc -dumpmachine)
 
 (
 	cd "$source"
 	CC="$CC" CFLAGS='-O2 -Werror -fPIC' CPPFLAGS='-D__synapse__' \
-		./configure --build=x86_64-linux-gnu --host=x86_64-linux-musl \
+		./configure --build="$build_triple" --host="$host" \
 			--prefix=/usr --disable-shared --enable-static --enable-threads=no \
 			--disable-xz --disable-xzdec --disable-lzmadec --disable-lzmainfo \
 			--disable-scripts --disable-doc --disable-nls
