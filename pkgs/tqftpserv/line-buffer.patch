@@ -1,0 +1,18 @@
+--- a/tqftpserv.c
++++ b/tqftpserv.c
+@@ -921,8 +921,15 @@
+ 	fprintf(stderr, " -h\tPrint this usage info\n");
+ }
+ 
++// Строка диагностики должна покинуть stdio до следующего сетевого запроса
++static void tqftp_init_logging(void)
++{
++	setvbuf(stdout, NULL, _IOLBF, 0);
++}
++
+ int main(int argc, char **argv)
+ {
++	tqftp_init_logging();
+ 	struct tftp_client *client;
+ 	struct tftp_client *next;
+ 	struct sockaddr_qrtr sq;

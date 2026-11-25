@@ -1,11 +1,12 @@
 {
   "name": "tqftpserv",
-  "version": "1.1.1-r1",
+  "version": "1.1.1-r2",
   "source": "https://codeload.github.com/linux-msm/tqftpserv/tar.gz/eb4b9a04ff92d2753ededf32cc3b6ed287f6e29b",
   "sha256": "a8739ad1c8c8d159ed8f83fc3b20020d222557343a634e0308fc535f80dcaaf7",
   "source_directory": "tqftpserv-eb4b9a04ff92d2753ededf32cc3b6ed287f6e29b",
   "patches": [
-    "size-types.patch"
+    "size-types.patch",
+    "line-buffer.patch"
   ],
   "license": "BSD-3-Clause",
   "build_system": "recipe"
