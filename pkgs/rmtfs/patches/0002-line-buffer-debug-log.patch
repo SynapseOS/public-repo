@@ -1,0 +1,27 @@
+--- a/rmtfs.c
++++ b/rmtfs.c
+@@ -508,6 +508,12 @@
+ 	sig_int_count++;
+ }
+ 
++/* Keep the final completed request visible in private logs while the daemon stays alive. */
++static int rmtfs_init_logging(void)
++{
++	return setvbuf(stdout, NULL, _IOLBF, 0);
++}
++
+ int main(int argc, char **argv)
+ {
+ 	struct sigaction action;
+@@ -518,6 +524,11 @@
+ 	int option;
+ 	const char *storage_root = "/etc/phone-nv";
+ 
++	if (rmtfs_init_logging()) {
++		fprintf(stderr, "RMTFS: failed to configure private diagnostic logging\n");
++		return EXIT_FAILURE;
++	}
++
+ 	while ((option = getopt(argc, argv, "o:S:Prsv")) != -1) {
+ 		switch (option) {
+ 		/*

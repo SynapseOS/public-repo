@@ -8,6 +8,8 @@ Maintained patch ограничивает хранилище private RAM shadow 
 
 Запуск в отдельном QRTR boot profile: `rmtfs -r -o /etc/phone-nv`
 `-r` включён также по умолчанию, изменения существуют только в RAM shadow
+`-v` пишет операции/числовые результаты; stdout line-buffered с начала main,
+поэтому последняя завершённая операция видна в private файле без остановки daemon
 Разрешены только `modem_fs1`, `modem_fs2`, `modem_fsg`, `modem_fsc`
 Каждый файл должен быть обычным, ненулевым, не более16MiB, суммарные RAM shadows не более64MiB
 `-P`, `-s`, другие каталоги и неизвестные имена отвергаются
