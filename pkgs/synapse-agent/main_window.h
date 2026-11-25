@@ -26,6 +26,7 @@ public:
 
 private:
     void onSend();
+    void onSwarm();
     void onSettings();
     void onClear();
     void updateProvider();

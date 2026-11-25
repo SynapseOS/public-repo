@@ -71,15 +71,15 @@ static QByteArray waitForReply(QNetworkReply* reply, int timeoutMs, QString& out
         return result;
     }
 
-    if (reply->error() != QNetworkReply::NoError) {
-        outError = reply->errorString();
+    int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (status >= 400) {
+        outError = "HTTP " + QString::number(status);
         reply->deleteLater();
         return result;
     }
 
-    int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    if (status >= 400) {
-        outError = "HTTP " + QString::number(status);
+    if (reply->error() != QNetworkReply::NoError) {
+        outError = reply->errorString();
         reply->deleteLater();
         return result;
     }
@@ -189,12 +189,12 @@ static QString readSSEStream(QNetworkReply* reply, int timeoutMs,
     if (!finished && !reply->isFinished()) {
         reply->abort();
     }
-    if (outError.isEmpty() && reply->error() != QNetworkReply::NoError) {
-        outError = reply->errorString();
-    }
     int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     if (outError.isEmpty() && status >= 400) {
         outError = "HTTP " + QString::number(status);
+    }
+    if (outError.isEmpty() && reply->error() != QNetworkReply::NoError) {
+        outError = reply->errorString();
     }
 
     reply->deleteLater();
@@ -206,19 +206,20 @@ static QJsonArray formatOpenAIMessages(const std::vector<Message>& messages) {
     QJsonArray msgs;
     for (const auto& msg : messages) {
         QJsonObject obj;
-        obj.insert("role", msg.role);
-        if (!msg.toolCallId.isEmpty()) {
-            obj.insert("name", msg.toolCallId);
-        }
+        const bool toolResult = msg.role == "tool";
+        obj.insert("role", toolResult ? "user" : msg.role);
+        const QString content = toolResult
+            ? "Результат инструмента " + msg.toolCallId + ":\n" + msg.content
+            : msg.content;
 
         if (msg.attachments.empty()) {
-            obj.insert("content", msg.content);
+            obj.insert("content", content);
         } else {
             // Мультимодальный формат: массив из текста и изображений
             QJsonArray contentArr;
             QJsonObject textPart;
             textPart.insert("type", "text");
-            textPart.insert("text", msg.content);
+            textPart.insert("text", content);
             contentArr.append(textPart);
 
             for (const auto& att : msg.attachments) {
@@ -257,14 +258,17 @@ static QJsonArray formatAnthropicMessages(const std::vector<Message>& messages, 
             role = "user";
         }
         obj.insert("role", role);
+        const QString content = msg.role == "tool"
+            ? "Результат инструмента " + msg.toolCallId + ":\n" + msg.content
+            : msg.content;
 
         if (msg.attachments.empty()) {
-            obj.insert("content", msg.content);
+            obj.insert("content", content);
         } else {
             QJsonArray contentArr;
             QJsonObject textPart;
             textPart.insert("type", "text");
-            textPart.insert("text", msg.content);
+            textPart.insert("text", content);
             contentArr.append(textPart);
 
             for (const auto& att : msg.attachments) {
@@ -457,8 +461,87 @@ public:
     }
 };
 
+// Переключать настроенные модели после лимита или недоступности модели
+class AutoProvider : public AIProvider {
+public:
+    AutoProvider(const ProviderConfig& config, QNetworkAccessManager* net)
+        : AIProvider(config, net) {
+        for (const QString& model : config.autoModels) {
+            QString name = model.trimmed();
+            if (!name.isEmpty() && name != "auto" && !m_models.contains(name)) {
+                m_models.append(name);
+            }
+        }
+    }
+
+    bool supportsVision() const override {
+        return false;
+    }
+
+    QString chat(const std::vector<Message>& messages, QString& outError) override {
+        return tryModels(messages, {}, outError, false);
+    }
+
+    QString chatStream(const std::vector<Message>& messages, const StreamCallback& onChunk,
+                       QString& outError) override {
+        return tryModels(messages, onChunk, outError, true);
+    }
+
+private:
+    // Выполнить запрос по очереди через доступные модели
+    QString tryModels(const std::vector<Message>& messages, const StreamCallback& onChunk,
+                      QString& outError, bool streaming) {
+        if (m_models.isEmpty()) {
+            outError = "Для auto укажите модели в настройках";
+            return QString();
+        }
+
+        const int attempts = qMin(static_cast<int>(m_models.size()), 8);
+        for (int attempt = 0; attempt < attempts; ++attempt) {
+            int index = (m_current + attempt) % m_models.size();
+            ProviderConfig selected = m_config;
+            selected.model = m_models.at(index);
+            auto provider = createProvider(selected, m_network);
+            QString error;
+            QString response;
+            if (streaming) {
+                response = provider->chatStream(messages, {}, error);
+            } else {
+                response = provider->chat(messages, error);
+            }
+
+            if (error.isEmpty()) {
+                m_current = index;
+                outError.clear();
+                if (streaming && onChunk && !response.isEmpty()) {
+                    onChunk(response);
+                }
+                return response;
+            }
+
+            outError = error;
+            bool limited = error.startsWith("HTTP 400") || error.startsWith("HTTP 402") ||
+                error.startsWith("HTTP 403") ||
+                error.startsWith("HTTP 404") || error.startsWith("HTTP 429") ||
+                error.startsWith("HTTP 503");
+            if (!limited || !response.isEmpty()) {
+                return QString();
+            }
+        }
+
+        outError = "Все модели auto недоступны: " + outError;
+        return QString();
+    }
+
+    QStringList m_models;
+    int m_current = 0;
+};
+
 std::unique_ptr<AIProvider> createProvider(const ProviderConfig& config,
                                           QNetworkAccessManager* net) {
+    if (config.model == "auto") {
+        return std::make_unique<AutoProvider>(config, net);
+    }
     if (config.type == "anthropic") {
         return std::make_unique<AnthropicProvider>(config, net);
     }

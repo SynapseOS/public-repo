@@ -16,6 +16,7 @@
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QString>
+#include <QStringList>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -27,6 +28,7 @@ struct ProviderConfig {
     QString apiKey;
     QString baseUrl;
     QString model;
+    QStringList autoModels;
 };
 
 // Вложение к сообщению (изображение и тд)

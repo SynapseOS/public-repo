@@ -94,6 +94,60 @@ QString permissionCategory(const QString& name) {
     return QString();
 }
 
+// Показывать текст сразу, но скрывать служебные блоки вызова инструментов
+class VisibleStream {
+public:
+    explicit VisibleStream(const StreamCallback& callback) : m_callback(callback) {}
+
+    void add(const QString& chunk) {
+        m_pending += chunk;
+        drain(false);
+    }
+
+    void finish() {
+        drain(true);
+    }
+
+private:
+    void drain(bool flush) {
+        while (!m_pending.isEmpty()) {
+            if (m_insideTool) {
+                const int end = m_pending.indexOf("</tool>");
+                if (end < 0) {
+                    m_pending = flush ? QString() : m_pending.right(6);
+                    return;
+                }
+                m_pending.remove(0, end + 7);
+                m_insideTool = false;
+                continue;
+            }
+
+            const int begin = m_pending.indexOf("<tool>");
+            if (begin >= 0) {
+                sendVisible(m_pending.left(begin));
+                m_pending.remove(0, begin + 6);
+                m_insideTool = true;
+                continue;
+            }
+
+            const int count = flush ? m_pending.size() : qMax(0, m_pending.size() - 5);
+            sendVisible(m_pending.left(count));
+            m_pending.remove(0, count);
+            return;
+        }
+    }
+
+    void sendVisible(const QString& text) {
+        if (m_callback && !text.isEmpty()) {
+            m_callback(text);
+        }
+    }
+
+    StreamCallback m_callback;
+    QString m_pending;
+    bool m_insideTool = false;
+};
+
 } // namespace
 
 ChatAgent::ChatAgent(std::unique_ptr<AIProvider> provider)
@@ -235,6 +289,11 @@ ChatAgent::ChatAgent(std::unique_ptr<AIProvider> provider)
     };
 }
 
+// Обновить модель и оставить накопленный контекст
+void ChatAgent::setProvider(std::unique_ptr<AIProvider> provider) {
+    m_provider = std::move(provider);
+}
+
 void ChatAgent::setTools(OSTools* tools) {
     m_tools = tools;
 }
@@ -250,12 +309,16 @@ void ChatAgent::setPermissionCallback(const PermissionCallback& cb) {
 QString ChatAgent::buildSystemPrompt() const {
     QString prompt;
     prompt += "Ты ассистент операционной системы SynapseOS. ";
+    prompt += "Отвечай на языке последнего сообщения пользователя, если он не попросил другой язык. ";
     prompt += "Ты можешь работать с файлами, терминалом, сетью, пакетами и настройками системы. ";
     prompt += "Для каждого инструмента пользователь задаёт разрешение и может отклонить запрос. ";
     prompt += "Для вызова инструмента используй блок <tool>{...}</tool>. ";
     prompt += "Формат: <tool>{\"name\": \"run_shell\", \"arguments\": {\"command\": \"ls -la\"}}</tool>. ";
     prompt += "Можно вызывать несколько инструментов в одном ответе. ";
-    prompt += "После получения результата сформируй итоговый ответ для пользователя.\n\n";
+    prompt += "После результата можно вызвать следующие инструменты. ";
+    prompt += "Называй проверенным только вызов, для которого получен результат. ";
+    prompt += "Пустой ответ или ошибку отмечай как непроверенный либо неуспешный вызов. ";
+    prompt += "В итоговом ответе не показывай блоки <tool>.\n\n";
     prompt += "Доступные инструменты:\n";
 
     for (const auto& tool : m_toolDescriptions) {
@@ -285,52 +348,45 @@ QString ChatAgent::processUserMessage(const QString& userMessage, bool& ok) {
     m_history.push_back(userMsg);
     trimHistory();
 
-    QString error;
-    QString response = m_provider->chat(m_history, error);
-    if (!error.isEmpty()) {
-        ok = false;
-        return error;
-    }
+    int totalToolCalls = 0;
+    for (int round = 0; round <= 8; ++round) {
+        QString error;
+        const QString response = m_provider->chat(m_history, error);
+        if (!error.isEmpty()) {
+            ok = false;
+            return error;
+        }
 
-    auto toolCalls = parseToolCalls(response);
-    if (!toolCalls.empty()) {
-        Message assistantMsg;
-        assistantMsg.role = "assistant";
-        assistantMsg.content = stripToolCalls(response);
-        m_history.push_back(assistantMsg);
+        const auto toolCalls = parseToolCalls(response);
+        if (toolCalls.empty()) {
+            const QString answer = stripToolCalls(response);
+            m_history.push_back({"assistant", answer, {}, {}});
+            trimHistory();
+            ok = true;
+            return answer;
+        }
+        if (round == 8 || totalToolCalls + static_cast<int>(toolCalls.size()) > 32) {
+            ok = false;
+            return "Достигнут предел вызовов инструментов в одном запросе";
+        }
+        totalToolCalls += static_cast<int>(toolCalls.size());
+        m_history.push_back({"assistant", stripToolCalls(response), {}, {}});
 
         for (const auto& call : toolCalls) {
-            QString result = executeTool(call.first, call.second);
             Message toolMsg;
             toolMsg.role = "tool";
-            toolMsg.content = result;
+            toolMsg.content = executeTool(call.first, call.second);
             toolMsg.toolCallId = call.first;
-
-            // Прикрепить скриншот к результату инструмента
             if (m_hasPendingAttachment) {
                 toolMsg.attachments.push_back(m_pendingAttachment);
                 m_pendingAttachment = Attachment();
                 m_hasPendingAttachment = false;
             }
-
             m_history.push_back(toolMsg);
         }
-
-        response = m_provider->chat(m_history, error);
-        if (!error.isEmpty()) {
-            ok = false;
-            return error;
-        }
     }
-
-    Message finalMsg;
-    finalMsg.role = "assistant";
-    finalMsg.content = response;
-    m_history.push_back(finalMsg);
-    trimHistory();
-
-    ok = true;
-    return stripToolCalls(response);
+    ok = false;
+    return "Достигнут предел вызовов инструментов в одном запросе";
 }
 
 QString ChatAgent::processUserMessageStream(const QString& userMessage,
@@ -354,53 +410,48 @@ QString ChatAgent::processUserMessageStream(const QString& userMessage,
     m_history.push_back(userMsg);
     trimHistory();
 
-    QString error;
-    QString response = m_provider->chatStream(m_history, onChunk, error);
-    if (!error.isEmpty()) {
-        ok = false;
-        return error;
-    }
+    int totalToolCalls = 0;
+    for (int round = 0; round <= 8; ++round) {
+        QString error;
+        VisibleStream visible(onChunk);
+        const QString response = m_provider->chatStream(m_history,
+            [&](const QString& chunk) { visible.add(chunk); }, error);
+        visible.finish();
+        if (!error.isEmpty()) {
+            ok = false;
+            return error;
+        }
 
-    auto toolCalls = parseToolCalls(response);
-    if (!toolCalls.empty()) {
-        Message assistantMsg;
-        assistantMsg.role = "assistant";
-        assistantMsg.content = stripToolCalls(response);
-        m_history.push_back(assistantMsg);
+        const auto toolCalls = parseToolCalls(response);
+        if (toolCalls.empty()) {
+            const QString answer = stripToolCalls(response);
+            m_history.push_back({"assistant", answer, {}, {}});
+            trimHistory();
+            ok = true;
+            return answer;
+        }
+        if (round == 8 || totalToolCalls + static_cast<int>(toolCalls.size()) > 32) {
+            ok = false;
+            return "Достигнут предел вызовов инструментов в одном запросе";
+        }
+        totalToolCalls += static_cast<int>(toolCalls.size());
+        m_history.push_back({"assistant", stripToolCalls(response), {}, {}});
 
         for (const auto& call : toolCalls) {
-            QString result = executeTool(call.first, call.second);
             Message toolMsg;
             toolMsg.role = "tool";
-            toolMsg.content = result;
+            toolMsg.content = executeTool(call.first, call.second);
             toolMsg.toolCallId = call.first;
-
-            // Прикрепить скриншот к результату инструмента
             if (m_hasPendingAttachment) {
                 toolMsg.attachments.push_back(m_pendingAttachment);
                 m_pendingAttachment = Attachment();
                 m_hasPendingAttachment = false;
             }
-
             m_history.push_back(toolMsg);
         }
-
-        // Второй запрос тоже со стримингом
-        response = m_provider->chatStream(m_history, onChunk, error);
-        if (!error.isEmpty()) {
-            ok = false;
-            return error;
-        }
     }
-
-    Message finalMsg;
-    finalMsg.role = "assistant";
-    finalMsg.content = response;
-    m_history.push_back(finalMsg);
-    trimHistory();
-
-    ok = true;
-    return stripToolCalls(response);
+    ok = false;
+    return "Достигнут предел вызовов инструментов в одном запросе";
 }
 
 void ChatAgent::clearHistory() {
@@ -654,7 +705,8 @@ QString ChatAgent::executeTool(const QString& name, const QJsonObject& arguments
 
     if (name == "network_info") {
         QJsonObject info = m_tools->networkInfo();
-        return QString::fromUtf8(QJsonDocument(info).toJson());
+        return info.isEmpty() ? "Не удалось получить сведения о сети"
+                              : QString::fromUtf8(QJsonDocument(info).toJson());
     }
 
     if (name == "ping_host") {
@@ -679,7 +731,8 @@ QString ChatAgent::executeTool(const QString& name, const QJsonObject& arguments
 
     if (name == "memory_info") {
         QJsonObject info = m_tools->memoryInfo();
-        return QString::fromUtf8(QJsonDocument(info).toJson());
+        return info.isEmpty() ? "Не удалось прочитать сведения о памяти"
+                              : QString::fromUtf8(QJsonDocument(info).toJson());
     }
 
     if (name == "take_screenshot") {

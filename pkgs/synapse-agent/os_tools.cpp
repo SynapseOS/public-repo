@@ -89,6 +89,9 @@ bool OSTools::writeFile(const QString& path, const QString& content) {
 }
 
 QString OSTools::listDirectory(const QString& path) {
+    if (path.isEmpty()) {
+        return "Укажите путь к каталогу";
+    }
     QDir dir(path);
     if (!dir.exists()) {
         return "Каталог не найден";
@@ -105,7 +108,7 @@ QString OSTools::listDirectory(const QString& path) {
         result.append(prefix + QString::number(info.permissions(), 16) + size + " " + info.fileName());
     }
 
-    return result.join("\n");
+    return result.isEmpty() ? "Каталог пуст" : result.join("\n");
 }
 
 QJsonObject OSTools::systemInfo() {
@@ -352,6 +355,11 @@ QJsonObject OSTools::networkInfo() {
     ShellResult ipResult = runShell("ip -brief addr 2>/dev/null || ifconfig 2>/dev/null");
     if (!ipResult.stdoutText.isEmpty()) {
         info.insert("interfaces", ipResult.stdoutText.trimmed());
+    } else {
+        QFile devices("/proc/net/dev");
+        if (devices.open(QIODevice::ReadOnly)) {
+            info.insert("interfaces", QString::fromUtf8(devices.readAll()).trimmed());
+        }
     }
 
     // DNS из /etc/settings.ini
@@ -382,9 +390,13 @@ QJsonObject OSTools::networkInfo() {
 }
 
 QString OSTools::pingHost(const QString& host, int count) {
+    const QRegularExpression safeHost("^[A-Za-z0-9][A-Za-z0-9.-]*$");
+    if (!safeHost.match(host).hasMatch()) {
+        return "Укажите корректное имя хоста или IPv4-адрес";
+    }
     int c = (count > 0 && count <= 10) ? count : 4;
     QProcess process;
-    process.start("/bin/ping", {"-c", QString::number(c), "-W", "5", "--", host});
+    process.start("/bin/ping", {"-c", QString::number(c), "-W", "5", host});
     if (!process.waitForStarted(5000) || !process.waitForFinished(30000)) {
         process.kill();
         process.waitForFinished(1000);
@@ -453,11 +465,9 @@ QJsonObject OSTools::memoryInfo() {
         return info;
     }
 
-    QTextStream stream(&meminfo);
     QRegularExpression regex("^(\\S+):\\s+(\\d+)");
-
-    while (!stream.atEnd()) {
-        QString line = stream.readLine();
+    const QStringList lines = QString::fromUtf8(meminfo.readAll()).split('\n');
+    for (const QString& line : lines) {
         QRegularExpressionMatch match = regex.match(line);
         if (match.hasMatch()) {
             QString key = match.captured(1);
@@ -472,6 +482,11 @@ QJsonObject OSTools::memoryInfo() {
 ScreenshotResult OSTools::takeScreenshot(const QString& windowTitle) {
     ScreenshotResult result;
     result.ok = false;
+
+    if (!QGuiApplication::instance()) {
+        result.error = "Снимки экрана доступны только в графическом режиме";
+        return result;
+    }
 
     QPixmap pixmap;
 

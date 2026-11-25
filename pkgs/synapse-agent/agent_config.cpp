@@ -33,6 +33,7 @@ std::vector<ProviderConfig> defaultProviders() {
     openai.type = "openai";
     openai.baseUrl = "https://api.openai.com/v1";
     openai.model = "gpt-4o";
+    openai.autoModels = {openai.model};
     list.push_back(openai);
 
     ProviderConfig kimi;
@@ -40,6 +41,7 @@ std::vector<ProviderConfig> defaultProviders() {
     kimi.type = "openai";
     kimi.baseUrl = "https://api.moonshot.cn/v1";
     kimi.model = "moonshot-v1-8k";
+    kimi.autoModels = {kimi.model};
     list.push_back(kimi);
 
     ProviderConfig alibaba;
@@ -47,6 +49,7 @@ std::vector<ProviderConfig> defaultProviders() {
     alibaba.type = "openai";
     alibaba.baseUrl = "https://eu-central-1.maas.qwencloudapi.com/compatible-mode/v1";
     alibaba.model = "qwen-plus";
+    alibaba.autoModels = {alibaba.model};
     list.push_back(alibaba);
 
     ProviderConfig gemini;
@@ -54,6 +57,7 @@ std::vector<ProviderConfig> defaultProviders() {
     gemini.type = "openai";
     gemini.baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai";
     gemini.model = "gemini-3-flash";
+    gemini.autoModels = {gemini.model};
     list.push_back(gemini);
 
     ProviderConfig deepseek;
@@ -61,6 +65,7 @@ std::vector<ProviderConfig> defaultProviders() {
     deepseek.type = "openai";
     deepseek.baseUrl = "https://api.deepseek.com";
     deepseek.model = "deepseek-chat";
+    deepseek.autoModels = {deepseek.model};
     list.push_back(deepseek);
 
     ProviderConfig claude;
@@ -68,6 +73,7 @@ std::vector<ProviderConfig> defaultProviders() {
     claude.type = "anthropic";
     claude.baseUrl = "https://api.anthropic.com";
     claude.model = "claude-3-5-sonnet-20241022";
+    claude.autoModels = {claude.model};
     list.push_back(claude);
 
     return list;
@@ -186,6 +192,11 @@ QJsonObject AgentConfig::toJson() const {
         obj.insert("api_key", p.apiKey);
         obj.insert("base_url", p.baseUrl);
         obj.insert("model", p.model);
+        QJsonArray autoModels;
+        for (const QString& model : p.autoModels) {
+            autoModels.append(model);
+        }
+        obj.insert("auto_models", autoModels);
         arr.append(obj);
     }
 
@@ -214,6 +225,14 @@ void AgentConfig::fromJson(const QJsonObject& obj) {
         cfg.apiKey = p.value("api_key").toString();
         cfg.baseUrl = p.value("base_url").toString();
         cfg.model = p.value("model").toString();
+        for (const QJsonValue& model : p.value("auto_models").toArray()) {
+            if (model.isString() && !model.toString().trimmed().isEmpty()) {
+                cfg.autoModels.append(model.toString().trimmed());
+            }
+        }
+        if (cfg.autoModels.isEmpty() && cfg.model != "auto" && !cfg.model.isEmpty()) {
+            cfg.autoModels.append(cfg.model);
+        }
         m_providers.push_back(cfg);
     }
 

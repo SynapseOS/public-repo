@@ -37,6 +37,9 @@ struct ChatAgent {
 public:
     explicit ChatAgent(std::unique_ptr<AIProvider> provider);
 
+    // Сменить провайдера без удаления разговора
+    void setProvider(std::unique_ptr<AIProvider> provider);
+
     // Установить инструменты для агента
     void setTools(OSTools* tools);
 

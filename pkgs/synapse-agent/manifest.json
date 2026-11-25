@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "synapse-agent",
-  "version": "0.1.0-r4",
+  "version": "0.1.0-r13",
   "description": "Агентская среда SynapseOS с поддержкой провайдеров ИИ",
   "kind": "application",
   "arch": "x86_64",
