@@ -1,0 +1,431 @@
+--- a/pd-mapper.c
++++ b/pd-mapper.c
+@@ -53,15 +53,16 @@
+ };
+ 
+ static struct pd_map *pd_maps;
++static int num_pd_maps;
+ 
+ static void handle_get_domain_list(int sock, const struct qrtr_packet *pkt)
+ {
+ 	struct servreg_loc_get_domain_list_resp resp = {};
+ 	struct servreg_loc_get_domain_list_req req = {};
+ 	struct servreg_loc_domain_list_entry *entry;
+-	DEFINE_QRTR_PACKET(resp_buf, 256);
++	DEFINE_QRTR_PACKET(resp_buf, 8192);
+ 	const struct pd_map *pd_map = pd_maps;
+-	unsigned int txn;
++	unsigned int txn = 0;
+ 	ssize_t len;
+ 	int ret;
+ 
+@@ -80,15 +81,17 @@
+ 	resp.db_revision_valid = 1;
+ 	resp.db_revision = 1;
+ 
+-	while (pd_map->service) {
++	uint32_t matching = 0;
++	while (pd_map && pd_map->service) {
+ 		if (!strcmp(pd_map->service, req.name)) {
+-			entry = &resp.domain_list[resp.domain_list_len++];
+-
+-			strcpy(entry->name, pd_map->domain);
+-			entry->name_len = strlen(pd_map->domain);
+-			entry->instance_id = pd_map->instance;
++			if ((!req.offset_valid || matching >= req.offset) && resp.domain_list_len < 16) {
++				entry = &resp.domain_list[resp.domain_list_len++];
++				strcpy(entry->name, pd_map->domain);
++				entry->name_len = strlen(pd_map->domain);
++				entry->instance_id = pd_map->instance;
++			}
++			++matching;
+ 		}
+-
+ 		pd_map++;
+ 	}
+ 
+@@ -96,7 +99,7 @@
+ 		resp.domain_list_valid = 1;
+ 
+ 	resp.total_domains_valid = 1;
+-	resp.total_domains = resp.domain_list_len;
++	resp.total_domains = matching;
+ 
+ respond:
+ 	len = qmi_encode_message(&resp_buf,
+@@ -121,7 +124,6 @@
+ 
+ static int pd_load_map(const char *file)
+ {
+-	static int num_pd_maps;
+ 	struct json_value *sr_service;
+ 	struct json_value *sr_domain;
+ 	struct json_value *root;
+@@ -146,23 +148,40 @@
+ 	domain = json_get_string(sr_domain, "domain");
+ 	subdomain = json_get_string(sr_domain, "subdomain");
+ 	ret = json_get_number(sr_domain, "qmi_instance_id", &number);
+-	if (ret)
++	if (ret) {
++		json_free(root);
+ 		return ret;
++	}
+ 
+-	if (!soc || !domain || !subdomain) {
++	if (!soc || !domain || !subdomain || number < 0 || number > INT_MAX || number != (int)number ||
++	    strlen(soc) + strlen(domain) + strlen(subdomain) + 2 > 255) {
+ 		fprintf(stderr, "failed to parse sr_domain\n");
++		json_free(root);
+ 		return -1;
+ 	}
+ 
+ 	sr_service = json_get_child(root, "sr_service");
+ 	count = json_count_children(sr_service);
+-	if (count < 0)
+-		return count;
++	if (count < 0 || count > 512 - num_pd_maps) {
++		json_free(root);
++		return -1;
++	}
++	for (it = sr_service->u.value; it; it = it->next) {
++		provider = json_get_string(it, "provider");
++		service = json_get_string(it, "service");
++		if (!provider || !service || strlen(provider) + strlen(service) + 1 > 255) {
++			json_free(root);
++			return -1;
++		}
++	}
+ 
+ 	newp = realloc(pd_maps, (num_pd_maps + count + 1) * sizeof(*newp));
+-	if (!newp)
++	if (!newp) {
++		json_free(root);
+ 		return -1;
++	}
+ 	pd_maps = newp;
++	pd_maps[num_pd_maps].service = NULL;
+ 
+ 	for (it = sr_service->u.value; it; it = it->next) {
+ 		provider = json_get_string(it, "provider");
+@@ -175,15 +194,19 @@
+ 			return -1;
+ 		}
+ 
+-		map = &pd_maps[num_pd_maps++];
++		map = &pd_maps[num_pd_maps];
+ 
+ 		map->service = malloc(strlen(provider) + strlen(service) + 2);
++		if (!map->service) { json_free(root); return -1; }
+ 		sprintf((char *)map->service, "%s/%s", provider, service);
+ 
+ 		map->domain = malloc(strlen(soc) + strlen(domain) + strlen(subdomain) + 3);
++		if (!map->domain) { free((void *)map->service); map->service = NULL; json_free(root); return -1; }
+ 		sprintf((char *)map->domain, "%s/%s/%s", soc, domain, subdomain);
+ 
+ 		map->instance = number;
++		++num_pd_maps;
++		pd_maps[num_pd_maps].service = NULL;
+ 	}
+ 
+ 	pd_maps[num_pd_maps].service = NULL;
+@@ -193,6 +216,9 @@
+ 	return 0;
+ }
+ 
++#ifdef SYNAPSE_PD_MAPPER
++#include "synapse-enumerate.c"
++#else
+ static int concat_path(char *base_path, char *firmware_path, char *path, size_t path_len)
+ {
+ 	if (strlen(base_path) + 1 + strlen(firmware_path) + 1 >= path_len) {
+@@ -372,6 +398,8 @@
+ 	return 0;
+ }
+ 
++#endif
++
+ static int pd_load_maps(void)
+ {
+ 	struct assoc json_set;
+@@ -381,7 +409,8 @@
+ 
+ 	assoc_init(&json_set, 20);
+ 
+-	pd_enumerate_jsons(&json_set);
++	ret = pd_enumerate_jsons(&json_set);
++	if (ret) { assoc_destroy(&json_set); return ret; }
+ 
+ 	assoc_foreach(jsn, NULL, &json_set, it) {
+ 		ret = pd_load_map(jsn);
+--- a/servreg_loc.c
++++ b/servreg_loc.c
+@@ -125,7 +125,7 @@
+ 	},
+ 	{
+ 		.data_type = QMI_STRUCT,
+-		.elem_len = 255,
++		.elem_len = 16,
+ 		.elem_size = sizeof(struct servreg_loc_domain_list_entry),
+ 		.array_type = VAR_LEN_ARRAY,
+ 		.tlv_type = 18,
+--- a/servreg_loc.h
++++ b/servreg_loc.h
+@@ -45,7 +45,7 @@
+ 	uint16_t db_revision;
+ 	bool domain_list_valid;
+ 	uint32_t domain_list_len;
+-	struct servreg_loc_domain_list_entry domain_list[255];
++	struct servreg_loc_domain_list_entry domain_list[16];
+ };
+ 
+ struct servreg_loc_pfr_req {
+--- a/json.c
++++ b/json.c
+@@ -43,6 +43,7 @@
+ static const char *input_buf;
+ static int input_pos;
+ static int input_len;
++static unsigned parse_depth;
+ 
+ static int json_parse_array(struct json_value *array);
+ static int json_parse_object(struct json_value *object);
+@@ -53,12 +54,12 @@
+ 	if (input_pos >= input_len)
+ 		return 0;
+ 
+-	return input_buf[input_pos++];
++	return (unsigned char)input_buf[input_pos++];
+ }
+ 
+ static void unput(void)
+ {
+-	input_pos--;
++	if (input_pos > 0) input_pos--;
+ }
+ 
+ static void json_skip_whitespace(void)
+@@ -86,7 +87,7 @@
+ 		*b++ = ch;
+ 	*b = '\0';
+ 
+-	if (!ch)
++	if (ch != '"')
+ 		return -1;
+ 
+ 	value->type = JSON_TYPE_STRING;
+@@ -150,6 +151,8 @@
+ 
+ static int json_parse_value(struct json_value *value)
+ {
++	if (parse_depth >= 32) return -1;
++	++parse_depth;
+ 	int ret;
+ 
+ 	json_skip_whitespace();
+@@ -175,9 +178,11 @@
+ 		goto out;
+ 
+ 	fprintf(stderr, "unable to match a value\n");
++	--parse_depth;
+ 	return -1;
+ 
+ out:
++	--parse_depth;
+ 	json_skip_whitespace();
+ 	return ret;
+ }
+@@ -196,6 +201,9 @@
+ 	}
+ 
+ 	array->type = JSON_TYPE_ARRAY;
++	json_skip_whitespace();
++	if (input() == ']') return 1;
++	unput();
+ 	do {
+ 		value = calloc(1, sizeof(*value));
+ 		if (!value)
+@@ -203,7 +211,7 @@
+ 
+ 		ret = json_parse_value(value);
+ 		if (ret <= 0) {
+-			free(value);
++			json_free(value);
+ 			return -1;
+ 		}
+ 
+@@ -239,6 +247,9 @@
+ 	}
+ 
+ 	object->type = JSON_TYPE_OBJECT;
++	json_skip_whitespace();
++	if (input() == '}') return 1;
++	unput();
+ 
+ 	do {
+ 		value = calloc(1, sizeof(*value));
+@@ -247,7 +258,7 @@
+ 
+ 		ret = json_parse_property(value);
+ 		if (ret <= 0) {
+-			free(value);
++			json_free(value);
+ 			return -1;
+ 		}
+ 
+@@ -300,6 +311,7 @@
+ 
+ 	input_buf = json;
+ 	input_pos = 0;
++	parse_depth = 0;
+ 	input_len = strlen(input_buf);
+ 
+ 	root = calloc(1, sizeof(*root));
+@@ -308,7 +320,7 @@
+ 
+ 	ret = json_parse_value(root);
+ 	if (ret != 1) {
+-		free(root);
++		json_free(root);
+ 		return NULL;
+ 	}
+ 
+@@ -327,7 +339,7 @@
+ 	if ((strlen(file) > 3) && !strcmp(&file[strlen(file)-3], ".xz"))
+ 	        fd = lzma_decomp(file);
+ 	else
+-	        fd = open(file, O_RDONLY);
++	        fd = open(file, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+ 
+ 	if (fd < 0) {
+ 		fprintf(stderr, "failed to open %s: %s\n", file, strerror(errno));
+@@ -335,12 +347,16 @@
+ 	}
+ 
+ 	ret = fstat(fd, &sb);
+-	if (ret < 0)
++	if (ret < 0 || !S_ISREG(sb.st_mode) || sb.st_size <= 0 || sb.st_size > 4 * 1024 * 1024) {
++		close(fd);
+ 		return NULL;
++	}
+ 
+ 	input_pos = 0;
++	parse_depth = 0;
+ 	input_len = sb.st_size;
+ 	input_buf = malloc(sb.st_size);
++	if (!input_buf) { close(fd); return NULL; }
+ 
+ 	ret = read(fd, (char *)input_buf, input_len);
+ 
+@@ -348,14 +364,17 @@
+ 
+ 	if (ret != input_len) {
+ 		fprintf(stderr, "failed to read %d bytes form %s\n", input_len, file);
++		free((void *)input_buf);
++		input_buf = NULL;
+ 		return NULL;
+ 	}
+ 
+ 	root = calloc(1, sizeof(*root));
+-	if (!root)
+-		return NULL;
++	if (!root) { free((void *)input_buf); input_buf = NULL; return NULL; }
+ 
+ 	ret = json_parse_value(root);
++	free((void *)input_buf);
++	input_buf = NULL;
+ 	if (ret != 1) {
+ 		json_free(root);
+ 		return NULL;
+@@ -368,7 +387,7 @@
+ {
+ 	struct json_value *it;
+ 
+-	if(object->type != JSON_TYPE_OBJECT)
++	if(!object || object->type != JSON_TYPE_OBJECT)
+ 		return NULL;
+ 
+ 	for (it = object->u.value; it; it = it->next) {
+--- a/lzma_decomp.c
++++ b/lzma_decomp.c
+@@ -19,6 +19,9 @@
+ #include <unistd.h>
+ #include <errno.h>
+ #include <lzma.h>
++#include <limits.h>
++#include <fcntl.h>
++#include <sys/stat.h>
+ 
+ 
+ static bool
+@@ -58,7 +61,7 @@
+ 	// /usr/include/lzma/container.h depending on the install prefix)
+ 	// for details.
+ 	lzma_ret ret = lzma_stream_decoder(
+-			strm, UINT64_MAX, LZMA_CONCATENATED);
++			strm, 96u * 1024u * 1024u, LZMA_CONCATENATED);
+ 
+ 	// Return successfully if the initialization went fine.
+ 	if (ret == LZMA_OK)
+@@ -113,6 +116,7 @@
+ 	// used, the decoder will stop after the first .xz stream. In that
+ 	// case some unused data may be left in strm->next_in.
+ 	lzma_action action = LZMA_RUN;
++	size_t total_output = 0;
+ 
+ 	uint8_t inbuf[BUFSIZ];
+ 	uint8_t outbuf[BUFSIZ];
+@@ -148,6 +152,8 @@
+ 		if (strm->avail_out == 0 || ret == LZMA_STREAM_END) {
+ 			size_t write_size = sizeof(outbuf) - strm->avail_out;
+ 
++			if (write_size > 4u * 1024u * 1024u - total_output) return false;
++			total_output += write_size;
+ 			if (write(outfile, outbuf, write_size) != write_size) {
+ 				fprintf(stderr, "Write error: %s\n",
+ 						strerror(errno));
+@@ -243,10 +249,13 @@
+ int lzma_decomp(const char *file)
+ {
+ 	int return_fd;
+-	char temp_file[sizeof(TEMP_TEMPLATE)];
++	char temp_file[PATH_MAX];
+ 	lzma_stream strm = LZMA_STREAM_INIT;
+ 
+-	strcpy(temp_file, TEMP_TEMPLATE);
++	const char *temporary = getenv("TMPDIR");
++	if (!temporary || !*temporary) temporary = "/tmp";
++	int length = snprintf(temp_file, sizeof(temp_file), "%s/pd-mapperXXXXXX", temporary);
++	if (length < 0 || (size_t)length >= sizeof(temp_file)) return -1;
+ 
+ 	return_fd = mkstemp(temp_file);
+ 	if (return_fd < 0)
+@@ -262,7 +271,9 @@
+ 		return -1;
+ 	}
+ 
+-	FILE *infile = fopen(file, "rb");
++	int input_fd = open(file, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
++	FILE *infile = input_fd < 0 ? NULL : fdopen(input_fd, "rb");
++	if (!infile && input_fd >= 0) close(input_fd);
+ 
+ 	if (infile == NULL) {
+ 	       fprintf(stderr, "%s: Error opening the input file: %s\n",
+--- a/assoc.c
++++ b/assoc.c
+@@ -92,7 +92,7 @@
+ 
+ 		for (i = 0; i < assoc->size; i++)
+ 			if (assoc->keys[i])
+-				assoc_set(&new_set, assoc->keys[i],
++				_assoc_set(&new_set, assoc->keys[i],
+ 					  assoc->values[i]);
+ 
+ 		free(assoc->keys);
+@@ -108,6 +108,7 @@
+ 	while (assoc->keys[hash]) {
+ 		if (!strcmp(assoc->keys[hash], key)) {
+ 			assoc->values[hash] = value;
++			free((void *)key);
+ 			return;
+ 		}
+ 
