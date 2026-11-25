@@ -1,0 +1,49 @@
+{
+  "format": 1,
+  "name": "libqrtr",
+  "version": "1.2.0-r1",
+  "description": "BSD libqrtr and local AF_QIPCRTR ABI probe",
+  "kind": "library",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "usr/lib/libqrtr.a",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/lib/pkgconfig/qrtr.pc",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/libqrtr.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/include/linux/qrtr.h",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/libqrtr/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "bin/qrtr-probe",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    }
+  ]
+}

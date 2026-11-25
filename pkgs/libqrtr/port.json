@@ -1,0 +1,10 @@
+{
+  "name": "libqrtr",
+  "version": "1.2.0-r1",
+  "source": "https://codeload.github.com/linux-msm/qrtr/tar.gz/29e36ae164389580a0f8ea7a7fdb728140ae978d",
+  "sha256": "66f846c447a0a0302e7dd9b5450c38945081100b04697bb9eb39994c45ddae4e",
+  "source_directory": "qrtr-29e36ae164389580a0f8ea7a7fdb728140ae978d",
+  "patches": [],
+  "license": "BSD-3-Clause",
+  "build_system": "recipe"
+}
