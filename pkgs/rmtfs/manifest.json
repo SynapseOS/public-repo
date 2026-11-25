@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "name": "rmtfs",
+  "version": "1.0.0-r1",
+  "description": "BSD RMTFS with private RAM shadow storage and scoped Synapse shared memory",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "libqrtr"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/rmtfs",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/rmtfs/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/doc/rmtfs/SYNAPSE.md",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}
