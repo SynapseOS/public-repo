@@ -69,7 +69,8 @@ failed:
 int64_t rmtfs_mem_alloc(struct rmtfs_mem *memory, size_t size) {
     if (!memory || size > memory->size) return -EINVAL;
     enum address_mode mode = size ? MODE_PHYSICAL : MODE_RELATIVE;
-    if (memory->mode != MODE_UNSET && memory->mode != mode) return -EINVAL;
+    // Factory rmt_storage_svc.c меняет общий namespace на каждом успешном ALLOC.
+    // Меняется только интерпретация адреса, диапазон mmap и проверки границ неизменны.
     memory->mode = mode;
     return (int64_t)memory->address;
 }

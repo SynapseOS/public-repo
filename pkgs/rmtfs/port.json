@@ -1,6 +1,6 @@
 {
   "name": "rmtfs",
-  "version": "1.0.0-r1",
+  "version": "1.0.0-r2",
   "source": "https://codeload.github.com/linux-msm/rmtfs/tar.gz/b30a3eb38f9af283f18dbd3c7755653efc52c094",
   "sha256": "058da51cac48b247c0e7494c02e4330916accbc92da29757b547a2faf78c4b27",
   "source_directory": "rmtfs-b30a3eb38f9af283f18dbd3c7755653efc52c094",

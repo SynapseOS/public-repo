@@ -18,7 +18,9 @@ PREPARE, GETINFO и mmap offset0 подтверждают ABI1, READY и guarded
 Публичный physical address берётся только из GETINFO
 ALLOC0 выбирает global relative offset namespace, ALLOC>0 — physical namespace
 Ответ ALLOC0 сохраняет physical base, как наблюдалось в native55
-Смена namespace после выбора запрещена, арифметика проверяется до копирования
+Каждый успешный ALLOC меняет общий namespace всех callers по factory rmt_storage протоколу
+Чрезмерный ALLOC не меняет режим; арифметика проверяется до копирования
+Один caller может ALLOC>0 переключить IOVEC другого caller из relative в physical, и ALLOC0 обратно
 Ядро сохраняет ownership общего буфера после выхода daemon до перезагрузки телефона
 
 Linux libudev, sysfs, UIO, remoteproc и `/dev/mem` в собранном бинарнике отсутствуют
