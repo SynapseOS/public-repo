@@ -7,7 +7,7 @@
     Реализация оркестратора диалога с инструментами, стримингом и контекстом
     Подсистема: пользовательские приложения
     Первое изменение: 24.11.2026
-    Последнее изменение: 24.11.2026
+    Последнее изменение: 25.11.2026
 */
 
 #include "chat_agent.h"
@@ -17,7 +17,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QTextStream>
+#include <sys/stat.h>
 
 namespace {
 
@@ -66,6 +68,30 @@ QJsonObject noParameters() {
     paramsObj.insert("properties", QJsonObject());
     paramsObj.insert("required", QJsonArray());
     return paramsObj;
+}
+
+// Выбрать группу доступа для инструмента
+QString permissionCategory(const QString& name) {
+    if (name == "run_shell") {
+        return "shell";
+    }
+    if (name == "write_file" || name == "set_setting" || name == "kill_process" ||
+        name == "package_install" || name == "set_cursor_theme") {
+        return "change";
+    }
+    if (name == "take_screenshot") {
+        return "screen";
+    }
+    if (name == "lan_send") {
+        return "lan";
+    }
+    if (name == "read_file" || name == "list_directory" || name == "get_setting" ||
+        name == "system_info" || name == "find_files" || name == "search_in_files" ||
+        name == "list_processes" || name == "network_info" || name == "ping_host" ||
+        name == "package_list" || name == "disk_usage" || name == "memory_info") {
+        return "read";
+    }
+    return QString();
 }
 
 } // namespace
@@ -196,10 +222,16 @@ ChatAgent::ChatAgent(std::unique_ptr<AIProvider> provider)
         makeParameters({{"theme", "Название темы курсора, например default или Adwaita"}},
                        {{"size", "Размер курсора в пикселях (по умолчанию 24)"}}));
 
+    ToolDescription lanSend;
+    lanSend.name = "lan_send";
+    lanSend.description = "Отправить сообщение другому агенту в локальной сети через lan msg";
+    lanSend.schema = makeToolSchema("lan_send", lanSend.description,
+        makeParameters({{"ip", "IPv4-адрес получателя"}, {"message", "Текст сообщения"}}));
+
     m_toolDescriptions = {
         runShell, readFile, writeFileTool, listDir, getSetting, setSetting, sysInfo,
         findFilesTool, grep, ps, kill, netInfo, ping, pkgList, pkgInstall, diskInfo, memInfo,
-        screenshot, cursorTheme
+        screenshot, cursorTheme, lanSend
     };
 }
 
@@ -211,10 +243,15 @@ void ChatAgent::setConfirmationCallback(const ConfirmationCallback& cb) {
     m_confirmCallback = cb;
 }
 
+void ChatAgent::setPermissionCallback(const PermissionCallback& cb) {
+    m_permissionCallback = cb;
+}
+
 QString ChatAgent::buildSystemPrompt() const {
     QString prompt;
     prompt += "Ты ассистент операционной системы SynapseOS. ";
     prompt += "Ты можешь работать с файлами, терминалом, сетью, пакетами и настройками системы. ";
+    prompt += "Для каждого инструмента пользователь задаёт разрешение и может отклонить запрос. ";
     prompt += "Для вызова инструмента используй блок <tool>{...}</tool>. ";
     prompt += "Формат: <tool>{\"name\": \"run_shell\", \"arguments\": {\"command\": \"ls -la\"}}</tool>. ";
     prompt += "Можно вызывать несколько инструментов в одном ответе. ";
@@ -371,7 +408,7 @@ void ChatAgent::clearHistory() {
 }
 
 bool ChatAgent::saveHistory(const QString& path) const {
-    QFile file(path);
+    QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         return false;
     }
@@ -399,8 +436,13 @@ bool ChatAgent::saveHistory(const QString& path) const {
     }
 
     QJsonDocument doc(arr);
-    file.write(doc.toJson(QJsonDocument::Indented));
-    return true;
+    QByteArray data = doc.toJson(QJsonDocument::Indented);
+    if (!file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner) ||
+        file.write(data) != data.size() || !file.commit()) {
+        return false;
+    }
+
+    return chmod(QFile::encodeName(path).constData(), 0600) == 0;
 }
 
 bool ChatAgent::loadHistory(const QString& path) {
@@ -443,6 +485,30 @@ int ChatAgent::historySize() const {
     return static_cast<int>(m_history.size());
 }
 
+const std::vector<Message>& ChatAgent::history() const {
+    return m_history;
+}
+
+void ChatAgent::addExchange(const QString& userText, const QString& assistantText) {
+    if (m_history.empty()) {
+        Message system;
+        system.role = "system";
+        system.content = buildSystemPrompt();
+        m_history.push_back(system);
+    }
+
+    Message user;
+    user.role = "user";
+    user.content = userText;
+    m_history.push_back(user);
+
+    Message assistant;
+    assistant.role = "assistant";
+    assistant.content = assistantText;
+    m_history.push_back(assistant);
+    trimHistory();
+}
+
 void ChatAgent::trimHistory() {
     // Сохраняем системное сообщение, обрезаем старые пользовательские
     if (static_cast<int>(m_history.size()) <= MAX_HISTORY_MESSAGES) {
@@ -469,32 +535,10 @@ void ChatAgent::trimHistory() {
     m_history = std::move(trimmed);
 }
 
-bool ChatAgent::isDangerousTool(const QString& name, const QJsonObject& arguments) const {
-    if (name == "run_shell") {
-        QString cmd = arguments.value("command").toString().toLower();
-        // Команды с rm, dd, mkfs, форматированием, перезагрузкой
-        if (cmd.contains("rm ") || cmd.contains("rmdir") ||
-            cmd.contains("dd ") || cmd.contains("mkfs") ||
-            cmd.contains("reboot") || cmd.contains("poweroff") ||
-            cmd.contains("shutdown") || cmd.contains("format")) {
-            return true;
-        }
-    }
-
-    if (name == "write_file") {
-        QString path = arguments.value("path").toString();
-        // Запись в системные файлы
-        if (path.startsWith("/etc/") || path.startsWith("/bin/") ||
-            path.startsWith("/lib/") || path.startsWith("/usr/")) {
-            return true;
-        }
-    }
-
-    if (name == "set_setting" || name == "kill_process" || name == "package_install") {
-        return true;
-    }
-
-    return false;
+bool ChatAgent::isDangerousTool(const QString& name) const {
+    return name == "run_shell" || name == "write_file" || name == "set_setting" ||
+           name == "kill_process" || name == "package_install" ||
+           name == "set_cursor_theme" || name == "lan_send";
 }
 
 QString ChatAgent::describeToolCall(const QString& name, const QJsonObject& arguments) const {
@@ -514,6 +558,10 @@ QString ChatAgent::describeToolCall(const QString& name, const QJsonObject& argu
     if (name == "package_install") {
         return "Установить пакет: " + arguments.value("name").toString();
     }
+    if (name == "lan_send") {
+        return "Отправить на " + arguments.value("ip").toString() + ": " +
+               arguments.value("message").toString().left(512);
+    }
 
     return name + "(" + QString::fromUtf8(QJsonDocument(arguments).toJson(QJsonDocument::Compact)) + ")";
 }
@@ -523,12 +571,19 @@ QString ChatAgent::executeTool(const QString& name, const QJsonObject& arguments
         return "Инструменты ОС недоступны";
     }
 
-    // Проверка опасных операций
-    if (isDangerousTool(name, arguments) && m_confirmCallback) {
-        QString desc = describeToolCall(name, arguments);
-        if (!m_confirmCallback(name, desc)) {
-            return "Операция отменена пользователем: " + desc;
-        }
+    QString category = permissionCategory(name);
+    if (category.isEmpty()) {
+        return "Неизвестный инструмент: " + name;
+    }
+
+    QString desc = describeToolCall(name, arguments);
+    if (!m_permissionCallback || !m_permissionCallback(category, desc)) {
+        return "Доступ не разрешён: " + desc;
+    }
+
+    if (isDangerousTool(name) &&
+        (!m_confirmCallback || !m_confirmCallback(name, desc))) {
+        return "Операция отменена пользователем: " + desc;
     }
 
     if (name == "run_shell") {
@@ -645,13 +700,18 @@ QString ChatAgent::executeTool(const QString& name, const QJsonObject& arguments
         return m_tools->setCursorTheme(arguments.value("theme").toString(), size);
     }
 
+    if (name == "lan_send") {
+        return m_tools->sendLanMessage(arguments.value("ip").toString(),
+                                       arguments.value("message").toString());
+    }
+
     return "Неизвестный инструмент: " + name;
 }
 
 std::vector<std::pair<QString, QJsonObject>> ChatAgent::parseToolCalls(const QString& text) const {
     std::vector<std::pair<QString, QJsonObject>> result;
     QRegularExpression regex("<tool>(.*?)</tool>");
-    regex.setPatternOptions(QRegularExpression::DotMatchesEverythingPredicate);
+    regex.setPatternOptions(QRegularExpression::DotMatchesEverythingOption);
     QRegularExpressionMatchIterator it = regex.globalMatch(text);
 
     while (it.hasNext()) {
@@ -671,7 +731,7 @@ std::vector<std::pair<QString, QJsonObject>> ChatAgent::parseToolCalls(const QSt
 
 QString ChatAgent::stripToolCalls(const QString& text) const {
     QRegularExpression regex("<tool>.*?</tool>");
-    regex.setPatternOptions(QRegularExpression::DotMatchesEverythingPredicate);
+    regex.setPatternOptions(QRegularExpression::DotMatchesEverythingOption);
     QString result = text;
     result.remove(regex);
     return result.trimmed();

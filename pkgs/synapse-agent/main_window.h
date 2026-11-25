@@ -7,7 +7,7 @@
     Главное окно агента SynapseOS
     Подсистема: пользовательские приложения
     Первое изменение: 24.11.2026
-    Последнее изменение: 24.11.2026
+    Последнее изменение: 25.11.2026
 */
 
 #ifndef MAIN_WINDOW_H
@@ -32,10 +32,12 @@ private:
     void rebuildAgent();
     void appendMessage(const QString& sender, const QString& text);
     void appendMessageHtml(const QString& sender, const QString& html);
+    void renderHistory();
     void saveConversation();
     void loadConversation();
     void keyPressEvent(QKeyEvent* event) override;
     bool confirmDangerousAction(const QString& toolName, const QString& description);
+    bool requestPermission(const QString& category, const QString& description);
     QString markdownToHtml(const QString& md) const;
 
     class Impl;

@@ -7,7 +7,7 @@
     Инструменты для работы с операционной системой
     Подсистема: пользовательские приложения
     Первое изменение: 24.11.2026
-    Последнее изменение: 24.11.2026
+    Последнее изменение: 25.11.2026
 */
 
 #ifndef OS_TOOLS_H
@@ -93,6 +93,9 @@ public:
 
     // Установить тему курсора системы
     QString setCursorTheme(const QString& theme, int size);
+
+    // Передать текст через штатный LAN-сервис SynapseOS
+    QString sendLanMessage(const QString& ip, const QString& message);
 
     // Установить системный указатель мыши для окна приложения
     static void applyAgentCursor(class QWidget* widget);

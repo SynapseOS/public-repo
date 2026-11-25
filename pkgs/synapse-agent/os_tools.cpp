@@ -7,27 +7,33 @@
     Реализация инструментов для работы с ОС
     Подсистема: пользовательские приложения
     Первое изменение: 24.11.2026
-    Последнее изменение: 24.11.2026
+    Последнее изменение: 25.11.2026
 */
 
 #include "os_tools.h"
 
 #include <QBuffer>
 #include <QCursor>
+#include <QDateTime>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QHostAddress>
+#include <QJsonArray>
 #include <QPainter>
 #include <QPixmap>
 #include <QPolygon>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QScreen>
+#include <QStandardPaths>
 #include <QStringList>
+#include <QTemporaryDir>
 #include <QTextStream>
 #include <QWidget>
+#include <sys/stat.h>
 
 OSTools::OSTools()
     : shellPath("/bin/sh") {
@@ -96,7 +102,7 @@ QString OSTools::listDirectory(const QString& path) {
     for (const auto& info : entries) {
         QString prefix = info.isDir() ? "d " : "- ";
         QString size = info.isDir() ? "" : QString(" %1").arg(info.size());
-        result.append(prefix + info.permissions().toString() + size + " " + info.fileName());
+        result.append(prefix + QString::number(info.permissions(), 16) + size + " " + info.fileName());
     }
 
     return result.join("\n");
@@ -252,16 +258,25 @@ QString OSTools::findFiles(const QString& pattern, const QString& directory) {
 }
 
 QString OSTools::searchInFiles(const QString& pattern, const QString& path, int maxResults) {
-    ShellResult result = runShell(
-        "grep -rn --binary-files=without-match "
-        "--max-count=" + QString::number(maxResults) + " "
-        "'" + pattern + "' '" + path + "' 2>/dev/null | head -" + QString::number(maxResults));
+    QProcess process;
+    int limit = qBound(1, maxResults, 100);
+    process.start("/bin/grep", {"-rn", "--binary-files=without-match",
+                                "--max-count=" + QString::number(limit), "--", pattern, path});
+    if (!process.waitForStarted(5000)) {
+        return "Не удалось запустить поиск";
+    }
+    if (!process.waitForFinished(15000)) {
+        process.kill();
+        process.waitForFinished(1000);
+        return "Поиск превысил таймаут";
+    }
 
-    if (result.stdoutText.trimmed().isEmpty()) {
+    QString output = QString::fromUtf8(process.readAllStandardOutput());
+    if (output.trimmed().isEmpty()) {
         return "Совпадений не найдено";
     }
 
-    return result.stdoutText.trimmed();
+    return output.split('\n').mid(0, limit).join('\n').trimmed();
 }
 
 QString OSTools::listProcesses() {
@@ -368,11 +383,18 @@ QJsonObject OSTools::networkInfo() {
 
 QString OSTools::pingHost(const QString& host, int count) {
     int c = (count > 0 && count <= 10) ? count : 4;
-    ShellResult result = runShell("ping -c " + QString::number(c) + " -W 5 '" + host + "' 2>&1");
+    QProcess process;
+    process.start("/bin/ping", {"-c", QString::number(c), "-W", "5", "--", host});
+    if (!process.waitForStarted(5000) || !process.waitForFinished(30000)) {
+        process.kill();
+        process.waitForFinished(1000);
+        return "Не удалось завершить ping";
+    }
 
-    return result.exitCode == 0
-        ? result.stdoutText.trimmed()
-        : "Хост недоступен: " + result.stderrText.trimmed();
+    QString output = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+    return process.exitCode() == 0
+        ? output
+        : "Хост недоступен: " + QString::fromUtf8(process.readAllStandardError()).trimmed();
 }
 
 QString OSTools::packageList() {
@@ -381,10 +403,41 @@ QString OSTools::packageList() {
 }
 
 QString OSTools::packageInstall(const QString& name) {
-    ShellResult result = runShell("setup install '" + name + "' 2>&1");
-    return result.exitCode == 0
+    QProcess process;
+    process.start("/bin/setup", {"install", name, "--yes"});
+    if (!process.waitForStarted(5000) || !process.waitForFinished(120000)) {
+        process.kill();
+        process.waitForFinished(1000);
+        return "Установка пакета превысила таймаут";
+    }
+
+    return process.exitCode() == 0
         ? "Пакет " + name + " установлен"
-        : "Ошибка установки: " + result.stderrText.trimmed();
+        : "Ошибка установки: " + QString::fromUtf8(process.readAllStandardError()).trimmed();
+}
+
+QString OSTools::sendLanMessage(const QString& ip, const QString& message) {
+    QHostAddress address;
+    QByteArray data = message.toUtf8();
+    if (!address.setAddress(ip) || address.protocol() != QAbstractSocket::IPv4Protocol ||
+        data.isEmpty() || data.size() > 8000) {
+        return "Нужны IPv4-адрес и сообщение не длиннее 8000 байт";
+    }
+
+    QProcess process;
+    process.start("/bin/lan", {"msg", ip, message});
+    if (!process.waitForStarted(5000) || !process.waitForFinished(15000)) {
+        process.kill();
+        process.waitForFinished(1000);
+        return "LAN-сервис не ответил";
+    }
+
+    if (process.exitCode() != 0) {
+        return "Сообщение не отправлено: " +
+               QString::fromUtf8(process.readAllStandardError()).trimmed();
+    }
+
+    return QString::fromUtf8(process.readAllStandardOutput()).trimmed();
 }
 
 QString OSTools::diskUsage() {
@@ -422,26 +475,26 @@ ScreenshotResult OSTools::takeScreenshot(const QString& windowTitle) {
 
     QPixmap pixmap;
 
-    // Первый способ: Qt захват экрана
-    // На чистом Wayland работает не всегда, на XWayland работает
-    QScreen* screen = QGuiApplication::primaryScreen();
-    if (screen) {
-        pixmap = screen->grabWindow(0);
-    }
-
-    // Второй способ: grim для wlroots-композиторов (labwc, weston)
-    if (pixmap.isNull() || pixmap.width() < 2) {
-        QString tmpPath = "/tmp/synapse-agent-shot.png";
-        ShellResult grim = runShell("grim '" + tmpPath + "' 2>/dev/null");
-        if (grim.exitCode == 0) {
-            pixmap = QPixmap(tmpPath);
-            QFile::remove(tmpPath);
+    QTemporaryDir temporary;
+    if (temporary.isValid()) {
+        QString source = temporary.path() + "/screen.png";
+        QProcess recorder;
+        recorder.start("/bin/recorder", {"shot", source, "--screen", "wayland"});
+        if (recorder.waitForStarted(3000) && recorder.waitForFinished(10000) &&
+            recorder.exitCode() == 0) {
+            pixmap.load(source);
         }
     }
 
     if (pixmap.isNull() || pixmap.width() < 2) {
-        result.error = "Не удалось сделать скриншот: ни Qt, ни grim недоступны";
-        return result;
+        QScreen* screen = QGuiApplication::primaryScreen();
+        if (screen) {
+            pixmap = screen->grabWindow(0);
+        }
+        if (pixmap.isNull() || pixmap.width() < 2) {
+            result.error = "Не удалось сделать скриншот";
+            return result;
+        }
     }
 
     // Сжать изображение до разумного размера для API
@@ -460,10 +513,17 @@ ScreenshotResult OSTools::takeScreenshot(const QString& windowTitle) {
         return result;
     }
 
-    // Сохранить копию на диск для пользователя
-    QDir().mkpath("/tmp/synapse-agent");
-    QString path = "/tmp/synapse-agent/screenshot.png";
-    pixmap.save(path, "PNG");
+    QString folder = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/screenshots";
+    if (!QDir().mkpath(folder) || chmod(QFile::encodeName(folder).constData(), 0700) != 0) {
+        result.error = "Не удалось создать каталог снимков";
+        return result;
+    }
+    QString path = folder + "/screen-" +
+        QDateTime::currentDateTimeUtc().toString("yyyyMMdd-hhmmsszzz") + ".png";
+    if (!pixmap.save(path, "PNG") || chmod(QFile::encodeName(path).constData(), 0600) != 0) {
+        result.error = "Не удалось сохранить снимок";
+        return result;
+    }
 
     result.ok = true;
     result.path = path;
@@ -497,7 +557,7 @@ QString OSTools::setCursorTheme(const QString& theme, int size) {
 
             // Заменить или добавить блок cursor в theme
             QRegularExpression cursorRegex("<cursor>.*?</cursor>",
-                QRegularExpression::DotMatchesEverythingPredicate);
+                QRegularExpression::DotMatchesEverythingOption);
             QString newCursor = "<cursor><name>" + theme + "</name><size>" +
                 QString::number(cursorSize) + "</size></cursor>";
 

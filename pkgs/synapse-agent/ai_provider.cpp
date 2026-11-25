@@ -7,7 +7,7 @@
     Реализации провайдеров ИИ: синхронный, потоковый и мультимодальный режимы
     Подсистема: пользовательские приложения
     Первое изменение: 24.11.2026
-    Последнее изменение: 24.11.2026
+    Последнее изменение: 25.11.2026
 */
 
 #include "ai_provider.h"
@@ -22,6 +22,27 @@
 
 namespace {
 
+// Собрать адрес запроса и не передавать ключ по незашифрованному соединению
+static QUrl providerUrl(const ProviderConfig& config, const QString& suffix, QString& outError) {
+    QUrl url(config.baseUrl.trimmed());
+    if (config.apiKey.isEmpty()) {
+        outError = "API ключ не задан";
+        return QUrl();
+    }
+    if (!url.isValid() || url.scheme() != "https" || url.host().isEmpty() ||
+        !url.userInfo().isEmpty() || url.hasQuery() || url.hasFragment()) {
+        outError = "Базовый URL должен быть адресом HTTPS без параметров";
+        return QUrl();
+    }
+
+    QString path = url.path();
+    while (path.endsWith('/')) {
+        path.chop(1);
+    }
+    url.setPath(path + suffix);
+    return url;
+}
+
 // Ожидание ответа с таймаутом (для синхронного режима)
 static QByteArray waitForReply(QNetworkReply* reply, int timeoutMs, QString& outError) {
     QByteArray result;
@@ -32,15 +53,33 @@ static QByteArray waitForReply(QNetworkReply* reply, int timeoutMs, QString& out
 
     QTimer timer;
     QEventLoop loop;
+    bool timedOut = false;
     if (reply->isRunning()) {
-        QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        QObject::connect(&timer, &QTimer::timeout, &loop, [&]() {
+            timedOut = true;
+            loop.quit();
+        });
         QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
         timer.start(timeoutMs);
         loop.exec();
     }
 
+    if (timedOut) {
+        reply->abort();
+        outError = "Провайдер не ответил вовремя";
+        reply->deleteLater();
+        return result;
+    }
+
     if (reply->error() != QNetworkReply::NoError) {
         outError = reply->errorString();
+        reply->deleteLater();
+        return result;
+    }
+
+    int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (status >= 400) {
+        outError = "HTTP " + QString::number(status);
         reply->deleteLater();
         return result;
     }
@@ -141,12 +180,21 @@ static QString readSSEStream(QNetworkReply* reply, int timeoutMs,
         }
     });
 
-    timer.start(timeoutMs);
-    loop.exec();
-    timer.stop();
+    if (reply->isRunning()) {
+        timer.start(timeoutMs);
+        loop.exec();
+        timer.stop();
+    }
 
-    if (reply->error() != QNetworkReply::NoError && !finished) {
+    if (!finished && !reply->isFinished()) {
+        reply->abort();
+    }
+    if (outError.isEmpty() && reply->error() != QNetworkReply::NoError) {
         outError = reply->errorString();
+    }
+    int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (outError.isEmpty() && status >= 400) {
+        outError = "HTTP " + QString::number(status);
     }
 
     reply->deleteLater();
@@ -268,13 +316,18 @@ public:
 
     QString chat(const std::vector<Message>& messages,
                  QString& outError) override {
+        QUrl url = providerUrl(m_config, "/chat/completions", outError);
+        if (!outError.isEmpty()) {
+            return QString();
+        }
+
         QJsonObject body;
         body.insert("model", m_config.model);
         body.insert("messages", formatOpenAIMessages(messages));
         body.insert("temperature", 0.3);
 
         QJsonDocument doc(body);
-        QNetworkRequest request(QUrl(m_config.baseUrl + "/chat/completions"));
+        QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         request.setRawHeader("Authorization", ("Bearer " + m_config.apiKey).toUtf8());
 
@@ -300,6 +353,11 @@ public:
     QString chatStream(const std::vector<Message>& messages,
                        const StreamCallback& onChunk,
                        QString& outError) override {
+        QUrl url = providerUrl(m_config, "/chat/completions", outError);
+        if (!outError.isEmpty()) {
+            return QString();
+        }
+
         QJsonObject body;
         body.insert("model", m_config.model);
         body.insert("messages", formatOpenAIMessages(messages));
@@ -307,7 +365,7 @@ public:
         body.insert("stream", true);
 
         QJsonDocument doc(body);
-        QNetworkRequest request(QUrl(m_config.baseUrl + "/chat/completions"));
+        QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         request.setRawHeader("Authorization", ("Bearer " + m_config.apiKey).toUtf8());
 
@@ -330,6 +388,11 @@ public:
 
     QString chat(const std::vector<Message>& messages,
                  QString& outError) override {
+        QUrl url = providerUrl(m_config, "/v1/messages", outError);
+        if (!outError.isEmpty()) {
+            return QString();
+        }
+
         QString systemText;
         QJsonArray msgs = formatAnthropicMessages(messages, systemText);
 
@@ -342,7 +405,7 @@ public:
         }
 
         QJsonDocument doc(body);
-        QNetworkRequest request(QUrl(m_config.baseUrl + "/v1/messages"));
+        QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         request.setRawHeader("x-api-key", m_config.apiKey.toUtf8());
         request.setRawHeader("anthropic-version", "2023-06-01");
@@ -366,6 +429,11 @@ public:
     QString chatStream(const std::vector<Message>& messages,
                        const StreamCallback& onChunk,
                        QString& outError) override {
+        QUrl url = providerUrl(m_config, "/v1/messages", outError);
+        if (!outError.isEmpty()) {
+            return QString();
+        }
+
         QString systemText;
         QJsonArray msgs = formatAnthropicMessages(messages, systemText);
 
@@ -379,7 +447,7 @@ public:
         }
 
         QJsonDocument doc(body);
-        QNetworkRequest request(QUrl(m_config.baseUrl + "/v1/messages"));
+        QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         request.setRawHeader("x-api-key", m_config.apiKey.toUtf8());
         request.setRawHeader("anthropic-version", "2023-06-01");

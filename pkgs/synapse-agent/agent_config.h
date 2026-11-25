@@ -7,7 +7,7 @@
     Загрузка и сохранение настроек агента
     Подсистема: пользовательские приложения
     Первое изменение: 24.11.2026
-    Последнее изменение: 24.11.2026
+    Последнее изменение: 25.11.2026
 */
 
 #ifndef AGENT_CONFIG_H
@@ -16,6 +16,7 @@
 #include "ai_provider.h"
 #include <QJsonObject>
 #include <QMap>
+#include <QSet>
 #include <QString>
 #include <vector>
 
@@ -43,6 +44,12 @@ public:
     QString activeProvider() const;
     void setActiveProvider(const QString& name);
 
+    // Проверить постоянное разрешение на группу инструментов
+    bool permissionAllowed(const QString& category) const;
+
+    // Изменить постоянное разрешение на группу инструментов
+    void setPermissionAllowed(const QString& category, bool allowed);
+
     // Путь к файлу конфигурации
     static QString configPath();
 
@@ -52,6 +59,7 @@ private:
 
     std::vector<ProviderConfig> m_providers;
     QString m_activeProvider;
+    QSet<QString> m_allowedPermissions;
 };
 
 #endif

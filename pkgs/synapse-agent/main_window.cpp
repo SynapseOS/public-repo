@@ -7,17 +7,19 @@
     Графический интерфейс агента: стриминг, Markdown, подтверждения, горячие клавиши
     Подсистема: пользовательские приложения
     Первое изменение: 24.11.2026
-    Последнее изменение: 24.11.2026
+    Последнее изменение: 25.11.2026
 */
 
 #include "main_window.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QDir>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QKeyEvent>
@@ -156,6 +158,10 @@ void MainWindow::rebuildAgent() {
                                              const QString& description) -> bool {
         return confirmDangerousAction(toolName, description);
     });
+    d->agent->setPermissionCallback([this](const QString& category,
+                                           const QString& description) -> bool {
+        return requestPermission(category, description);
+    });
 }
 
 void MainWindow::onSend() {
@@ -183,7 +189,6 @@ void MainWindow::onSend() {
             d->chatView->setTextCursor(cursor);
             QScrollBar* bar = d->chatView->verticalScrollBar();
             bar->setValue(bar->maximum());
-            QApplication::processEvents();
         }, ok);
 
     d->sendButton->setEnabled(true);
@@ -193,12 +198,7 @@ void MainWindow::onSend() {
         d->statusLabel->setText("Ошибка: " + response);
         appendMessage("Система", response);
     } else {
-        // Перерисовать ответ как Markdown
-        // Удалить последний блок (сырой текст) и заменить на Markdown
-        QTextCursor cursor = d->chatView->textCursor();
-        cursor.movePosition(QTextCursor::End);
-        cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::KeepAnchor);
-        // Пометить как готовый
+        renderHistory();
         d->statusLabel->setText("Готов");
     }
 }
@@ -233,6 +233,24 @@ void MainWindow::onSettings() {
     layout->addRow("Модель:", modelEdit);
     layout->addRow("Базовый URL:", urlEdit);
 
+    auto* accessGroup = new QGroupBox("Постоянные разрешения", &dialog);
+    auto* accessLayout = new QVBoxLayout(accessGroup);
+    std::vector<std::pair<QString, QCheckBox*>> permissionChecks;
+    const std::vector<std::pair<QString, QString>> categories = {
+        {"read", "Чтение файлов и сведений о системе"},
+        {"shell", "Команды оболочки"},
+        {"change", "Изменение файлов и системы"},
+        {"screen", "Снимки экрана"},
+        {"lan", "Сообщения другим агентам через LAN"}
+    };
+    for (const auto& category : categories) {
+        auto* check = new QCheckBox(category.second, accessGroup);
+        check->setChecked(d->config.permissionAllowed(category.first));
+        accessLayout->addWidget(check);
+        permissionChecks.emplace_back(category.first, check);
+    }
+    layout->addRow(accessGroup);
+
     auto* buttons = new QHBoxLayout();
     auto* saveBtn = new QPushButton("Сохранить", &dialog);
     auto* cancelBtn = new QPushButton("Отмена", &dialog);
@@ -253,7 +271,13 @@ void MainWindow::onSettings() {
         }
 
         d->config.setProviders(providers, d->config.activeProvider());
-        d->config.save();
+        for (const auto& check : permissionChecks) {
+            d->config.setPermissionAllowed(check.first, check.second->isChecked());
+        }
+        if (!d->config.save()) {
+            QMessageBox::warning(&dialog, "Ошибка", "Не удалось сохранить настройки");
+            return;
+        }
         fillProviderCombo(d->providerCombo, d->config);
         rebuildAgent();
         dialog.accept();
@@ -270,6 +294,10 @@ void MainWindow::onClear() {
 }
 
 void MainWindow::updateProvider() {
+    d->config.setActiveProvider(d->providerCombo->currentText());
+    if (!d->config.save()) {
+        d->statusLabel->setText("Не удалось сохранить выбор провайдера");
+    }
     rebuildAgent();
 }
 
@@ -304,7 +332,7 @@ void MainWindow::loadConversation() {
     }
 
     if (d->agent->loadHistory(path)) {
-        d->chatView->clear();
+        renderHistory();
         d->statusLabel->setText("Разговор загружен (" + QString::number(d->agent->historySize()) + " сообщений)");
     } else {
         d->statusLabel->setText("Не удалось загрузить");
@@ -334,14 +362,30 @@ void MainWindow::keyPressEvent(QKeyEvent* event) {
 }
 
 bool MainWindow::confirmDangerousAction(const QString& toolName, const QString& description) {
+    QString action = toolName + ": " + description;
     QMessageBox::StandardButton result = QMessageBox::warning(
         this,
         "Подтверждение операции",
         "Агент запрашивает выполнение потенциально опасной операции:\n\n" +
-        description + "\n\nРазрешить?",
+        action + "\n\nРазрешить?",
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No);
 
+    return result == QMessageBox::Yes;
+}
+
+bool MainWindow::requestPermission(const QString& category, const QString& description) {
+    if (d->config.permissionAllowed(category)) {
+        return true;
+    }
+
+    QMessageBox::StandardButton result = QMessageBox::question(
+        this,
+        "Запрос доступа",
+        "Агенту нужен доступ к группе «" + category + "»:\n\n" +
+        description + "\n\nРазрешить один раз? Постоянный доступ задаётся в настройках",
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
     return result == QMessageBox::Yes;
 }
 
@@ -362,7 +406,7 @@ QString MainWindow::markdownToHtml(const QString& md) const {
 
     // Блок кода: ```...```
     QRegularExpression codeBlock("```(.*?)```");
-    codeBlock.setPatternOptions(QRegularExpression::DotMatchesEverythingPredicate);
+    codeBlock.setPatternOptions(QRegularExpression::DotMatchesEverythingOption);
     html.replace(codeBlock, "<pre><code>\\1</code></pre>");
 
     // Заголовки: # text
@@ -393,4 +437,15 @@ void MainWindow::appendMessageHtml(const QString& sender, const QString& html) {
     d->chatView->append("<b>" + sender + ":</b> " + html);
     QScrollBar* bar = d->chatView->verticalScrollBar();
     bar->setValue(bar->maximum());
+}
+
+void MainWindow::renderHistory() {
+    d->chatView->clear();
+    for (const Message& message : d->agent->history()) {
+        if (message.role == "user") {
+            appendMessage("Вы", message.content);
+        } else if (message.role == "assistant" && !message.content.isEmpty()) {
+            appendMessageHtml("Агент", markdownToHtml(message.content));
+        }
+    }
 }

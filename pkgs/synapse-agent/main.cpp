@@ -8,7 +8,7 @@
     Точка входа агентской среды с поддержкой графического и CLI режимов
     Подсистема: пользовательские приложения
     Первое изменение: 24.11.2026
-    Последнее изменение: 24.11.2026
+    Последнее изменение: 25.11.2026
 */
 
 #include "agent_config.h"
@@ -18,6 +18,7 @@
 #include "ai_provider.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QNetworkAccessManager>
 #include <QStandardPaths>
 #include <QTextStream>
@@ -54,16 +55,27 @@ static int runCliMode(int argc, char* argv[]) {
     ChatAgent agent(std::move(provider));
     agent.setTools(&tools);
 
-    // Подтверждение опасных операций в CLI: всегда разрешать
-    agent.setConfirmationCallback([](const QString&, const QString& desc) -> bool {
-        std::cerr << "[Подтверждение] " << desc.toStdString() << " (Y/n) " << std::flush;
-        std::string answer;
-        std::getline(std::cin, answer);
-        return answer.empty() || answer == "y" || answer == "Y";
-    });
-
     QTextStream cin_stream(stdin);
     QTextStream cout_stream(stdout);
+
+    // Подтверждать действия, меняющие систему
+    agent.setConfirmationCallback([&cin_stream](const QString&, const QString& desc) -> bool {
+        std::cerr << "[Подтверждение] " << desc.toStdString() << " (y/N) " << std::flush;
+        QString answer = cin_stream.readLine().trimmed();
+        return answer == "y" || answer == "Y";
+    });
+
+    agent.setPermissionCallback([&config, &cin_stream](const QString& category,
+                                                      const QString& desc) -> bool {
+        if (config.permissionAllowed(category)) {
+            return true;
+        }
+
+        std::cerr << "[Запрос доступа: " << category.toStdString() << "] "
+                  << desc.toStdString() << " (y/N) " << std::flush;
+        QString answer = cin_stream.readLine().trimmed();
+        return answer == "y" || answer == "Y";
+    });
 
     cout_stream << "Synapse Agent CLI (" << providerName << ", " << cfg.model << ")" << Qt::endl;
     cout_stream << "Команды: /exit - выход, /clear - очистить, /save - сохранить, /load - загрузить" << Qt::endl;
@@ -77,6 +89,9 @@ static int runCliMode(int argc, char* argv[]) {
         cout_stream.flush();
 
         QString line = cin_stream.readLine();
+        if (line.isNull()) {
+            break;
+        }
         if (line.trimmed() == "/exit") {
             break;
         }
