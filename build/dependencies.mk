@@ -1,4 +1,5 @@
 # Зависимости выходных файлов
+$(BUILD_ROOT)/tqftpserv/.built: $(BUILD_ROOT)/libqrtr/.built
 $(BUILD_ROOT)/labwc/.built: $(BUILD_ROOT)/weston/.built $(BUILD_ROOT)/opengl/.built
 $(BUILD_ROOT)/curl/.built: $(BUILD_ROOT)/openssl/.built
 $(BUILD_ROOT)/nginx/.built: $(BUILD_ROOT)/openssl/.built $(BUILD_ROOT)/pcre2/.built $(BUILD_ROOT)/zlib/.built

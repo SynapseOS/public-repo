@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "name": "tqftpserv",
+  "version": "1.1.1-r1",
+  "description": "BSD Qualcomm firmware transfer service over standard QRTR",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "kernel >= 0.1.951-r1"
+  ],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "bin/tqftpserv",
+      "type": "file",
+      "mode": 493,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/tqftpserv/LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/tqftpserv/libqrtr-LICENSE",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    },
+    {
+      "path": "usr/share/licenses/tqftpserv/synapse-translate.c",
+      "type": "file",
+      "mode": 420,
+      "config": false
+    }
+  ]
+}

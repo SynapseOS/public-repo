@@ -1,0 +1,20 @@
+--- a/tqftpserv.c
++++ b/tqftpserv.c
+@@ -191,7 +191,7 @@
+ 	if (response_size != 0) {
+ 		/* Header (4 bytes) + data size */
+ 		send_len = 4 + response_size;
+-		if (send_len > p - buf) {
++		if (send_len > (size_t)(p - buf)) {
+ 			log_err("requested data of %ld bytes but only read %ld bytes from file, rejecting\n",
+ 				response_size, len);
+ 			return -EINVAL;
+@@ -253,7 +253,7 @@
+ 		*p++ = '\0';
+ 	}
+ 
+-	if (tsize && *tsize != -1) {
++	if (tsize && *tsize != (size_t)-1) {
+ 		if (p + 6 >= end)
+ 			return -1;
+ 		memcpy(p, "tsize", 6);
