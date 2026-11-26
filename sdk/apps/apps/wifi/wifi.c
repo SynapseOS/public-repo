@@ -6,7 +6,7 @@
     Описание: Сканирование, подключение и сохранение профиля через /dev/wifi
     Подсистема: пользовательские сетевые программы
     Первое изменение: 16.11.2026
-    Последнее изменение: 26.11.2026
+    Последнее изменение: 27.11.2026
     Доступ: общедоступный
 */
 
@@ -360,8 +360,22 @@ static int wifi_connect(int fd, int argc, char **argv, bool automatic) {
 
     if (automatic) {
         if (!wifi_load_profile(&request)) {
+            wifi_wipe(&request, sizeof(request));
+            if (argc == 3) {
+                return 3;
+            }
             fprintf(stderr, "wifi: no usable private profile for %s\n", adapter->name);
             return 1;
+        }
+        if (argc == 3) {
+            uint8_t visible[SYN_WIFI_SSID_LIMIT], length = 0;
+            bool matches = wifi_decode(argv[2], strlen(argv[2]), visible, sizeof(visible), &length) &&
+                           length == request.ssid_length && !memcmp(visible, request.ssid, length) &&
+                           request.password_length >= 8;
+            if (!matches) {
+                wifi_wipe(&request, sizeof(request));
+                return 3;
+            }
         }
     } else {
         size_t ssid_length = strlen(argv[2]);
@@ -536,7 +550,7 @@ static int wifi_phy_stats(int fd) {
 }
 
 static void wifi_usage(void) {
-    fputs("Usage: wifi [usb|onboard] scan | connect SSID [password|--ask] | status | disconnect | on | off | auto | phy-stats [--cached]\n", stderr);
+    fputs("Usage: wifi [usb|onboard] scan | connect SSID [password|--ask] | status | disconnect | on | off | auto | saved-wpa2 SSID_HEX | phy-stats [--cached]\n", stderr);
 }
 
 int main(int argc, char **argv) {
@@ -586,7 +600,7 @@ int main(int argc, char **argv) {
         result = wifi_scan(fd);
     } else if (!strcmp(argv[1], "connect")) {
         result = wifi_connect(fd, argc, argv, false);
-    } else if (!strcmp(argv[1], "auto") && argc == 2) {
+    } else if ((!strcmp(argv[1], "auto") && argc == 2) || (!strcmp(argv[1], "saved-wpa2") && argc == 3)) {
         result = wifi_connect(fd, argc, argv, true);
     } else if (!strcmp(argv[1], "phy-stats") && argc == 3 && !strcmp(argv[2], "--cached")) {
         result = wifi_phy_cached(fd);
