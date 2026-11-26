@@ -6,7 +6,7 @@
     Описание: Сканирование, подключение и сохранение профиля через /dev/wifi
     Подсистема: пользовательские сетевые программы
     Первое изменение: 16.11.2026
-    Последнее изменение: 16.11.2026
+    Последнее изменение: 26.11.2026
     Доступ: общедоступный
 */
 
@@ -15,6 +15,8 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <inttypes.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -400,8 +402,99 @@ static int wifi_connect(int fd, int argc, char **argv, bool automatic) {
     return result < 0 ? 1 : 0;
 }
 
+// Проверяет только фиксированный ABI, никакие unknown output flags не принимаются
+static bool wifi_phy_response_valid(const struct syn_wifi_phy_stats *value) {
+    if (value->version != SYN_WIFI_PHY_VERSION || value->size != sizeof(*value) || value->flags ||
+        value->reserved || value->reserved2 || (value->state_flags & ~7u) ||
+        (value->valid_mask & ~SYN_WIFI_PHY_VALID_ALL)) {
+        return false;
+    }
+    for (unsigned i = 0; i < 4; ++i) {
+        if (value->reserved_tail[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Только эта явная diagnostic команда ставит QUERY, обычные scan/status не затрагиваются
+static int wifi_phy_stats(int fd) {
+    _Static_assert(sizeof(struct syn_wifi_phy_stats) == 136, "PHY public ABI v1");
+    struct syn_wifi_phy_stats value = {.version = SYN_WIFI_PHY_VERSION,
+        .size = sizeof(value), .flags = SYN_WIFI_PHY_QUERY};
+    if (ioctl(fd, SYN_WIFI_IOCTL_PHY_STATS, &value) < 0) {
+        if (errno == ENOTTY || errno == ENOTSUP) {
+            fputs("wifi: PHY diagnostics are not supported by this driver\n", stderr);
+        } else {
+            perror("wifi: phy-stats query");
+        }
+        return 1;
+    }
+    if (!wifi_phy_response_valid(&value) ||
+        !value.generation || !value.request_serial) {
+        fputs("wifi: invalid PHY query response\n", stderr);
+        return 1;
+    }
+    uint32_t generation = value.generation, serial = value.request_serial;
+    struct timespec started;
+    if (clock_gettime(CLOCK_MONOTONIC, &started)) {
+        perror("wifi: phy-stats clock");
+        return 1;
+    }
+    // Bounded4s клиентский срок не означает firmware ACK, один query не повторяется
+    for (unsigned attempt = 0; attempt < 81; ++attempt) {
+        value = (struct syn_wifi_phy_stats){.version = SYN_WIFI_PHY_VERSION,
+            .size = sizeof(value), .generation = generation};
+        int result = ioctl(fd, SYN_WIFI_IOCTL_PHY_STATS, &value);
+        if (!result) {
+            if (!wifi_phy_response_valid(&value) ||
+                value.generation != generation || value.request_serial != serial ||
+                value.sample_serial != serial || value.valid_mask != SYN_WIFI_PHY_VALID_ALL ||
+                value.state_flags != SYN_WIFI_PHY_CANDIDATE || value.last_error) {
+                fputs("wifi: invalid or stale PHY sample\n", stderr);
+                return 1;
+            }
+            printf("PHY candidate after query (firmware has no request ID), generation=%" PRIu32
+                   " request=%" PRIu32 " layout=%" PRIu32 " bytes=%" PRIu32 "/%" PRIu32 "\n",
+                   generation, serial, value.layout, value.fixed_bytes, value.data_bytes);
+            printf("noise_floor=%" PRId32 " tx_power_raw=%" PRIu32 " (raw gauge, units unspecified)\n",
+                   value.noise_floor, value.tx_power_raw);
+            printf("tx_frame=%" PRIu64 " rx_frame=%" PRIu64 " rx_clear=%" PRIu64
+                   " cycles=%" PRIu64 " phy_error=%" PRIu64 " (raw FW32, no deltas)\n",
+                   value.tx_frame, value.rx_frame, value.rx_clear, value.cycles, value.phy_error);
+            return 0;
+        }
+        if (errno != EAGAIN && errno != EBUSY) {
+            if (errno == ENOTTY || errno == ENOTSUP) {
+                fprintf(stderr, "wifi: PHY diagnostics are not supported by this driver/firmware layout"
+                    " (layout=%" PRIu32 " bytes=%" PRIu32 "/%" PRIu32 ")\n",
+                    value.layout, value.fixed_bytes, value.data_bytes);
+            } else {
+                perror("wifi: phy-stats sample");
+            }
+            return 1;
+        }
+        struct timespec now;
+        if (clock_gettime(CLOCK_MONOTONIC, &now)) {
+            return 1;
+        }
+        int64_t elapsed = (int64_t)(now.tv_sec - started.tv_sec) * 1000000000LL +
+            (int64_t)now.tv_nsec - started.tv_nsec;
+        if (elapsed < 0 || elapsed >= 4000000000LL || attempt == 80) {
+            break;
+        }
+        struct timespec delay = {.tv_nsec = 50000000};
+        if (nanosleep(&delay, NULL) && errno != EINTR) {
+            perror("wifi: phy-stats delay");
+            return 1;
+        }
+    }
+    fputs("wifi: PHY sample timed out, no automatic query retry\n", stderr);
+    return 1;
+}
+
 static void wifi_usage(void) {
-    fputs("Usage: wifi [usb|onboard] scan | connect SSID [password|--ask] | status | disconnect | on | off | auto\n", stderr);
+    fputs("Usage: wifi [usb|onboard] scan | connect SSID [password|--ask] | status | disconnect | on | off | auto | phy-stats\n", stderr);
 }
 
 int main(int argc, char **argv) {
@@ -453,6 +546,8 @@ int main(int argc, char **argv) {
         result = wifi_connect(fd, argc, argv, false);
     } else if (!strcmp(argv[1], "auto") && argc == 2) {
         result = wifi_connect(fd, argc, argv, true);
+    } else if (!strcmp(argv[1], "phy-stats") && argc == 2) {
+        result = wifi_phy_stats(fd);
     } else if (!strcmp(argv[1], "status") && argc == 2) {
         result = wifi_status(fd);
     } else if (!strcmp(argv[1], "disconnect") && argc == 2) {
