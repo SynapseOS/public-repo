@@ -417,6 +417,44 @@ static bool wifi_phy_response_valid(const struct syn_wifi_phy_stats *value) {
     return true;
 }
 
+// Печатает только фиксированные числовые метаданные даже при ошибке sample
+static void wifi_phy_metadata(const struct syn_wifi_phy_stats *value) {
+    if (!wifi_phy_response_valid(value) || !value->generation) {
+        return;
+    }
+    fprintf(stderr, "wifi: PHY state generation=%" PRIu32 " request=%" PRIu32 " sample=%" PRIu32
+        " flags=%" PRIu32 " valid=%" PRIu32 " error=%" PRId32 " layout=%" PRIu32
+        " bytes=%" PRIu32 "/%" PRIu32 " started_ms=%" PRIu64 " sampled_ms=%" PRIu64 "\n",
+        value->generation, value->request_serial, value->sample_serial, value->state_flags,
+        value->valid_mask, value->last_error, value->layout, value->fixed_bytes, value->data_bytes,
+        value->started_ms, value->sampled_ms);
+}
+
+// Cached GET является единственным ioctl и не инициирует query или ожидание
+static int wifi_phy_cached(int fd) {
+    struct syn_wifi_phy_stats value = {.version = SYN_WIFI_PHY_VERSION, .size = sizeof(value)};
+    int result = ioctl(fd, SYN_WIFI_IOCTL_PHY_STATS, &value);
+    int error = errno;
+    wifi_phy_metadata(&value);
+    if (result) {
+        errno = error;
+        perror("wifi: phy-stats cached");
+        return 1;
+    }
+    if (!wifi_phy_response_valid(&value) || !value.generation || !value.request_serial ||
+        value.sample_serial != value.request_serial || value.valid_mask != SYN_WIFI_PHY_VALID_ALL ||
+        value.state_flags != SYN_WIFI_PHY_CANDIDATE || value.last_error) {
+        fputs("wifi: invalid or stale cached PHY sample\n", stderr);
+        return 1;
+    }
+    printf("PHY cached candidate, noise_floor=%" PRId32 " tx_power_raw=%" PRIu32
+        " tx_frame=%" PRIu64 " rx_frame=%" PRIu64 " rx_clear=%" PRIu64
+        " cycles=%" PRIu64 " phy_error=%" PRIu64 " (raw FW32, no deltas)\n",
+        value.noise_floor, value.tx_power_raw, value.tx_frame, value.rx_frame, value.rx_clear,
+        value.cycles, value.phy_error);
+    return 0;
+}
+
 // Только эта явная diagnostic команда ставит QUERY, обычные scan/status не затрагиваются
 static int wifi_phy_stats(int fd) {
     _Static_assert(sizeof(struct syn_wifi_phy_stats) == 136, "PHY public ABI v1");
@@ -465,6 +503,9 @@ static int wifi_phy_stats(int fd) {
             return 0;
         }
         if (errno != EAGAIN && errno != EBUSY) {
+            int error = errno;
+            wifi_phy_metadata(&value);
+            errno = error;
             if (errno == ENOTTY || errno == ENOTSUP) {
                 fprintf(stderr, "wifi: PHY diagnostics are not supported by this driver/firmware layout"
                     " (layout=%" PRIu32 " bytes=%" PRIu32 "/%" PRIu32 ")\n",
@@ -489,12 +530,13 @@ static int wifi_phy_stats(int fd) {
             return 1;
         }
     }
+    wifi_phy_metadata(&value);
     fputs("wifi: PHY sample timed out, no automatic query retry\n", stderr);
     return 1;
 }
 
 static void wifi_usage(void) {
-    fputs("Usage: wifi [usb|onboard] scan | connect SSID [password|--ask] | status | disconnect | on | off | auto | phy-stats\n", stderr);
+    fputs("Usage: wifi [usb|onboard] scan | connect SSID [password|--ask] | status | disconnect | on | off | auto | phy-stats [--cached]\n", stderr);
 }
 
 int main(int argc, char **argv) {
@@ -546,6 +588,8 @@ int main(int argc, char **argv) {
         result = wifi_connect(fd, argc, argv, false);
     } else if (!strcmp(argv[1], "auto") && argc == 2) {
         result = wifi_connect(fd, argc, argv, true);
+    } else if (!strcmp(argv[1], "phy-stats") && argc == 3 && !strcmp(argv[2], "--cached")) {
+        result = wifi_phy_cached(fd);
     } else if (!strcmp(argv[1], "phy-stats") && argc == 2) {
         result = wifi_phy_stats(fd);
     } else if (!strcmp(argv[1], "status") && argc == 2) {
