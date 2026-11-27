@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Synapse Link
+Comment=Связь с телефоном по USB
+Exec=/bin/synapse-link
+Categories=Utility;
+Terminal=false

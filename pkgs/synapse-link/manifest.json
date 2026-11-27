@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "name": "synapse-link",
+  "version": "0.1.0-r1",
+  "description": "Подключение телефона с SynapseOS по USB",
+  "kind": "application",
+  "arch": "x86_64",
+  "abi": "synapse-x86_64-v1",
+  "depends": [
+    "qt6-base",
+    "qt6-wayland",
+    "weston",
+    "synapse-link-driver"
+  ],
+  "conflicts": [],
+  "files": []
+}

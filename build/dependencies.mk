@@ -97,6 +97,7 @@ $(BUILD_ROOT)/sdl2/.built: $(ROOT)/pkgs/mindustry-desktop/SDL_synapsevideo.c
 $(BUILD_ROOT)/qt6-llvm-runtime/.built: $(ROOT)/pkgs/qt6-base/runtime.sh
 $(BUILD_ROOT)/qt6-base/.built: $(BUILD_ROOT)/weston/.built $(BUILD_ROOT)/opengl/.built $(BUILD_ROOT)/qt6-llvm-runtime/.built $(ROOT)/build/cxx-shared.sh
 $(BUILD_ROOT)/qt6-wayland/.built: $(BUILD_ROOT)/qt6-base/.built
+$(BUILD_ROOT)/synapse-link/.built: $(BUILD_ROOT)/qt6-wayland/.built $(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
 $(BUILD_ROOT)/synapse-files/.built: $(BUILD_ROOT)/qt6-wayland/.built $(ROOT)/pkgs/qt6-base/launch.c $(ROOT)/build/cxx-shared.sh
 ifneq ($(and $(filter aarch64,$(TARGET_ARCH)),$(strip $(ARM64_DESKTOP_SYSROOT)),$(strip $(ARM64_DESKTOP_TREE))),)
 # Для уже подготовленного сеанса использовать его AArch64 SDK и приложения.
