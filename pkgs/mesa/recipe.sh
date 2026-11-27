@@ -2,8 +2,25 @@
 # Автор: Елчинян Арен Артурович, 2026
 # Архитектура: x86_64, ABI: synapse-x86_64-v1
 # Подсистема: сборка пакетов
-# Первое изменение: 18.10.2026, последнее изменение: 24.11.2026
+# Первое изменение: 18.10.2026, последнее изменение: 27.11.2026
 # Статус доступа: общедоступный
+
+mako_available() {
+	"$1" -c 'import markupsafe; from importlib.metadata import version; assert tuple(map(int, version("Mako").split(".")[:3])) >= (0, 8, 0)' 2>/dev/null
+}
+
+if ! mako_available python3; then
+	host_venv="$BUILD_ROOT/host-venv"
+	if [[ ! -x $host_venv/bin/python ]]; then
+		python3 -m venv "$host_venv"
+	fi
+	if ! mako_available "$host_venv/bin/python"; then
+		"$host_venv/bin/python" -m pip install --disable-pip-version-check \
+			'Mako==1.3.10' 'MarkupSafe==3.0.4'
+	fi
+	host_site=$("$host_venv/bin/python" -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+	export PYTHONPATH="$host_site${PYTHONPATH:+:$PYTHONPATH}"
+fi
 
 fetch "$(jq -r .source "$spec")" "$(jq -r .sha256 "$spec")" "$work/mesa.tar.xz"
 source="$work/mesa-24.3.4"
@@ -87,7 +104,7 @@ exec env LD_LIBRARY_PATH='$BUILD_ROOT/openjdk/source/usr/lib:$work/llvm/root/usr
     '$work/llvm/root/usr/lib/llvm19/bin/llvm-config' "\$@"
 LLVM
 chmod 755 "$work/llvm-config"
-cat >"$work/cross.ini" <<CROSS
+cat >"$work/cross.ini.new" <<CROSS
 [binaries]
 c = ['env', 'SYNAPSE_LINK_MODE=dynamic', '$CC']
 cpp = ['env', 'SYNAPSE_LINK_MODE=dynamic', '$work/cxx']
@@ -103,6 +120,11 @@ endian = 'little'
 [properties]
 needs_exe_wrapper = true
 CROSS
+if ! cmp -s "$work/cross.ini.new" "$work/cross.ini"; then
+	mv "$work/cross.ini.new" "$work/cross.ini"
+else
+	rm "$work/cross.ini.new"
+fi
 
 export LLVM_CONFIG="$work/llvm-config"
 c_args="-D_GNU_SOURCE -isystem $(gcc -print-file-name=include)"
