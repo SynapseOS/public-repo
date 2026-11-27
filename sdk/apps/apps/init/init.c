@@ -5,7 +5,7 @@
 // Настройка аккаунтов, терминалов, сети и запуск служб
 // Подсистема: init
 // Первое изменение в истории Git: 09.10.2026
-// Последнее изменение: 23.11.2026
+// Последнее изменение: 25.11.2026
 // Доступ: общедоступный
 
 #define _GNU_SOURCE
@@ -36,6 +36,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <poll.h>
 #include "../common/service_log.h"
 #include "dns-refresh.h"
 
@@ -61,8 +62,28 @@ extern char **environ;
 #define ANSI_WHITE "\033[97m"
 
 #define MAX_DNS_SERVERS 16
+#define MAX_NET_EXTRAS 7
+#define MAX_NET_ROUTES 16
 #define INI_MAX_LINE 512
 #define INI_MAX_SECTION 64
+
+// Дополнительный статический интерфейс из секции [Network.N]
+struct syn_net_extra {
+    int configured;
+    int ifindex;
+    char ip[64];
+    char subnet[64];
+    char gateway[64];
+};
+
+// Маршрут из секции [Route.N], шлюз может отсутствовать для on-link записи
+struct syn_net_route {
+    int configured;
+    char destination[64];
+    char gateway[64];
+    char interface[64];
+    long metric;
+};
 
 typedef struct {
     char hostname[256];
@@ -82,6 +103,8 @@ typedef struct {
     char net_ip[64];
     char net_subnet[64];
     char net_gateway[64];
+    struct syn_net_extra net_extras[MAX_NET_EXTRAS];
+    struct syn_net_route net_routes[MAX_NET_ROUTES];
     char dns_servers[MAX_DNS_SERVERS][64];
     int dns_count;
     int dns_explicit;
@@ -348,6 +371,38 @@ static int synapse_config_handler(void *user, const char *section, const char *k
             strncpy(cfg->net_subnet, value, sizeof(cfg->net_subnet) - 1);
         } else if (strcmp(key, "Gateway") == 0) {
             strncpy(cfg->net_gateway, value, sizeof(cfg->net_gateway) - 1);
+        }
+    } else if (!strncmp(section, "Network.", 8)) {
+        // Секции [Network.2]..[Network.8] описывают дополнительные статические адреса
+        int slot = atoi(section + 8) - 2;
+        if (slot >= 0 && slot < MAX_NET_EXTRAS) {
+            struct syn_net_extra *extra = &cfg->net_extras[slot];
+            extra->configured = 1;
+            if (strcmp(key, "Interface") == 0) {
+                extra->ifindex = atoi(value);
+            } else if (strcmp(key, "IP") == 0) {
+                strncpy(extra->ip, value, sizeof(extra->ip) - 1);
+            } else if (strcmp(key, "Subnet") == 0) {
+                strncpy(extra->subnet, value, sizeof(extra->subnet) - 1);
+            } else if (strcmp(key, "Gateway") == 0) {
+                strncpy(extra->gateway, value, sizeof(extra->gateway) - 1);
+            }
+        }
+    } else if (!strncmp(section, "Route.", 6)) {
+        // Секции [Route.1]..[Route.16] описывают дополнительные IPv4-маршруты
+        int slot = atoi(section + 6) - 1;
+        if (slot >= 0 && slot < MAX_NET_ROUTES) {
+            struct syn_net_route *route = &cfg->net_routes[slot];
+            route->configured = 1;
+            if (strcmp(key, "Destination") == 0) {
+                strncpy(route->destination, value, sizeof(route->destination) - 1);
+            } else if (strcmp(key, "Gateway") == 0) {
+                strncpy(route->gateway, value, sizeof(route->gateway) - 1);
+            } else if (strcmp(key, "Interface") == 0) {
+                strncpy(route->interface, value, sizeof(route->interface) - 1);
+            } else if (strcmp(key, "Metric") == 0) {
+                route->metric = strtol(value, NULL, 10);
+            }
         }
     } else if (strcmp(section, "DNS") == 0) {
         if (cfg->dns_count < MAX_DNS_SERVERS) {
@@ -1500,23 +1555,242 @@ static inline char *get_mode(long long free_memory) {
     }
 }
 
-static void configure_network(const syn_cfg_t *config) {
-    if (strcasecmp(config->net_mode, "Static")) {
-        return;
+// Найти индекс интерфейса SynAPI по номеру или имени
+// Номера в настройках отсчитываются с нуля, как у syscall 106001
+static int network_iface_index(const char *text) {
+    if (!text || !*text) {
+        return -1;
     }
 
-    struct in_addr address[3];
-    if (inet_pton(AF_INET, config->net_ip, &address[0]) != 1 ||
-        inet_pton(AF_INET, config->net_subnet, &address[1]) != 1 ||
-        inet_pton(AF_INET, config->net_gateway, &address[2]) != 1) {
-        fprintf(stderr, "[init] invalid static IPv4 configuration\n");
-        return;
+    char *end = NULL;
+    long numeric = strtol(text, &end, 10);
+    if (end != text && !*end && numeric >= 0) {
+        long count = syscall(106000);
+        if (numeric < count) {
+            return (int)numeric;
+        }
+        return -1;
     }
-    if (syscall(106024, config->net_interface, address) < 0) {
-        fprintf(stderr, "[init] cannot configure static IPv4\n");
-    } else {
-        printf("[init] static IPv4: %s mask %s gateway %s\n", config->net_ip,
-               config->net_subnet, config->net_gateway);
+
+    long count = syscall(106000);
+    for (long i = 0; i < count; i++) {
+        char name[64] = {0};
+        if (syscall(106001, i, name, sizeof(name)) >= 0 && !strcmp(name, text)) {
+            return (int)i;
+        }
+    }
+    return -1;
+}
+
+// Записать целое в байтовый буфер без выравнивания
+static void netlink_put32(uint8_t *out, uint32_t value) {
+    out[0] = (uint8_t)value;
+    out[1] = (uint8_t)(value >> 8);
+    out[2] = (uint8_t)(value >> 16);
+    out[3] = (uint8_t)(value >> 24);
+}
+
+static void netlink_put16(uint8_t *out, uint16_t value) {
+    out[0] = (uint8_t)value;
+    out[1] = (uint8_t)(value >> 8);
+}
+
+// Добавить один IPv4-маршрут через NETLINK_ROUTE RTM_NEWROUTE
+// Индекс ifindex в netlink отсчитывается с единицы, у SynAPI с нуля
+// Возвращает 0 при успехе, положительный errno от ядра или -1 при сбое обмена
+static int netlink_add_route(uint32_t destination, int prefix, int oif, uint32_t gateway,
+                             int has_gateway, uint32_t metric) {
+    uint8_t message[256];
+    memset(message, 0, sizeof(message));
+
+    size_t length = 28;
+    netlink_put32(message, (uint32_t)length); // nlmsg_len уточняется после атрибутов
+    netlink_put16(message + 4, 24);          // RTM_NEWROUTE
+    netlink_put16(message + 6, 0x0505);      // REQUEST|ACK|CREATE|REPLACE
+    netlink_put32(message + 8, 1);           // nlmsg_seq
+    message[16] = 2;                         // AF_INET
+    message[17] = (uint8_t)prefix;           // rtm_dst_len
+    message[20] = 254;                       // RT_TABLE_MAIN
+    message[21] = 4;                         // RTPROT_STATIC
+    message[22] = has_gateway ? 0 : 253;     // RT_SCOPE_UNIVERSE или RT_SCOPE_LINK
+    message[23] = 1;                         // RTN_UNICAST
+
+    size_t offset = length;
+    // RTA_DST
+    netlink_put16(message + offset, 8);
+    netlink_put16(message + offset + 2, 1);
+    memcpy(message + offset + 4, &destination, 4);
+    offset += 8;
+    // RTA_OIF, публичный индекс на единицу больше внутреннего
+    netlink_put16(message + offset, 8);
+    netlink_put16(message + offset + 2, 4);
+    netlink_put32(message + offset + 4, (uint32_t)oif + 1);
+    offset += 8;
+    if (has_gateway) {
+        // RTA_GATEWAY
+        netlink_put16(message + offset, 8);
+        netlink_put16(message + offset + 2, 5);
+        memcpy(message + offset + 4, &gateway, 4);
+        offset += 8;
+    }
+    if (metric) {
+        // RTA_PRIORITY
+        netlink_put16(message + offset, 8);
+        netlink_put16(message + offset + 2, 6);
+        netlink_put32(message + offset + 4, metric);
+        offset += 8;
+    }
+    netlink_put32(message, (uint32_t)offset);
+
+    int fd = socket(16, SOCK_RAW | SOCK_CLOEXEC, 0); // AF_NETLINK, NETLINK_ROUTE
+    if (fd < 0) {
+        perror("[init] netlink socket");
+        return -1;
+    }
+
+    ssize_t sent = send(fd, message, offset, 0);
+    if (sent != (ssize_t)offset) {
+        perror("[init] netlink send");
+        close(fd);
+        return -1;
+    }
+
+    uint8_t reply[512];
+    struct pollfd pfd = {fd, POLLIN, 0};
+    int ready = poll(&pfd, 1, 3000);
+    ssize_t got = ready > 0 ? recv(fd, reply, sizeof(reply), 0) : -1;
+    close(fd);
+    if (got < 16) {
+        fprintf(stderr, "[init] netlink route acknowledgement missing\n");
+        return -1;
+    }
+
+    uint32_t reply_length = (uint32_t)reply[0] | ((uint32_t)reply[1] << 8) |
+                            ((uint32_t)reply[2] << 16) | ((uint32_t)reply[3] << 24);
+    uint16_t reply_type = (uint16_t)((uint16_t)reply[4] | ((uint16_t)reply[5] << 8));
+    if (reply_type != 2 || reply_length < 20 || reply_length > (uint32_t)got) {
+        fprintf(stderr, "[init] unexpected netlink reply\n");
+        return -1;
+    }
+
+    int32_t error = (int32_t)((uint32_t)reply[16] | ((uint32_t)reply[17] << 8) |
+                              ((uint32_t)reply[18] << 16) | ((uint32_t)reply[19] << 24));
+    if (error != 0) {
+        return error < 0 ? -error : EINVAL;
+    }
+    return 0;
+}
+
+// Применить один маршрут [Route.N], destination задаётся в виде CIDR
+static int configure_static_route(const struct syn_net_route *route) {
+    char ip_text[64];
+    snprintf(ip_text, sizeof(ip_text), "%s", route->destination);
+    char *slash = strchr(ip_text, '/');
+    int prefix = -1;
+    if (slash) {
+        *slash = 0;
+        prefix = atoi(slash + 1);
+    }
+    if (prefix < 0 || prefix > 32) {
+        fprintf(stderr, "[init] invalid route destination %s\n", route->destination);
+        return -1;
+    }
+
+    struct in_addr destination;
+    if (inet_pton(AF_INET, ip_text, &destination) != 1) {
+        fprintf(stderr, "[init] invalid route address %s\n", route->destination);
+        return -1;
+    }
+
+    // Ядро принимает только адрес сети, отбрасываем хостовые биты
+    uint32_t host = ntohl(destination.s_addr);
+    uint32_t mask = prefix == 0 ? 0U : 0xffffffffU << (32 - prefix);
+    destination.s_addr = htonl(host & mask);
+
+    int oif = network_iface_index(route->interface);
+    if (oif < 0) {
+        fprintf(stderr, "[init] unknown route interface %s\n", route->interface);
+        return -1;
+    }
+
+    uint32_t gateway = 0;
+    int has_gateway = route->gateway[0] != 0;
+    if (has_gateway) {
+        struct in_addr gw;
+        if (inet_pton(AF_INET, route->gateway, &gw) != 1) {
+            fprintf(stderr, "[init] invalid route gateway %s\n", route->gateway);
+            return -1;
+        }
+        gateway = gw.s_addr;
+    }
+
+    // Статический адрес применяется сетевым потоком асинхронно, поэтому при
+    // ENETDOWN повторяем отправку, пока интерфейс не получит адрес
+    int result = -1;
+    for (int attempt = 0; attempt < 30; attempt++) {
+        result = netlink_add_route(destination.s_addr, prefix, oif, gateway, has_gateway,
+                                   (uint32_t)route->metric);
+        if (result == 0) {
+            break;
+        }
+        if (result != ENETDOWN) {
+            break;
+        }
+        usleep(100000);
+    }
+    if (result != 0) {
+        if (result > 0) {
+            fprintf(stderr, "[init] route %s/%d via %s failed: %s\n", ip_text, prefix,
+                    route->interface, strerror(result));
+        }
+        return -1;
+    }
+    printf("[init] route %s/%d dev %s%s%s\n", ip_text, prefix, route->interface,
+           has_gateway ? " via " : "", has_gateway ? route->gateway : "");
+    return 0;
+}
+
+static void configure_network(const syn_cfg_t *config) {
+    if (strcasecmp(config->net_mode, "Static") == 0) {
+        struct in_addr address[3];
+        if (inet_pton(AF_INET, config->net_ip, &address[0]) != 1 ||
+            inet_pton(AF_INET, config->net_subnet, &address[1]) != 1 ||
+            inet_pton(AF_INET, config->net_gateway, &address[2]) != 1) {
+            fprintf(stderr, "[init] invalid static IPv4 configuration\n");
+        } else if (syscall(106024, config->net_interface, address) < 0) {
+            fprintf(stderr, "[init] cannot configure static IPv4\n");
+        } else {
+            printf("[init] static IPv4: %s mask %s gateway %s\n", config->net_ip,
+                   config->net_subnet, config->net_gateway);
+        }
+    }
+
+    // Дополнительные статические интерфейсы из [Network.N]
+    for (int i = 0; i < MAX_NET_EXTRAS; i++) {
+        const struct syn_net_extra *extra = &config->net_extras[i];
+        if (!extra->configured) {
+            continue;
+        }
+        struct in_addr address[3];
+        const char *gateway = extra->gateway[0] ? extra->gateway : "0.0.0.0";
+        if (inet_pton(AF_INET, extra->ip, &address[0]) != 1 ||
+            inet_pton(AF_INET, extra->subnet, &address[1]) != 1 ||
+            inet_pton(AF_INET, gateway, &address[2]) != 1 ||
+            syscall(106024, extra->ifindex, address) < 0) {
+            fprintf(stderr, "[init] cannot configure extra static IPv4 on interface %d\n",
+                    extra->ifindex);
+            continue;
+        }
+        printf("[init] static IPv4: %s mask %s gateway %s on interface %d\n",
+               extra->ip, extra->subnet, gateway, extra->ifindex);
+    }
+
+    // Дополнительные маршруты из [Route.N], включая on-link записи без шлюза
+    for (int i = 0; i < MAX_NET_ROUTES; i++) {
+        const struct syn_net_route *route = &config->net_routes[i];
+        if (route->configured) {
+            (void)configure_static_route(route);
+        }
     }
 }
 
