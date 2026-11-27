@@ -7,7 +7,9 @@
 
 #include <QApplication>
 #include <QByteArray>
+#include <QCheckBox>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDateTime>
 #include <QFile>
 #include <QFont>
@@ -15,6 +17,8 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
+#include <QLocale>
 #include <QMessageBox>
 #include <QProcess>
 #include <QPushButton>
@@ -26,6 +30,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <pwd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -108,18 +113,27 @@ int main(int argc, char **argv) {
     window.setWindowTitle(QStringLiteral("Вход в SynapseOS"));
     window.setWindowFlags(Qt::FramelessWindowHint);
     window.setStyleSheet(QStringLiteral(
-        "#loginScreen { border-image: url(/usr/share/backgrounds/synapse/Desktop-dark.png) 0 0 0 0 stretch stretch; }"
+        "#loginScreen { background-color: #333333; }"
         "QWidget { color: #ffffff; font-size: 15px; }"
-        "#loginCard { background-color: #104974; border: 1px solid #8fa6b2; }"
-        "QLineEdit { background: #ffffff; color: #30363a; border: 1px solid #aab7be;"
+        "#loginCard { background-color: #185c91; border: 1px solid #d8e2e7; }"
+        "QLineEdit, QComboBox { background: #ffffff; color: #30363a; border: 1px solid #aab7be;"
         " padding: 10px 12px; selection-background-color: #006699; border-radius: 0; }"
-        "QLineEdit:focus { border: 2px solid #b25e00; }"
+        "QLineEdit:focus, QComboBox:focus { border: 2px solid #b25e00; }"
+        "QListWidget { background: #104974; border: 1px solid #8fa6b2; border-radius: 0; padding: 4px; }"
+        "QListWidget::item { padding: 7px 10px; }"
+        "QListWidget::item:hover { background: #1d6a9f; }"
+        "QListWidget::item:selected { background: #006699; }"
+        "QCheckBox { spacing: 8px; }"
         "QPushButton { background: #006699; color: #ffffff; border: 1px solid #8fc3e8;"
         " padding: 10px; font-weight: bold; border-radius: 0; }"
-        "QPushButton:hover { background: #185c91; }"
+        "QPushButton:hover { background: #1d6a9f; }"
         "QPushButton:focus { border: 2px solid #b25e00; }"
-        "#powerButton { background: #104974; border: 1px solid #8fa6b2; padding: 9px; }"
-        "#powerButton:hover { background: #185c91; }"));
+        "#utilityButton { background: #104974; border: 1px solid #8fa6b2; padding: 7px 10px; font-weight: normal; }"
+        "#detailsButton { background: transparent; border: 0; color: #d9eaf4; padding: 0;"
+        " font-weight: normal; text-decoration: underline; }"
+        "#detailsButton:hover { color: #ffffff; }"
+        "#powerButton { background: #185c91; border: 1px solid #8fa6b2; padding: 9px; }"
+        "#powerButton:hover { background: #1d6a9f; }"));
 
     auto *root = new QVBoxLayout(&window);
     root->setContentsMargins(40, 28, 40, 28);
@@ -154,15 +168,89 @@ int main(int argc, char **argv) {
     form->addRow(QStringLiteral("Пароль"), password);
     layout->addLayout(form);
 
+    auto *detailsButton = new QPushButton(QStringLiteral("Дополнительно"), card);
+    detailsButton->setObjectName(QStringLiteral("detailsButton"));
+    layout->addWidget(detailsButton, 0, Qt::AlignRight);
+
+    auto *details = new QWidget(card);
+    auto *detailsLayout = new QVBoxLayout(details);
+    detailsLayout->setContentsMargins(0, 0, 0, 0);
+    detailsLayout->setSpacing(9);
+    auto *detailsForm = new QFormLayout();
+    auto *session = new QComboBox(details);
+    session->addItem(QStringLiteral("Desktop Wayland"));
+    session->setEnabled(false);
+    session->setToolTip(QStringLiteral("Другие графические сеансы не установлены"));
+    session->setMinimumHeight(38);
+    detailsForm->addRow(QStringLiteral("Сеанс"), session);
+    detailsLayout->addLayout(detailsForm);
+
+    auto *options = new QHBoxLayout();
+    auto *showPassword = new QCheckBox(QStringLiteral("Показать пароль"), details);
+    auto *keyboard = new QPushButton(QStringLiteral("Клавиатура"), details);
+    keyboard->setObjectName(QStringLiteral("utilityButton"));
+    options->addWidget(showPassword);
+    options->addStretch();
+    options->addWidget(keyboard);
+    detailsLayout->addLayout(options);
+
+    auto *accountsTitle = new QLabel(QStringLiteral("Пользователи"), details);
+    detailsLayout->addWidget(accountsTitle);
+    auto *accounts = new QListWidget(details);
+    accounts->setFixedHeight(82);
+    accounts->setSpacing(1);
+    setpwent();
+    for (passwd *entry = getpwent(); entry != nullptr; entry = getpwent()) {
+        const QString shell = QString::fromUtf8(entry->pw_shell != nullptr ? entry->pw_shell : "");
+        if (entry->pw_uid < 1000 || shell.contains(QStringLiteral("nologin")) ||
+            shell.endsWith(QStringLiteral("/false"))) {
+            continue;
+        }
+        const QString name = QString::fromUtf8(entry->pw_name);
+        const QString fullName = QString::fromUtf8(entry->pw_gecos != nullptr ? entry->pw_gecos : "")
+            .section(QLatin1Char(','), 0, 0).trimmed();
+        auto *item = new QListWidgetItem(fullName.isEmpty() ? name :
+            fullName + QStringLiteral(" · ") + name, accounts);
+        item->setData(Qt::UserRole, name);
+    }
+    endpwent();
+    QString lastUser;
+    QFile lastUserFile(QStringLiteral("/var/lib/synapse-session/last-user"));
+    if (lastUserFile.open(QIODevice::ReadOnly)) {
+        lastUser = QString::fromUtf8(lastUserFile.read(64)).trimmed();
+    }
+    for (int index = 0; index < accounts->count(); index++) {
+        if (accounts->item(index)->data(Qt::UserRole).toString() == lastUser) {
+            accounts->setCurrentRow(index);
+            user->setText(lastUser);
+            break;
+        }
+    }
+    if (user->text().isEmpty() && accounts->count() == 1) {
+        accounts->setCurrentRow(0);
+        user->setText(accounts->item(0)->data(Qt::UserRole).toString());
+    }
+    detailsLayout->addWidget(accounts);
+    details->setVisible(false);
+    layout->addWidget(details);
+
     auto *error = new QLabel(card);
     error->setWordWrap(true);
-    error->setMinimumHeight(28);
+    error->setMinimumHeight(24);
     error->setStyleSheet(QStringLiteral("color: #ffcece;"));
     layout->addWidget(error);
 
     auto *submit = new QPushButton(QStringLiteral("Войти"), card);
     submit->setMinimumHeight(46);
     layout->addWidget(submit);
+
+    QObject::connect(detailsButton, &QPushButton::clicked, card, [=]() {
+        const bool expanded = !details->isVisible();
+        details->setVisible(expanded);
+        detailsButton->setText(expanded ? QStringLiteral("Скрыть дополнительно") :
+            QStringLiteral("Дополнительно"));
+        card->setFixedHeight(expanded ? 610 : 370);
+    });
     center->addWidget(card);
     center->addStretch();
     root->addLayout(center);
@@ -172,7 +260,8 @@ int main(int argc, char **argv) {
     auto *clock = new QLabel(&window);
     clock->setStyleSheet(QStringLiteral("font-size: 15px; color: #ffffff;"));
     auto updateClock = [clock]() {
-        clock->setText(QDateTime::currentDateTime().toString(QStringLiteral("dd MMMM yyyy, HH:mm")));
+        const QLocale locale(QStringLiteral("ru_RU"));
+        clock->setText(locale.toString(QDateTime::currentDateTime(), QStringLiteral("d MMMM yyyy, HH:mm")));
     };
     updateClock();
     auto *timer = new QTimer(&window);
@@ -189,6 +278,25 @@ int main(int argc, char **argv) {
     footer->addWidget(shutdown);
     footer->addWidget(reboot);
     root->addLayout(footer);
+
+    QObject::connect(showPassword, &QCheckBox::toggled, password, [password](bool shown) {
+        password->setEchoMode(shown ? QLineEdit::Normal : QLineEdit::Password);
+    });
+    QObject::connect(accounts, &QListWidget::currentItemChanged, &window,
+        [user, password](QListWidgetItem *current, QListWidgetItem *) {
+            if (current == nullptr) {
+                return;
+            }
+            user->setText(current->data(Qt::UserRole).toString());
+            password->setFocus();
+        });
+    QObject::connect(keyboard, &QPushButton::clicked, &window, [error]() {
+        const QString path = QStringLiteral("/usr/libexec/labwc/deck-keyboard");
+        if (access(QFile::encodeName(path).constData(), X_OK) != 0 ||
+            !QProcess::startDetached(path, {})) {
+            error->setText(QStringLiteral("Экранная клавиатура недоступна"));
+        }
+    });
 
     auto power = [&window, error](bool restart) {
         const QString question = restart ? QStringLiteral("Перезагрузить компьютер?") :
@@ -234,7 +342,11 @@ int main(int argc, char **argv) {
 
     QObject::connect(password, &QLineEdit::returnPressed, submit, &QPushButton::click);
     window.showFullScreen();
-    user->setFocus();
+    if (user->text().isEmpty()) {
+        user->setFocus();
+    } else {
+        password->setFocus();
+    }
     const int result = application.exec();
     close(channel);
     return result;

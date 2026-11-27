@@ -423,6 +423,24 @@ static bool run_user_session(const struct session_account *account) {
     return cleaned;
 }
 
+// Сохранить последнего пользователя для следующего окна входа
+static void save_last_user(const char *name) {
+    if (mkdir("/var/lib/synapse-session", 0700) != 0 && errno != EEXIST) {
+        return;
+    }
+
+    int file = open("/var/lib/synapse-session/last-user", O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    if (file < 0) {
+        return;
+    }
+
+    size_t length = strlen(name);
+    if (write(file, name, length) == (ssize_t)length) {
+        fsync(file);
+    }
+    close(file);
+}
+
 // Повторять вход после выхода из рабочего стола, сохраняя root только у менеджера
 int main(void) {
     if (geteuid() != 0) {
@@ -476,6 +494,7 @@ int main(void) {
             continue;
         }
 
+        save_last_user(account.name);
         if (!set_device_owner(account.uid, account.gid) || !set_seat_owner(account.uid)) {
             set_seat_owner(0);
             set_device_owner(0, 0);
