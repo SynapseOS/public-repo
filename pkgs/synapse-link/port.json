@@ -1,7 +1,7 @@
 {
   "name": "synapse-link",
-  "version": "0.1.0-r1",
-  "description": "Подключение телефона с SynapseOS по USB",
+  "version": "0.2.0-r1",
+  "description": "Установка и обновление приложений SynapseOS Phone по USB",
   "build_system": "recipe",
   "status": "experimental",
   "upstream_license": "NOASSERTION"

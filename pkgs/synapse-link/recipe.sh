@@ -19,6 +19,7 @@ mkdir -p "$payload/usr/libexec/qt6" "$payload/bin" "$payload/usr/share/applicati
 
 "${cxx[@]}" -std=c++20 -O2 -Wall -Wextra -Werror -D__synapse__ \
     -I"$port" \
+    -I"$ROOT/sdk/include" \
     -I"$qt/usr/include/qt6" \
     -I"$qt/usr/include/qt6/QtWidgets" \
     -I"$qt/usr/include/qt6/QtGui" \
